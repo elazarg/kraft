@@ -1,9 +1,10 @@
 import Mathlib.Data.List.Basic
+import Mathlib.Data.Finset.Card
 
 -- We treat "Words" as lists of booleans (bits)
 abbrev Word := List Bool
 -- A "Code" is a set of Words
-abbrev Code := Set Word
+abbrev Code := Finset Word
 
 /-! ## Definitions -/
 
@@ -26,7 +27,18 @@ def UniquelyDecodable (S : Code) : Prop :=
     L₁.flatten = L₂.flatten →  -- They form the same target string
     L₁ = L₂                    -- Conclusion: The decompositions are identical
 
-/-! ## The Main Theorem -/
+
+lemma flatten_eq_nil_of_no_empty
+    {L : List Word}
+    (h_no_empty : ∀ w ∈ L, w ≠ ([] : Word))
+    (h_flat : L.flatten = ([] : Word)) :
+    L = [] := by
+  cases L with
+  | nil => rfl
+  | cons w L' =>
+    simp at h_flat  -- h_flat : w = [] ∧ L'.flatten = []
+    have hw : w ≠ [] := h_no_empty _ (by simp)
+    exact (hw h_flat.1).elim
 
 -- If you join a list of words and get nothing,
 -- and the code doesn't allow empty words,
@@ -35,37 +47,32 @@ lemma flatten_eq_nil_of_no_empty_word {S : Code} {L : List Word}
     (h_eps : [] ∉ S)
     (h_in : ∀ w ∈ L, w ∈ S)
     (h_flat : L.flatten = []) :
-    L = [] := by
-  cases L with
-  | nil => rfl
-  | cons w L' =>
-    -- If L is (w :: L'), then w ++ L'.flatten = [].
-    -- This implies w = [].
-    simp at h_flat
-    have w_empty : w = [] := h_flat.1
-    -- But w must be in S, and S doesn't allow [], so contradiction.
-    have w_in_S : w ∈ S := h_in w (by simp)
-    rw [w_empty] at w_in_S
-    contradiction
+    L = [] :=
+  flatten_eq_nil_of_no_empty
+    (by
+      intro w hw
+      have hwS : w ∈ S := h_in w hw
+      intro hw_nil
+      apply h_eps
+      simpa [hw_nil] using hwS)
+    h_flat
+
 
 /--
 If a list starts with a non-empty word, the flattened tail is strictly
 shorter than the whole flattened list.
 -/
-lemma length_flatten_tail_lt_cons {S : Code} {w : Word} {L : List Word}
-    (h_eps : [] ∉ S) (h_in : w ∈ S) :
+lemma length_flatten_tail_lt_cons {w : Word} {L : List Word}
+    (hw : w ≠ []) :
     L.flatten.length < (w :: L).flatten.length := by
-  simp only [List.flatten_cons, List.length_append]
-  apply Nat.lt_add_of_pos_left
-  apply List.length_pos_of_ne_nil
-  intro h_nil
-  -- Contradiction: w cannot be empty because it is in S
-  apply h_eps
-  rw [←h_nil]
-  exact h_in
+  have hw_pos : 0 < w.length := by
+    apply List.length_pos_of_ne_nil
+    exact hw
+  simp [List.flatten_cons, Nat.lt_add_of_pos_left hw_pos]
+
 
 /--
-Geometric intuition: If two rows of tiles have the same total length,
+Intuition: If two rows of tiles have the same total length,
 and the first tile of the top row is shorter than the first tile of the bottom row,
 then the top tile is a prefix of the bottom tile.
 -/
@@ -87,7 +94,8 @@ lemma prefix_of_append_le {α : Type} {a b c d : List α}
   -- 4. So a = c.take a.length.
   -- Taking the first n characters of c is always a prefix of c.
   rw [ha]
-  apply List.take_prefix
+  exact (List.take_prefix _ _)
+
 
 /-- Theorem 3.4: A prefix-free code (without empty word) is uniquely decodable. -/
 theorem prefix_free_implies_uniquely_decodable
@@ -131,7 +139,7 @@ theorem prefix_free_implies_uniquely_decodable
           -- Simplify the flatten equality: (w₁ ++ L₁'.flatten) = (z₁ ++ L₂'.flatten)
           simp only [List.flatten_cons] at *
           wlog h_len : w₁.length ≤ z₁.length generalizing w₁ z₁ L₁' L₂'
-          · -- ⊢ `w₁ :: L₁' = z₁ :: L₂'`
+          · -- ⊢ w₁ :: L₁' = z₁ :: L₂'
             symm
             -- Now apply the theorem ("this") with variables SWAPPED
             apply this _ _ hS₂ _ _ _ hS₁ _
@@ -144,7 +152,7 @@ theorem prefix_free_implies_uniquely_decodable
               symm
               exact h_join_eq
           · -- Assume wlog that |w₁| ≤ |z₁|
-            -- 1. Use prefix_of_append_le to prove w₁ = z₁
+            -- 1. prove w₁ = z₁
             have h_eq_wz : w₁ = z₁ := by
               apply h_pf _ (hS₁ _ (by simp)) _ (hS₂ _ (by simp))
               apply prefix_of_append_le h_join_eq h_len
@@ -154,14 +162,18 @@ theorem prefix_free_implies_uniquely_decodable
             -- ⊢ w₁ :: L₁' = w₁ :: L₂'
             -- "Subtract" w₁ from the equation
             simp
+
             -- ⊢ L₁' = L₂'
             -- 3. Finally,  we can apply the Induction Hypothesis
             apply ih L₁'.flatten.length _ L₁' L₂' _ _ _ (by rfl)
             · -- Prove strictly smaller length
               subst n
               -- ⊢ L₁'.flatten.length < (w₁ ++ L₁'.flatten).length
-              apply length_flatten_tail_lt_cons h_eps (hS₁ _ _)
-              apply List.mem_cons_self
+              apply length_flatten_tail_lt_cons
+              intro h_nil
+              have w₁_in_S : w₁ ∈ S := hS₁ _ (by simp)
+              have : ([] : Word) ∈ S := by simpa [h_nil] using w₁_in_S
+              exact h_eps this
             · -- Prove L₁' is a valid code
               -- ⊢ ∀ (w : Word), w ∈ L₁' → w ∈ S
               intro w hw; apply hS₁; exact List.mem_cons_of_mem _ hw
@@ -171,3 +183,32 @@ theorem prefix_free_implies_uniquely_decodable
             · -- ⊢ L₁'.flatten = L₂'.flatten
               simp only [List.append_cancel_left_eq] at h_join_eq
               exact h_join_eq
+
+lemma prefix_free_of_card_eps_le_1
+  (S : Code)
+  (h_pf : PrefixFree S)
+  (h_eps : [] ∈ S) :
+  S.card ≤ 1 := by
+  apply Finset.card_le_one_iff.mpr
+  intro a b ha hb
+  -- In a prefix-free code containing `[]`, every element must be `[]`
+  have h_a : [] = a := h_pf [] h_eps a ha List.nil_prefix
+  have h_b : [] = b := h_pf [] h_eps b hb List.nil_prefix
+  subst h_a h_b
+  rfl
+
+/-- Corollary 3.2:
+      If a finite set S of words is prefix-free and |S| ≥ 2
+      then it is uniquely decodable.
+-/
+theorem prefix_free_of_card_ge_2_implies_UD
+  (S : Code)
+  (h_pf : PrefixFree S)
+  (h_size : 2 ≤ S.card) :
+  UniquelyDecodable S := by
+
+  apply prefix_free_implies_uniquely_decodable S h_pf
+  intro h_eps
+  have h_le_one : S.card ≤ 1 := prefix_free_of_card_eps_le_1 S h_pf h_eps
+  -- Contradiction: 2 ≤ S.card ≤ 1
+  omega
