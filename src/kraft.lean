@@ -49,6 +49,22 @@ lemma flatten_eq_nil_of_no_empty_word {S : Code} {L : List Word}
     contradiction
 
 /--
+If a list starts with a non-empty word, the flattened tail is strictly
+shorter than the whole flattened list.
+-/
+lemma length_flatten_tail_lt_cons {S : Code} {w : Word} {L : List Word}
+    (h_eps : [] ∉ S) (h_in : w ∈ S) :
+    L.flatten.length < (w :: L).flatten.length := by
+  simp only [List.flatten_cons, List.length_append]
+  apply Nat.lt_add_of_pos_left
+  apply List.length_pos_of_ne_nil
+  intro h_nil
+  -- Contradiction: w cannot be empty because it is in S
+  apply h_eps
+  rw [←h_nil]
+  exact h_in
+
+/--
 Geometric intuition: If two rows of tiles have the same total length,
 and the first tile of the top row is shorter than the first tile of the bottom row,
 then the top tile is a prefix of the bottom tile.
@@ -82,97 +98,76 @@ theorem prefix_free_implies_uniquely_decodable
   -- We start by introducing the two decompositions L₁ and L₂
   intro L₁ L₂ hS₁ hS₂ h_join
 
-  -- The proof in the text is by strong induction on the length of the target string `x`.
-  -- Let `x` be the string formed by joining the words.
-  let x := L₁.flatten
-  have hx : x = L₁.flatten := rfl
-
-  -- We set up strong induction on `n = x.length`.
+  -- We set up strong induction on `n = L₁.flatten.length`.
   -- We generalize L₁ and L₂ because they will change in the inductive step (we peel off the heads).
-  generalize h_len : x.length = n
-  revert L₁ L₂ x
+  generalize h_len : L₁.flatten.length = n
+  revert L₁ L₂
 
   induction n using Nat.strongRecOn with
     | ind n ih =>
-      -- We re-introduce the variables that depend on n
-      intro L₁ L₂ hS₁ hS₂ h_join_eq flat1 flat_is_flatten flat_len
-
-      -- Now 'ih' is available with the type:
-      -- ih : ∀ (m : ℕ), m < n → ∀ (x : List Word) ...
+      -- Re-introduce the variables that depend on n
+      intro L₁ L₂ hS₁ hS₂ h_join_eq flatten_L₁_n
       -- 1. Split on L₁
       cases L₁ with
       | nil =>
         -- Case: L₁ = []
         -- We know L₁.flatten is [], so L₂.flatten is [].
         -- Helper lemma proves L₂ must be [] too.
-        rw [List.flatten_nil] at h_join_eq
         symm at h_join_eq
-        have L₂_nil := flatten_eq_nil_of_no_empty_word h_eps hS₂ h_join_eq
-        rw [L₂_nil]
+        rw [List.flatten_nil] at h_join_eq
+        rw [flatten_eq_nil_of_no_empty_word h_eps hS₂ h_join_eq]
 
       | cons w₁ L₁' =>
+
         -- Case: L₁ = w₁ :: L₁'
         cases L₂ with
         | nil =>
           -- Case: L₂ = [] but L₁ is not. Symmetric contradiction.
           rw [List.flatten_nil] at h_join_eq
-          have L₁_nil := flatten_eq_nil_of_no_empty_word h_eps hS₁ h_join_eq
-          injection L₁_nil -- "cons w₁ L₁' = nil" is impossible
+          injection (flatten_eq_nil_of_no_empty_word h_eps hS₁ h_join_eq) -- "cons w₁ L₁' = nil" is impossible
 
         | cons z₁ L₂' =>
           -- Case: L₁ = w₁ :: L₁' AND L₂ = z₁ :: L₂'
-          -- This is where the real math happens.
-
           -- Simplify the flatten equality: (w₁ ++ L₁'.flatten) = (z₁ ++ L₂'.flatten)
-          simp only [List.flatten_cons] at h_join_eq
-
-          -- Assume wlog that |w₁| ≤ |z₁|
-          rcases Nat.le_total w₁.length z₁.length with h_len_le | h_len_le
-
-          -- SUBCASE 1: |w₁| ≤ |z₁|
-          ·
-            -- 1. Prove w₁ is a prefix of z₁
-            have h_prefix : w₁ <+: z₁ := by
-              apply prefix_of_append_le h_join_eq h_len_le
-
-            -- 2. Use PrefixFree to prove w₁ = z₁
+          simp only [List.flatten_cons] at *
+          wlog h_len : w₁.length ≤ z₁.length generalizing w₁ z₁ L₁' L₂'
+          · -- ⊢ `w₁ :: L₁' = z₁ :: L₂'`
+            symm
+            -- Now apply the theorem ("this") with variables SWAPPED
+            apply this _ _ hS₂ _ _ _ hS₁ _
+            · -- ⊢ List.length z₁ ≤ List.length w₁
+              apply Nat.le_of_not_le h_len
+            · -- ⊢ (z₁ ++ L₂'.flatten).length = n
+              rw [←h_join_eq]
+              exact flatten_L₁_n
+            · -- ⊢ z₁ ++ L₂'.flatten = w₁ ++ L₁'.flatten
+              symm
+              exact h_join_eq
+          · -- Assume wlog that |w₁| ≤ |z₁|
+            -- 1. Use prefix_of_append_le to prove w₁ = z₁
             have h_eq_wz : w₁ = z₁ := by
-              apply h_pf w₁ (hS₁ w₁ (by simp)) z₁ (hS₂ z₁ (by simp))
-              exact h_prefix
+              apply h_pf _ (hS₁ _ (by simp)) _ (hS₂ _ (by simp))
+              apply prefix_of_append_le h_join_eq h_len
 
-            -- 3. Now we know w₁ = z₁, we can "cancel" them
+            -- 2. Now we know w₁ = z₁
             subst h_eq_wz
+            -- ⊢ w₁ :: L₁' = w₁ :: L₂'
             -- "Subtract" w₁ from the equation
             simp
-
-            -- 4. PREPARE for the Induction Hypothesis
-            -- Define the new length explicitly
-            let m := L₁'.flatten.length
-
-            -- Prove strictly smaller length separately
-            have h_lt : m < n := by
-               -- Unwrap the generalized variables
-               subst n flat1
-               -- Use list arithmetic
-               rw [List.flatten_cons, List.length_append]
-               apply Nat.lt_add_of_pos_left
-               apply List.length_pos_of_ne_nil
-               -- Contradiction with empty word
-               intro h_nil
-               apply h_eps
-               rw [←h_nil]
-               apply hS₁
-               apply List.mem_cons_self
-
-            -- 5. Apply IH
-            apply ih m h_lt L₁' L₂'
-            · intro w hw; apply hS₁; exact List.mem_cons_of_mem _ hw
-            · intro w hw; apply hS₂; exact List.mem_cons_of_mem _ hw
-            · simp only [List.append_cancel_left_eq] at h_join_eq
-              exact h_join_eq -- Pass the "cancelled" equation here
-            · rfl -- x = flatten
-            · rfl -- len = m
-          -- SUBCASE 2: |z₁| ≤ |w₁|
-          ·
-            -- This block is identical to Subcase 1, just swap w₁ and z₁
-            sorry
+            -- ⊢ L₁' = L₂'
+            -- 3. Finally,  we can apply the Induction Hypothesis
+            apply ih L₁'.flatten.length _ L₁' L₂' _ _ _ (by rfl)
+            · -- Prove strictly smaller length
+              subst n
+              -- ⊢ L₁'.flatten.length < (w₁ ++ L₁'.flatten).length
+              apply length_flatten_tail_lt_cons h_eps (hS₁ _ _)
+              apply List.mem_cons_self
+            · -- Prove L₁' is a valid code
+              -- ⊢ ∀ (w : Word), w ∈ L₁' → w ∈ S
+              intro w hw; apply hS₁; exact List.mem_cons_of_mem _ hw
+            · -- Prove L₂' is a valid code
+              -- ⊢ ∀ (w : Word), w ∈ L₂' → w ∈ S
+              intro w hw; apply hS₂; exact List.mem_cons_of_mem _ hw
+            · -- ⊢ L₁'.flatten = L₂'.flatten
+              simp only [List.append_cancel_left_eq] at h_join_eq
+              exact h_join_eq
