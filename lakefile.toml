@@ -1,0 +1,16 @@
+name = "Kraft"
+version = "0.1.0"
+keywords = ["math"]
+defaultTargets = ["Kraft"]
+
+[leanOptions]
+pp.unicode.fun = true # pretty-prints `fun a ↦ b`
+autoImplicit = false
+
+[[require]]
+name = "mathlib"
+scope = "leanprover-community"
+rev = "v4.25.2"
+
+[[lean_lib]]
+name = "Kraft"
