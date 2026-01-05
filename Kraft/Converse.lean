@@ -60,6 +60,15 @@ lemma mass_perm {h : ℕ} {l1 l2 : List ℕ} (p : l1.Perm l2) :
 
 /-! ## 1. The Splitting Logic (Arithmetic Core) -/
 
+/-- Divisibility helper for lists -/
+lemma dvd_sum_of_dvd_forall {l : List ℕ} {k : ℕ} (h : ∀ x ∈ l, k ∣ x) : k ∣ l.sum := by
+  induction l with
+  | nil => simp
+  | cons a l ih =>
+    simp; apply Nat.dvd_add
+    · exact h a List.mem_cons_self
+    · exact ih (fun x hx => h x (List.mem_cons_of_mem _ hx))
+
 def splitIndex (capacity : ℕ) (weights : List ℕ) : ℕ :=
   (List.range (weights.length + 1)).find? (fun k => (weights.take k).sum ≥ capacity)
   |>.getD weights.length
@@ -111,7 +120,7 @@ lemma split_exact_of_dyadic
 
   have spec := splitIndex_spec h_exists
   let k := splitIndex cap weights
-  have h_ge : (weights.take k).sum ≥ cap := spec.1
+  have h_le : cap ≤ (weights.take k).sum := spec.1
   have h_lt : ∀ j < k, (weights.take j).sum < cap := spec.2
 
   -- 2. k must be > 0
@@ -155,52 +164,75 @@ lemma split_exact_of_dyadic
     subst S_prev w idx_w
     conv_lhs => rw [← Nat.sub_add_cancel k_pos]
     -- take (i+1) = take i ++ [l[i]?]
-    rw [List.take_add_one]
-    rw [List.sum_append]
-    -- Simplify to remove the common prefix S_prev
-    simp
-    -- Resolve the Option lookup using the validity proof
-    rw [List.getElem?_eq_getElem h_idx_valid]
-    -- simplify [x].sum to x
+    rw [List.take_add_one,
+        List.sum_append,
+        List.getElem?_eq_getElem h_idx_valid]
     simp
 
   have h_prev_lt : S_prev < cap := h_lt idx_w h_idx_lt
 
   -- 4. Divisibility Argument
-  rcases h_pow2 w (List.getElem_mem weights idx_w h_idx_valid) with ⟨j, rfl⟩
+  rcases h_pow2 w (List.getElem_mem h_idx_valid) with ⟨j, _⟩
 
   have w_dvd_prev : 2^j ∣ S_prev := by
-    apply dvd_sum_of_dvd_forall
+    apply List.dvd_sum
     intros x hx
     rcases h_pow2 x (List.mem_of_mem_take hx) with ⟨jx, rfl⟩
-    -- Since weights is a Chain (≥), and x comes before w (index < idx_w), x ≥ w
-    have : 2^j ≤ 2^jx := by
-      -- Access the chain property. For ≥, Chain implies Pairwise
-      have h_pair : weights.Pairwise (· ≥ ·) := List.IsChain.imp (fun _ _ => id) h_sorted
-      refine List.rel_of_pairwise_cons h_pair (List.mem_of_mem_take hx) ?_
-      -- Note: Formalizing the exact index relation is verbose, but we know x >= w.
-      -- Shortcut: assume sorted implies this directly.
-      have h_idx_x : weights.indexOf x < idx_w := by
-        -- This holds because x ∈ take idx_w. We trust the chain logic here.
-        sorry
-      exact List.pairwise_iff_getElem.mp h_pair _ _ h_idx_x
-    exact Nat.pow_dvd_pow_of_le_right (by decide) this
+
+    have h_pairwise : weights.Pairwise (· ≥ ·) :=
+      List.isChain_iff_pairwise.mp h_sorted
+
+    -- Capture the equality h_eq_x : weights[i] = x
+    rcases List.mem_take_iff_getElem.mp hx with ⟨i, hi_lt, h_eq_x⟩
+
+    have hi_len : i < weights.length := Nat.lt_of_lt_of_le hi_lt (min_le_right _ _)
+    have hi_idx : i < idx_w := Nat.lt_of_lt_of_le hi_lt (min_le_left _ _)
+
+    have h_le : weights[idx_w] ≤ weights[i] :=
+      List.pairwise_iff_getElem.mp h_pairwise i idx_w hi_len h_idx_valid hi_idx
+
+    -- Rewrite weights[i] to x (which is 2^jx)
+    rw [h_eq_x] at *
+
+    -- Now h_le is effectively 2^j ≤ 2^jx (since weights[idx_w] is w is 2^j)
+    -- We can apply divisibility directly without stripping exponents
+    simp_all [cap, k, idx_w, S_prev, w]
+    rw [Nat.pow_dvd_pow_iff_le_right (by decide)]
+    rw [Nat.pow_le_pow_iff_right (by decide)] at h_le
+    assumption
 
   have w_dvd_cap : 2^j ∣ cap := by
-    have : 2^j ≤ 2^n := h_bounded _ (List.getElem_mem weights idx_w h_idx_valid)
-    exact Nat.pow_dvd_pow_of_le_right (by decide) this
+    have : weights[idx_w] ≤ 2 ^ n := h_bounded _ (List.getElem_mem h_idx_valid)
+    have : 2^j ≤ 2^n := by linarith
+    simp_all [cap, k, idx_w, S_prev, w]
+    rw [Nat.pow_dvd_pow_iff_le_right (by decide)]
+    rw [Nat.pow_le_pow_iff_right (by decide)] at this
+    assumption
 
   -- 5. Contradiction
-  -- cap > S_prev. w | cap. w | S_prev. Thus w | (cap - S_prev).
-  have h_dvd_diff : 2^j ∣ (cap - S_prev) := Nat.dvd_sub (le_of_lt h_prev_lt) w_dvd_cap w_dvd_prev
-  have h_diff_pos : 0 < cap - S_prev := Nat.sub_pos_of_lt h_prev_lt
+  have h_dvd_diff : 2^j ∣ (cap - S_prev) := Nat.dvd_sub w_dvd_cap w_dvd_prev
+  have h_gap : 2^j ≤ cap - S_prev := Nat.le_of_dvd (Nat.sub_pos_of_lt h_prev_lt) h_dvd_diff
 
-  -- Gap must be at least w
-  have h_gap : 2^j ≤ cap - S_prev := Nat.le_of_dvd h_diff_pos h_dvd_diff
+  -- 1. Prove S_prev + 2^j ≤ cap
+  -- Nat.add_le_of_le_sub : m ≤ n → k ≤ n - m → k + m ≤ n
+  -- We use m = S_prev, n = cap, k = 2^j. Result: 2^j + S_prev ≤ cap.
+  have h_upper : S_prev + 2^j ≤ cap := by
+    rw [Nat.add_comm]
+    exact Nat.add_le_of_le_sub (le_of_lt h_prev_lt) h_gap
 
+  -- 2. Align the goal and hypotheses
+
+  -- Rewrite the goal: (take k).sum = 2^n  becomes  S_prev + 2^j = 2^n
+  have h_le : cap ≤ (weights.take k).sum := spec.1
   rw [h_decomp]
-  apply Nat.le_antisymm h_ge
-  linarith
+  simp_all [cap, k, idx_w, S_prev, w]
+
+  -- 3. Apply antisymmetry
+  -- h_upper : S_prev + 2^j ≤ 2^n
+  -- spec.1  : 2^n ≤ (take k).sum  ->  2^n ≤ S_prev + 2^j
+  apply Nat.le_antisymm h_upper
+
+  exact h_le
 
 /-! ## 2. Construction -/
 
