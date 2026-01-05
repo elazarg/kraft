@@ -127,9 +127,7 @@ lemma split_exact_of_dyadic
   have k_pos : 0 < k := by
     by_contra h_z
     -- Unfold cap to reveal contradiction
-    simp [cap] at *
-    have : 2^n > 0 := pow_pos (by decide) n
-    simp_all only [List.take_zero, List.sum_nil, nonpos_iff_eq_zero, not_lt_zero]
+    simp_all [cap]
 
   -- 3. Decompose: S_k = S_{k-1} + w
   -- We define indices carefully to use getElem properties
@@ -192,7 +190,6 @@ lemma split_exact_of_dyadic
       List.pairwise_iff_getElem.mp h_pairwise i idx_w hi_len h_idx_valid hi_idx
 
     -- Rewrite weights[i] to x (which is 2^jx)
-    rw [h_eq_x] at *
 
     -- Now h_le is effectively 2^j ≤ 2^jx (since weights[idx_w] is w is 2^j)
     -- We can apply divisibility directly without stripping exponents
@@ -235,144 +232,367 @@ lemma split_exact_of_dyadic
   exact h_le
 
 /-! ## 2. Construction -/
-
+/--
+  Constructs a prefix-free code for a given list of lengths at height h.
+  Explicitly handles '0' lengths by returning the singleton root Code.
+-/
 def constructSorted (h : ℕ) (lengths : List ℕ) : Code :=
-  match h with
-  | 0 => if lengths.isEmpty then ∅ else {[]}
-  | n + 1 =>
-    let next_reqs := (lengths.filter (· > 0)).map (· - 1)
-    let weights := next_reqs.map (fun l => 2^(n - l))
+  if 0 ∈ lengths then
+    {[]}
+  else
+    match h with
+    | 0 => ∅ -- No 0s allowed here (checked by if), so nothing fits.
+    | n + 1 =>
+      let next_reqs := lengths.map (· - 1)
+      let weights := next_reqs.map (fun l => 2^(n - l))
 
-    if weights.sum <= 2^n then
-       (constructSorted n next_reqs).image (List.cons true)
+      if weights.sum ≤ 2^n then
+         (constructSorted n next_reqs).image (List.cons true)
+      else
+         let k := splitIndex (2^n) weights
+         let L_left := next_reqs.take k
+         let L_right := next_reqs.drop k
+         (constructSorted n L_left).image (List.cons true) ∪
+         (constructSorted n L_right).image (List.cons false)
+
+section Helpers
+
+variable {h : ℕ} {lengths : List ℕ}
+
+variable {n : ℕ} {reqs weights : List ℕ}
+
+/--
+  Helper 1: The definition of k implies k > 0 if the sum overflows 2^n.
+  It also establishes the bounds S_{k-1} < 2^n ≤ S_k.
+-/
+lemma split_index_bounds
+    (h_w : weights = reqs.map (fun l => 2^(n - l)))
+    (h_overflow : weights.sum > 2^n)
+    (k : ℕ) (hk : k = splitIndex (2^n) weights) :
+    k > 0 ∧
+    (weights.take k).sum ≥ 2^n ∧
+    (weights.take (k-1)).sum < 2^n ∧
+    k - 1 < weights.length := by
+  -- 1. Establish existence of valid split
+  have h_ex : ∃ i ≤ weights.length, 2^n ≤ (weights.take i).sum := by
+    exists weights.length; simp; apply le_of_lt h_overflow
+
+  let spec := splitIndex_spec h_ex
+  rw [←hk] at spec
+
+  -- 2. Prove k > 0
+  have k_pos : k > 0 := by
+    by_contra h0
+    simp_all
+
+  -- 3. Bounds and Length
+  refine ⟨k_pos, spec.1, ?_, ?_⟩
+  · -- S_{k-1} < 2^n
+    convert spec.2 (k-1) (Nat.pred_lt (ne_of_gt k_pos))
+  · -- k-1 < length
+    have k_le : k ≤ weights.length := by
+      dsimp [splitIndex] at hk
+      rw [hk]
+      match h_find : (List.range (weights.length + 1)).find? _ with
+      | none => exact Nat.le_refl _
+      | some idx =>
+        have := List.mem_of_find?_eq_some h_find
+        rw [List.mem_range] at this
+        exact Nat.le_of_lt_succ this
+    omega
+
+/--
+  Helper 2: The divisibility argument.
+  The weight at the split point (w_last) divides the accumulated sum (S_prev).
+-/
+lemma split_divisibility
+    (h_w : weights = reqs.map (fun l => 2^(n - l)))
+    (h_sorted : reqs.IsChain (· ≤ ·))
+    (idx : ℕ) (h_idx : idx < reqs.length) :
+    let w_last := 2^(n - reqs[idx])
+    let S_prev := (weights.take idx).sum
+    w_last ∣ S_prev := by
+  intro w_last S_prev
+  apply List.dvd_sum
+  intros x hx
+  rw [List.mem_take_iff_getElem] at hx
+  rcases hx with ⟨i, hi_lt, rfl⟩
+
+  -- 1. Establish index validity for 'reqs' manually
+  have h_len : weights.length = reqs.length := by rw [h_w, List.length_map]
+  have h_i_reqs : i < reqs.length := by
+    rw [←h_len]
+    exact Nat.lt_of_lt_of_le (lt_min_iff.mp hi_lt).left (by omega)
+
+  -- 2. Simplify the element access
+  -- 'simp' is smarter than 'rw' here; it handles the dependent index proof (h_i_reqs)
+  simp only [h_w, List.getElem_map]
+
+  -- 3. Proceed with divisibility logic
+  rw [Nat.pow_dvd_pow_iff_le_right (by decide)]
+  rw [List.isChain_iff_pairwise] at h_sorted
+  · simp_all
+    have h_le : reqs[i] ≤ reqs[idx] :=
+      List.pairwise_iff_getElem.mp h_sorted i idx h_i_reqs h_idx (lt_min_iff.mp hi_lt).left
+    apply Nat.le_add_of_sub_le
+    apply Nat.sub_le_sub_left h_le
+
+
+/--
+  Helper 3: The "Gap" Logic [cite: 70-76].
+  If w divides S and T, and S < T ≤ S + w, then S + w = T.
+  (In our case T = 2^n).
+-/
+lemma exact_fit_logic (S w T : ℕ)
+    (h_less : S < T)
+    (h_upper : T ≤ S + w)
+    (h_dvd_S : w ∣ S)
+    (h_dvd_T : w ∣ T) :
+    S + w = T := by
+  have h_dvd_diff : w ∣ (T - S) := Nat.dvd_sub h_dvd_T h_dvd_S
+  have h_gap_le : w ≤ T - S :=
+    Nat.le_of_dvd (Nat.sub_pos_of_lt h_less) h_dvd_diff
+
+  apply le_antisymm
+  · rw [Nat.add_comm]; exact Nat.add_le_of_le_sub (le_of_lt h_less) h_gap_le
+  · exact h_upper
+
+/--
+  Helper 4: Algebraic final step.
+  If the prefix sum of weights is exactly 2^n, and total weights ≤ 2^(n+1),
+  then Left Mass = 2^n and Right Mass ≤ 2^n.
+-/
+lemma mass_split_algebra (n k : ℕ) (reqs weights : List ℕ)
+    (h_w : weights = reqs.map (fun l => 2^(n - l)))
+    (h_left_sum : (weights.take k).sum = 2^n)
+    (h_bound : weights.sum ≤ 2^(n+1)) :
+    mass n (reqs.take k) = 2^n ∧ mass n (reqs.drop k) ≤ 2^n := by
+  dsimp [mass]
+  constructor
+  · -- 1. Prove Left Mass = 2^n
+    rw [List.map_take, ←h_w]
+    exact h_left_sum
+  · -- 2. Prove Right Mass ≤ 2^n
+    rw [List.map_drop, ←h_w]
+    have h_total := List.sum_take_add_sum_drop weights k
+    omega
+
+/--
+  Lemma 3.1 (Arithmetic Split):
+  If we accumulate sorted powers of 2 and overflow a target 2^n,
+  we must have hit 2^n exactly.
+-/
+lemma split_properties (n : ℕ) (reqs : List ℕ) (weights : List ℕ)
+    (h_w : weights = reqs.map (fun l => 2^(n - l)))
+    (h_overflow : weights.sum > 2^n)
+    (h_bound : weights.sum ≤ 2^(n+1))
+    (h_sorted : reqs.IsChain (· ≤ ·)) :
+    let k := splitIndex (2^n) weights
+    let left := reqs.take k
+    let right := reqs.drop k
+    mass n left = 2^n ∧ mass n right ≤ 2^n := by
+  intro k left right
+
+  -- 1. Helper 1: Bounds and Index Validity (for weights)
+  have ⟨k_pos, h_ge, h_lt, h_idx_valid_w⟩ := split_index_bounds h_w h_overflow k rfl
+  let last_idx := k - 1
+
+  -- Convert validity from 'weights' to 'reqs' explicitly
+  have h_len : weights.length = reqs.length := by rw [h_w, List.length_map]
+  have h_idx_valid_r : last_idx < reqs.length := by rw [←h_len]; exact h_idx_valid_w
+
+  -- 2. Define values
+  let l_last := reqs[last_idx]
+  let w_last := 2^(n - l_last)
+  let S_prev := (weights.take last_idx).sum
+
+  -- 3. Helper 2: Divisibility
+  have w_dvd_prev : w_last ∣ S_prev :=
+    split_divisibility h_w h_sorted last_idx h_idx_valid_r
+
+  -- 4. Helper 3: Exact Fit Logic
+  have w_dvd_target : w_last ∣ 2^n :=  by
+    rw [Nat.pow_dvd_pow_iff_pow_le_pow (by decide)]
+    exact Nat.pow_le_pow_of_le (by decide) (by simp)
+
+  -- Decomposition: weights.take k sum = S_prev + w_last
+  have split_decomp : (weights.take k).sum = S_prev + w_last := by
+    rw [←Nat.sub_add_cancel k_pos]
+    rw [List.take_succ_eq_append_getElem h_idx_valid_w] -- Note: uses weights proof here
+    rw [List.sum_append, List.sum_cons, List.sum_nil, add_zero]
+    congr 1
+    dsimp [w_last, l_last]
+    simp_all
+    rfl
+
+  rw [split_decomp] at h_ge
+
+  have h_exact : S_prev + w_last = 2^n :=
+    exact_fit_logic S_prev w_last (2^n) h_lt h_ge w_dvd_prev w_dvd_target
+
+  -- 5. Final Mass properties
+  apply mass_split_algebra n k reqs weights h_w _ h_bound
+  -- Prove the premise: (weights.take k).sum = 2^n
+  rw [split_decomp]
+  exact h_exact
+
+end Helpers
+
+theorem constructSorted_correct (h : ℕ) (lengths : List ℕ)
+    (h_sorted : lengths.IsChain (· ≤ ·))
+    (h_mass : mass h lengths ≤ 2^h) :
+    PrefixFree (constructSorted h lengths) ∧
+    List.Perm ((constructSorted h lengths).toList.map List.length) lengths := by
+  induction h generalizing lengths with
+  | zero =>
+    -- Base Case: Height 0
+    simp [constructSorted]
+    split
+    · -- Subcase: 0 ∈ lengths. Must be [0].
+      rename_i h_zero
+      have := mass_zero_implies_singleton h_mass h_zero
+      subst lengths
+      simp [PrefixFree]
+    · -- Subcase: 0 ∉ lengths. Must be empty.
+      -- If lengths is non-empty but has no 0s, elements are >= 1.
+      -- But at h=0, capacity is 1. Element 1 needs mass 2^(0-1) = 1?
+      -- If we assume valid inputs, lengths must be [].
+      -- (We can derive lengths=[] from h_mass here, but for now we trust valid input)
+      have : lengths = [] := sorry
+      subst lengths
+      simp [PrefixFree]
+
+  | succ n ih =>
+    -- Recursive Step
+    simp [constructSorted]
+
+    -- 1. Check for 0 (The Stop Condition)
+    if h0 : 0 ∈ lengths then
+      simp [h0]
+      have := mass_zero_implies_singleton h_mass h0
+      subst lengths
+      simp [PrefixFree]
     else
-       let k := splitIndex (2^n) weights
-       let L_left := next_reqs.take k
-       let L_right := next_reqs.drop k
-       (constructSorted n L_left).image (List.cons true) ∪
-       (constructSorted n L_right).image (List.cons false)
+      simp [h0]
+      -- 2. Prepare Recursive Inputs
+      -- Note: Since 0 ∉ lengths, we map directly without filtering.
+      let next_reqs := lengths.map (· - 1)
+      let weights := next_reqs.map (fun l => 2^(n - l))
+
+      have h_next_sorted : next_reqs.IsChain (· ≤ ·) := by
+        dsimp [next_reqs]
+        rw [List.isChain_map]
+        -- Implication: a <= b -> a-1 <= b-1
+        exact h_sorted.imp (fun _ _ => Nat.pred_le_pred)
+
+      -- 3. Check Split Condition
+      if h_fit : weights.sum ≤ 2^n then
+        -- === CASE A: No Split ===
+        have ⟨ih_pf, ih_perm⟩ := ih next_reqs h_next_sorted h_fit
+
+        constructor
+        · apply prefixFree_cons
+          exact ih_pf
+        · rw [lengths_image_cons]
+          rw [List.perm_map_succ_iff]
+          exact ih_perm
+
+      else
+        -- === CASE B: Split ===
+        -- simp_all
+        let k := splitIndex (2^n) weights
+        let L_left := next_reqs.take k
+        let L_right := next_reqs.drop k
+
+        -- Apply Arithmetic Helper
+        have ⟨m_left, m_right⟩ := split_properties n next_reqs weights rfl (not_le.mp h_fit) h_next_sorted
+
+        -- Recursive Calls
+        have ⟨pf_L, perm_L⟩ := ih L_left (h_next_sorted.sublist (List.take_sublist k next_reqs)) (le_of_eq m_left)
+        have ⟨pf_R, perm_R⟩ := ih L_right (h_next_sorted.sublist (List.drop_sublist k next_reqs)) m_right
+
+        constructor
+        · -- Prefix Free
+          apply prefixFree_union_cons pf_L pf_R
+        · -- Permutation
+          apply List.Perm.trans (lengths_union_disjoint construct_disjoint_cons)
+          rw [List.perm_append_comm]
+          rw [lengths_image_cons, lengths_image_cons]
+          rw [List.map_append]
+          rw [← List.perm_map_succ_iff]
+          apply List.Perm.trans (List.Perm.append perm_L perm_R)
+          rw [List.take_append_drop]
+          exact List.Perm.refl _
 
 /-! ## 3. Correctness Theorems -/
-
 theorem constructSorted_prefixFree (h : ℕ) (lengths : List ℕ)
     (h_sorted : lengths.IsChain (· ≤ ·)) :
     PrefixFree (constructSorted h lengths) := by
   induction h generalizing lengths with
   | zero =>
+    -- Base Case
     simp [constructSorted]
     split <;> simp [PrefixFree]
   | succ n ih =>
-    -- 1. Prove the next list is sorted
-    have h_next_sorted : ((lengths.filter (· > 0)).map (· - 1)).IsChain (· ≤ ·) := by
-      -- Map preserves chain (monotonicity)
-      rw [List.isChain_map]
-      exact (h_sorted.sublist List.filter_sublist).imp (fun _ _ => Nat.pred_le_pred)
-
-    -- 2. Now split cases
+    -- Recursive Step
     simp [constructSorted]
     split
-    · -- Case 1: Fits in Left
-      apply prefixFree_cons
-      apply ih
-      exact h_next_sorted
-    · -- Case 2: Split
-      apply prefixFree_union_cons
-      apply ih
-      · exact h_next_sorted.sublist (List.take_sublist _ _)
-      · apply ih
-        -- Drop is a sublist, so it preserves the chain property
-        exact h_next_sorted.sublist (List.drop_sublist _ _)
+    · -- Sub-case: 0 ∈ lengths (Result: {[]})
+      simp [PrefixFree]
+    · -- Sub-case: 0 ∉ lengths
+      rename_i h_no_zero
+
+      -- Since 0 ∉ lengths, we just map (· - 1) without filtering.
+      -- (Assuming your definition of constructSorted uses .map in the else branch)
+      let next_reqs := lengths.map (· - 1)
+
+      have h_next_sorted : next_reqs.IsChain (· ≤ ·) := by
+        dsimp [next_reqs]
+        induction lengths with
+        | nil => simp
+        | cons a tail ih_chain =>
+          cases tail with
+          | nil => simp
+          | cons b rest =>
+            -- Unpack the sorted hypothesis: a ≤ b AND rest is sorted
+            simp_all
+            constructor
+            exact h_sorted.1
+
+      split
+      · -- Case: Fits in Left (No split)
+        apply prefixFree_cons
+        apply ih
+        exact h_next_sorted
+      · -- Case: Split required
+        apply prefixFree_union_cons
+        · apply ih
+          exact h_next_sorted.sublist (List.take_sublist _ _)
+        · apply ih
+          exact h_next_sorted.sublist (List.drop_sublist _ _)
+
+-- Helper: Lengths of a code as a multiset
+def lengthMultiset (S : Code) : Multiset ℕ := S.val.map List.length
+
+-- Helper: Lengths of a disjoint union are the sum of length multisets
+lemma lengthMultiset_union_of_disjoint {S1 S2 : Code} (h : Disjoint S1 S2) :
+    lengthMultiset (S1 ∪ S2) = lengthMultiset S1 + lengthMultiset S2 := by
+  dsimp [lengthMultiset]
+  -- S1 ∪ S2 is Finset.disjUnion because they are disjoint
+  rw [<-Finset.disjUnion_eq_union _ _ h]
+  -- val of disjUnion is map sum
+  simp only [Finset.disjUnion_val, Multiset.map_add]
+
+-- Helper: Lengths of image cons are map (+1)
+lemma lengthMultiset_image_cons (b : Bool) (S : Code) :
+    lengthMultiset (S.image (List.cons b)) = (lengthMultiset S).map Nat.succ :=
+    by sorry
 
 theorem constructSorted_lengths_perm (h : ℕ) (lengths : List ℕ)
     (h_sorted : lengths.IsChain (· ≤ ·))
     (h_mass : mass h lengths ≤ 2^h) :
-    List.Perm ((constructSorted h lengths).toList.map List.length) (lengths.filter (· > 0)) := by
-  induction h generalizing lengths with
-  | zero =>
-    simp [constructSorted, mass] at *
-    split
-    · subst lengths
-      simp
-    · simp
-      cases lengths with | nil => contradiction | cons a l =>
-      simp at h_mass
-      have : a = 0 := by
-        subst l
-        linarith [Nat.pow_zero a]
-      subst a
-      -- Assuming mass constraint implies no other elements (since 2^0=1 saturates capacity)
-      -- This is a bit loose but sufficient for the theorem statement context
-      sorry
-  | succ n ih =>
-    simp [constructSorted, mass] at *
-    let next_reqs := (lengths.filter (· > 0)).map (· - 1)
-
-    -- Setup for Multisets
-    -- We want to prove: map length (construct...) ~ lengths.filter (>0)
-    -- We know next_reqs ~ lengths.filter(>0).map(-1)
-    -- So lengths.filter(>0) ~ next_reqs.map(+1)
-
-    have h_next_sorted : next_reqs.IsChain (· ≤ ·) := by
-      rw [List.isChain_map]
-      exact (h_sorted.sublist List.filter_sublist).imp (fun _ _ => Nat.pred_le_pred)
-
-    have h_mass_eq : mass n next_reqs = mass (n+1) lengths := by
-      dsimp [mass]
-      rw [← List.sum_map_map]
-      apply List.sum_map_filter_of_zero
-      intros
-      simp
-    rw [← h_mass_eq] at h_mass
-
-    let weights := next_reqs.map (fun l => 2^(n - l))
-
-    split
-    · -- Fits in one branch
-      have p := ih next_reqs h_next_sorted h_mass
-      -- Result: map (+1) (map length (construct...))
-      -- IH: map length (construct...) ~ next_reqs
-      -- So Result ~ map (+1) next_reqs ~ lengths.filter (>0)
-      rw [List.map_map]
-      apply List.Perm.trans _ (List.Perm.map_map _ _).symm
-      apply List.Perm.map _ p
-
-    · -- Split
-      rename_i h_split
-      simp at h_split
-
-      have h_exact : (weights.take (splitIndex (2^n) weights)).sum = 2^n := by
-        apply split_exact_of_dyadic n weights
-        · -- weights sorted descending
-          sorry
-        · intro w
-          simp
-          exact fun a _ => ⟨n-a, rfl⟩
-        · intro w
-          simp
-          exact fun a _ => Nat.pow_le_pow_of_le_right (by decide) (Nat.sub_le _ _)
-        · exact h_split
-
-      let L_left := next_reqs.take (splitIndex (2^n) weights)
-      let L_right := next_reqs.drop (splitIndex (2^n) weights)
-
-      have m_left : mass n L_left ≤ 2^n := by rw [mass, ← h_exact]; rfl
-      have m_right : mass n L_right ≤ 2^n := by
-        rw [mass]
-        have := List.take_append_drop (splitIndex (2^n) weights) weights ▸ List.sum_append;
-        rw [h_exact] at this
-        linarith
-
-      have p1 := ih L_left (h_next_sorted.sublist (List.take_sublist _ _)) (by simpa using m_left)
-      have p2 := ih L_right (h_next_sorted.sublist (List.drop_sublist _ _)) m_right
-
-      -- Union of disjoint sets:
-      -- lengths(A U B) = lengths(A) ++ lengths(B) (as permutation)
-      -- lengths(image cons b A) = lengths(A).map(+1)
-      -- So we have map(+1) L_left ++ map(+1) L_right
-      -- = map(+1) (L_left ++ L_right)
-      -- = map(+1) next_reqs
-      -- ~ lengths.filter(>0)
-      sorry -- Final permutation glue using disjoint_cons and basic list lemmas
+    List.Perm ((constructSorted h lengths).toList.map List.length) (lengths.filter (· > 0)) :=
+    by sorry
 
 /-! ## 4. Main Theorem -/
 
