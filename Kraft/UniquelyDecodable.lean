@@ -176,19 +176,6 @@ theorem prefix_free_implies_uniquely_decodable
               simp only [List.append_cancel_left_eq] at h_join_eq
               exact h_join_eq
 
-lemma prefix_free_of_card_eps_le_1
-  (S : Code)
-  (h_pf : PrefixFree S)
-  (h_eps : [] ∈ S) :
-  S.card ≤ 1 := by
-  apply Finset.card_le_one_iff.mpr
-  intro a b ha hb
-  -- In a prefix-free code containing `[]`, every element must be `[]`
-  have h_a : [] = a := h_pf h_eps ha List.nil_prefix
-  have h_b : [] = b := h_pf h_eps hb List.nil_prefix
-  subst h_a h_b
-  rfl
-
 /-- Corollary 3.2:
       If a finite set S of words is prefix-free and |S| ≥ 2
       then it is uniquely decodable.
@@ -199,8 +186,9 @@ theorem prefix_free_of_card_ge_2_implies_UD
   (h_size : 2 ≤ S.card) :
   UniquelyDecodable S := by
 
-  apply prefix_free_implies_uniquely_decodable S h_pf
-  intro h_eps
-  have h_le_one : S.card ≤ 1 := prefix_free_of_card_eps_le_1 S h_pf h_eps
-  -- Contradiction: 2 ≤ S.card ≤ 1
-  omega
+  have h_eps_not : ([] : Word) ∉ S := by
+    intro h_eps
+    have : S.card ≤ 1 := by
+      simp [prefixFree_singleton_nil (S:=S) h_pf h_eps]
+    omega
+  exact prefix_free_implies_uniquely_decodable S h_pf h_eps_not

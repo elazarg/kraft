@@ -27,7 +27,3 @@ lemma eq_cons_of_head?_eq_some {w : Word} {b : Bool} (h : w.head? = some b) :
   apply List.eq_cons_of_mem_head?
   -- membership in `Option`: `b ∈ some b`
   simp [h]
-
-lemma eq_cons_of_head?_eq {w : Word} {b : Bool} (h : w.head? = some b) :
-    w = b :: w.tail := by
-  simpa using (eq_cons_of_head?_eq_some (w := w) (b := b) h)
