@@ -436,6 +436,53 @@ lemma split_properties (n : ℕ) (reqs : List ℕ) (weights : List ℕ)
   rw [split_decomp]
   exact h_exact
 
+
+-- A. Mass Constraints
+/--
+  If 0 is in the list, it contributes 2^h to the mass.
+  Since total mass ≤ 2^h, no other elements can exist.
+-/
+lemma mass_zero_implies_singleton
+    (h_mass : mass h lengths ≤ 2^h)
+    (h_zero : 0 ∈ lengths) :
+    lengths = [0] := by
+  dsimp [mass] at h_mass
+
+  -- Isolate the 0 element from the sum
+  rw [List.mem_iff_append] at h_zero
+  rcases h_zero with ⟨pre, post, rfl⟩
+
+  -- Rewrite sum: sum(pre ++ [0] ++ post) = sum(pre) + 2^h + sum(post)
+  rw [List.map_append, List.sum_append] at h_mass
+  rw [List.map_cons, List.sum_cons] at h_mass
+  simp only [Nat.sub_zero] at h_mass
+
+  -- 2^h + rest ≤ 2^h  implies  rest = 0
+  have h_rest_zero : (pre.map (fun l => 2 ^ (h - l))).sum + (post.map (fun l => 2 ^ (h - l))).sum = 0 := by
+    omega
+
+  -- Since 2^k ≥ 1, a sum of powers of 2 is 0 iff the list is empty
+  have h_pre_nil : pre = [] := by
+    match pre with
+    | [] => rfl
+    | x :: xs =>
+      -- If pre has a head x, the sum includes 2^(h-x) which is > 0
+      simp only [List.map_cons, List.sum_cons] at h_rest_zero
+      have : 2 ^ (h - x) > 0 := Nat.pow_pos (by decide)
+      omega
+
+  -- Prove post is empty
+  have h_post_nil : post = [] := by
+    match post with
+    | [] => rfl
+    | x :: xs =>
+      simp only [List.map_cons, List.sum_cons] at h_rest_zero
+      have : 2 ^ (h - x) > 0 := Nat.pow_pos (by decide)
+      omega
+
+  subst pre post
+  rfl
+
 end Helpers
 
 theorem constructSorted_correct (h : ℕ) (lengths : List ℕ)
