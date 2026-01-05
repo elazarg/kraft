@@ -1,16 +1,9 @@
 import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Card
 
--- We treat "Words" as lists of booleans (bits)
-abbrev Word := List Bool
--- A "Code" is a set of Words
-abbrev Code := Finset Word
+import Kraft.PrefixFree
 
 /-! ## Definitions -/
-
-/-- Definition 3.1: A code is prefix-free if no codeword is a prefix of another. -/
-def PrefixFree (S : Code) : Prop :=
-  ∀ x ∈ S, ∀ y ∈ S, x <+: y → x = y
 
 /--
   Definition 3.3: A code is uniquely decodable if every string can be
@@ -26,7 +19,6 @@ def UniquelyDecodable (S : Code) : Prop :=
     (∀ w ∈ L₂, w ∈ S) →        -- All words in decomposition 2 are in S
     L₁.flatten = L₂.flatten →  -- They form the same target string
     L₁ = L₂                    -- Conclusion: The decompositions are identical
-
 
 lemma flatten_eq_nil_of_no_empty
     {L : List Word}
@@ -154,7 +146,7 @@ theorem prefix_free_implies_uniquely_decodable
           · -- Assume wlog that |w₁| ≤ |z₁|
             -- 1. prove w₁ = z₁
             have h_eq_wz : w₁ = z₁ := by
-              apply h_pf _ (hS₁ _ (by simp)) _ (hS₂ _ (by simp))
+              apply h_pf (hS₁ _ (by simp)) (hS₂ _ (by simp))
               apply prefix_of_append_le h_join_eq h_len
 
             -- 2. Now we know w₁ = z₁
@@ -192,8 +184,8 @@ lemma prefix_free_of_card_eps_le_1
   apply Finset.card_le_one_iff.mpr
   intro a b ha hb
   -- In a prefix-free code containing `[]`, every element must be `[]`
-  have h_a : [] = a := h_pf [] h_eps a ha List.nil_prefix
-  have h_b : [] = b := h_pf [] h_eps b hb List.nil_prefix
+  have h_a : [] = a := h_pf h_eps ha List.nil_prefix
+  have h_b : [] = b := h_pf h_eps hb List.nil_prefix
   subst h_a h_b
   rfl
 
