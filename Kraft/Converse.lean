@@ -3,8 +3,11 @@ import Mathlib.Data.List.Chain
 import Mathlib.Data.List.Perm.Basic
 import Mathlib.Data.Nat.Log
 import Mathlib.Algebra.BigOperators.Group.List.Lemmas
+import Mathlib.Algebra.Order.BigOperators.Group.List
 import Mathlib.Tactic.Linarith
 import Mathlib.Data.Nat.GCD.Basic
+
+import Batteries.Data.List.Basic
 
 import Kraft.PrefixFree
 
@@ -13,6 +16,56 @@ open BigOperators
 /-!
   # Converse of Kraft's Inequality
 -/
+
+/--
+`Nat.find` version of "first prefix whose sum reaches capacity".
+
+If there exists *some* prefix whose sum is ≥ cap, then there is a *least* such prefix,
+and every shorter prefix is strictly below cap.
+-/
+lemma exists_min_prefix_sum_ge (cap : ℕ) (ws : List ℕ)
+    (h_ex : ∃ k, cap ≤ (ws.take k).sum) :
+    ∃ k, cap ≤ (ws.take k).sum ∧ ∀ j < k, (ws.take j).sum < cap := by
+  let P : ℕ → Prop := fun k => cap ≤ (ws.take k).sum
+  have hP : ∃ k, P k := h_ex
+  let k : ℕ := Nat.find hP
+  refine ⟨k, ?_, ?_⟩
+  · exact Nat.find_spec hP
+  · intro j hj
+    -- `Nat.find_min'` says any smaller index fails P
+    have hmin : ¬ P j := Nat.find_min hP hj
+    -- goal is `¬ (sum ≥ cap)`; rewrite `≥` as `≤` and unfold P
+    simpa [P, ge_iff_le] using hmin
+
+/-- Sum decomposition at a concrete successor index. -/
+lemma sum_take_succ_eq (ws : List ℕ) (n : ℕ) (hn : n < ws.length) :
+    (ws.take (n+1)).sum = (ws.take n).sum + ws.get ⟨n, hn⟩ := by
+  -- `take (n+1)` is `take n` plus the nth element
+  have ht : ws.take (n+1) = ws.take n ++ [ws.get ⟨n, hn⟩] := by simp
+  -- sum both sides
+  rw [ht, List.sum_append]
+  simp
+
+/--
+If `0 < k` and `k ≤ ws.length`, then
+`(ws.take k).sum = (ws.take (k-1)).sum + ws.get ⟨k-1, _⟩`.
+
+This is the canonical "S_k = S_{k-1} + w_{k-1}" step.
+-/
+lemma sum_take_pred_add_get (ws : List ℕ) (k : ℕ)
+    (hk0 : 0 < k) (hklen : k ≤ ws.length) :
+    (ws.take k).sum =
+      (ws.take (k-1)).sum + ws.get ⟨k-1, by
+        exact Nat.lt_of_lt_of_le (Nat.pred_lt (ne_of_gt hk0)) hklen
+      ⟩ := by
+  cases k with
+  | zero =>
+      cases (Nat.lt_asymm hk0 hk0)   -- impossible
+  | succ n =>
+      have hn : n < ws.length :=
+        Nat.lt_of_lt_of_le (Nat.lt_succ_self n) hklen
+      -- `(succ n) - 1 = n` so the goal matches `sum_take_succ_eq`
+      simpa using (sum_take_succ_eq ws n hn)
 
 -- Helper: Mass of a list of lengths at a specific height h.
 def mass (h : ℕ) (lengths : List ℕ) : ℕ :=
@@ -57,6 +110,95 @@ lemma mass_perm {h : ℕ} {l1 l2 : List ℕ} (p : l1.Perm l2) :
   · apply List.pairwise_of_forall
     intro x y
     apply add_comm
+
+/--
+If some prefix of `ws` reaches `cap`, then the *least* such prefix index
+(chosen by `Nat.find`) is ≤ `ws.length`.
+-/
+lemma find_prefix_le_length (cap : ℕ) (ws : List ℕ)
+    (h_ex : ∃ k, cap ≤ (ws.take k).sum) :
+    let P : ℕ → Prop := fun k => cap ≤ (ws.take k).sum
+    let k : ℕ := Nat.find (show ∃ k, P k from h_ex)
+    k ≤ ws.length := by
+  intro P k
+
+  -- First show: the full list satisfies P (i.e. `cap ≤ sum ws`)
+  have P_len : P ws.length := by
+    rcases h_ex with ⟨k0, hk0⟩
+
+    -- (ws.take k0).sum ≤ ws.sum via take/drop decomposition
+    have h_take_le_sum : (ws.take k0).sum ≤ ws.sum := by
+      have hsplit : (ws.take k0).sum + (ws.drop k0).sum = ws.sum := by simp
+      have hle : (ws.take k0).sum ≤ (ws.take k0).sum + (ws.drop k0).sum := Nat.le_add_right _ _
+      simpa [hsplit] using hle
+
+    have hcap_le_sum : cap ≤ ws.sum := le_trans hk0 h_take_le_sum
+    -- rewrite ws.sum as (take length).sum
+    simpa [P, List.take_length] using hcap_le_sum
+
+  -- Now use `Nat.find_min` to rule out `k > ws.length`
+  have hk_not_gt : ¬ k > ws.length := by
+    intro hkgt
+    have hnot : ¬ P ws.length :=
+      Nat.find_min (show ∃ k, P k from h_ex) (by linarith)
+    exact hnot P_len
+
+  exact Nat.le_of_not_gt hk_not_gt
+
+/--
+If `cap > 0` and some prefix reaches `cap`, then the minimal prefix index is positive.
+-/
+lemma find_prefix_pos (cap : ℕ) (ws : List ℕ)
+    (hcap : 0 < cap)
+    (h_ex : ∃ k, cap ≤ (ws.take k).sum) :
+    0 < Nat.find h_ex := by
+  by_contra hk0
+  have hk : Nat.find h_ex = 0 := Nat.eq_zero_of_not_pos hk0
+  -- But `Nat.find_spec` says the found index reaches `cap`.
+  have hspec : cap ≤ (ws.take (Nat.find h_ex)).sum := Nat.find_spec h_ex
+  -- Rewrite with hk; `take 0` sum is 0, contradicting `cap > 0`.
+  have : cap ≤ 0 := by simpa [hk] using hspec
+  exact (Nat.ne_of_gt hcap) (Nat.eq_zero_of_le_zero this)
+
+/--
+Let `k` be the least index such that the prefix sum reaches `cap`.
+If `cap > 0`, then:
+- `0 < k`
+- the previous prefix is strictly below `cap`
+- the prefix at `k` reaches `cap`
+- and `(k-1)` is a valid index into `ws` (i.e. `k-1 < ws.length`)
+-/
+lemma find_prefix_bounds (cap : ℕ) (ws : List ℕ)
+    (hcap : 0 < cap)
+    (h_ex : ∃ k, cap ≤ (ws.take k).sum) :
+    let k := Nat.find h_ex
+    0 < k ∧
+    (ws.take (k-1)).sum < cap ∧
+    cap ≤ (ws.take k).sum ∧
+    k - 1 < ws.length := by
+  intro k
+
+  have hk_pos : 0 < k := by simpa [k] using (find_prefix_pos cap ws hcap h_ex)
+
+  have hk_le_len : k ≤ ws.length := by simpa [k] using (find_prefix_le_length cap ws h_ex)
+
+  have h_at_k : cap ≤ (ws.take k).sum := by simpa [k] using (Nat.find_spec h_ex)
+
+  have h_prev_lt : (ws.take (k-1)).sum < cap := by
+    -- minimality: any j < k fails cap ≤ sum(take j)
+    have hnot : ¬ cap ≤ (ws.take (k-1)).sum := by
+      -- need (k-1) < k
+      have hk1_lt : k - 1 < k := Nat.pred_lt (ne_of_gt hk_pos)
+      -- Nat.find_min gives ¬P (k-1)
+      -- P j := cap ≤ sum(take j)
+      exact Nat.find_min h_ex hk1_lt
+    exact Nat.lt_of_not_ge hnot
+
+  have hk1_lt_len : k - 1 < ws.length := by
+    exact Nat.lt_of_lt_of_le (Nat.pred_lt (ne_of_gt hk_pos)) hk_le_len
+
+  exact ⟨hk_pos, h_prev_lt, h_at_k, hk1_lt_len⟩
+
 
 /-! ## 1. The Splitting Logic (Arithmetic Core) -/
 
@@ -231,29 +373,173 @@ lemma split_exact_of_dyadic
 
   exact h_le
 
-/-! ## 2. Construction -/
-/--
-  Constructs a prefix-free code for a given list of lengths at height h.
-  Explicitly handles '0' lengths by returning the singleton root Code.
--/
-def constructSorted (h : ℕ) (lengths : List ℕ) : Code :=
-  if 0 ∈ lengths then
-    {[]}
-  else
-    match h with
-    | 0 => ∅ -- No 0s allowed here (checked by if), so nothing fits.
-    | n + 1 =>
-      let next_reqs := lengths.map (· - 1)
-      let weights := next_reqs.map (fun l => 2^(n - l))
+/-- Helper: If every element in a list is divisible by k, their sum is divisible by k. -/
+lemma sum_dvd_of_forall_dvd {k : ℕ} {L : List ℕ} (h : ∀ x ∈ L, k ∣ x) : k ∣ L.sum := by
+  induction L with
+  | nil => simp
+  | cons head tail ih =>
+    simp
+    apply Nat.dvd_add
+    · apply h; simp
+    · apply ih; intro x hx; apply h; simp [hx]
 
-      if weights.sum ≤ 2^n then
-         (constructSorted n next_reqs).image (List.cons true)
-      else
-         let k := splitIndex (2^n) weights
-         let L_left := next_reqs.take k
-         let L_right := next_reqs.drop k
-         (constructSorted n L_left).image (List.cons true) ∪
-         (constructSorted n L_right).image (List.cons false)
+/--
+  "No Jump" Lemma: In the integers, you cannot jump over a multiple of k
+  by adding k. If you start below T and add k to reach/exceed T,
+  and both start and T are divisible by k, you must land on T exactly.
+-/
+lemma exact_hit_of_divisible_step (current target step : ℕ)
+    (h_dvd_curr : step ∣ current)
+    (h_dvd_targ : step ∣ target)
+    (h_below : current < target)
+    (h_above : target ≤ current + step) :
+    current + step = target := by
+  -- Proof: If strictly greater, we find an integer strictly between two integers.
+  have h_dvd_diff : step ∣ (target - current) := Nat.dvd_sub h_dvd_targ h_dvd_curr
+  have h_step_le : step ≤ target - current := Nat.le_of_dvd (Nat.sub_pos_of_lt h_below) h_dvd_diff
+  -- current + step ≤ current + (target - current) = target
+  omega
+
+/--
+  Divisibility Chain:
+  If lengths are non-decreasing (sorted), then weights (2^(h-l)) are non-increasing.
+  Therefore, the k-th weight (smallest seen so far) divides all previous weights.
+-/
+lemma sum_divisible_by_next_weight {h : ℕ} {l : List ℕ} (h_sorted : l.IsChain (· ≤ ·)) :
+    ∀ k (hk : k < l.length),
+    (2 ^ (h - l.get ⟨k, hk⟩)) ∣ List.sum ((l.take k).map (fun x ↦ 2 ^ (h - x))) := by
+  intro k hk
+  apply sum_dvd_of_forall_dvd
+  intros w hw
+  -- w is a weight 2^(h - x) where x is in l.take k
+  rw [List.mem_map] at hw
+  rcases hw with ⟨len_x, h_mem_take, rfl⟩
+  rw [List.mem_take_iff_getElem] at h_mem_take
+  rcases h_mem_take with ⟨j, hj_lt, rfl⟩
+
+  -- Exponent logic: h - l[k] ≤ h - l[j]
+  apply Nat.pow_dvd_of_le_of_pow_dvd _ (by rfl)
+  apply Nat.sub_le_sub_left
+  -- Chain logic: j < k implies l[j] ≤ l[k]
+  have : l.Pairwise (· ≤ ·) := List.isChain_iff_pairwise.mp h_sorted
+  rw [<-List.sortedLE_iff_pairwise] at this
+  apply List.SortedLE.getElem_le_getElem_of_le this (by omega)
+
+
+lemma le_foldr_max (l : List ℕ) (x : ℕ) (hx : x ∈ l) :
+    x ≤ l.foldr max 0 := by
+  induction l with
+  | nil => contradiction
+  | cons head tail ih =>
+    rw [List.foldr_cons]
+    simp only [List.mem_cons] at hx
+    rcases hx with rfl | h_in_tail
+    · exact Nat.le_max_left _ _
+    · exact le_trans (ih h_in_tail) (Nat.le_max_right _ _)
+
+/--
+  The Integer version of Lemma 3.1 on Lists.
+  Finds the prefix of the list that sums exactly to the target 2^h.
+-/
+theorem list_kraft_exact (lengths : List ℕ)
+    (h_sorted : lengths.IsChain (· ≤ ·))
+    (h_sum_ge_1 : List.sum (lengths.map (fun l ↦ (2 ^ l : ℚ)⁻¹)) ≥ 1) :
+    ∃ k, List.sum ((lengths.take k).map (fun l ↦ (2 ^ l : ℚ)⁻¹)) = 1 := by
+
+  -- 1. Setup: Define the Integer Domain (Scale by 2^h)
+  let h := lengths.foldr max 0
+  let weights := lengths.map (fun l ↦ 2 ^ (h - l))
+  let target := 2 ^ h
+
+  -- 2. Hypothesis Conversion: Rational Sum ≥ 1 implies Integer Sum ≥ Target
+  have h_mass_ge : weights.sum ≥ target := by
+    -- A. Establish that h is the upper bound (needed for exponent subtraction)
+    have h_bound : ∀ l ∈ lengths, l ≤ h := fun l hl ↦ le_foldr_max lengths l hl
+
+    -- B. Prove the scaling identity in Rationals: Σ 2^(h-l) = 2^h * Σ 2^(-l)
+    sorry
+
+
+  -- 3. Search: Identify the "Split Point" k
+  -- We find the *first* prefix length k such that the sum meets or exceeds the target.
+  let range := List.range (lengths.length + 1)
+  let k := range.find? (fun i ↦ (weights.take i).sum ≥ target)
+           |>.getD lengths.length
+
+  -- 4. Bounds: Establish the properties of k
+  have k_bounds : k > 0 ∧ k ≤ lengths.length := by
+    -- Proving k ≤ lengths.length
+    have h_le : k ≤ lengths.length := by
+      dsimp [k]
+      match hf : range.find? _ with
+      | some i =>
+        have := List.mem_of_find?_eq_some hf
+        rw [List.mem_range] at this
+        exact Nat.le_of_lt_succ this
+      | none => exact Nat.le_refl _
+
+    -- Proving k > 0
+    have h_pos : k > 0 := by
+      sorry
+
+    exact ⟨h_pos, h_le⟩
+
+  let prev := k - 1
+
+  -- Explicitly connect weights.length to lengths.length for omega
+  have h_len_eq : weights.length = lengths.length := by
+    sorry
+
+  -- Now omega has everything it needs: prev < k ≤ lengths.length = weights.length
+  let w_last := weights.get ⟨prev, by omega⟩
+
+  have decomposition : (weights.take k).sum = (weights.take prev).sum + w_last := by
+    sorry -- Proof: list manipulation (take succ = take ++ [get]).
+
+  -- 6. Divisibility (The Core "No Jump" Logic)
+  -- The last added weight must divide the previous sum and the target.
+  have dvd_prev : w_last ∣ (weights.take prev).sum := by
+    sorry -- Proof: Apply 'sum_divisible_by_next_weight'.
+
+  have dvd_target : w_last ∣ target := by
+    sorry -- Proof: w_last is 2^j, target is 2^h, and j ≤ h.
+
+  -- 7. Exactness: Conclude we hit the target exactly
+  -- "If you are below T, add w (which divides T and S), and end up >= T, you must be exactly T."
+  have h_exact_int : (weights.take k).sum = target := by
+    -- apply exact_hit_of_divisible_step
+    sorry
+
+  -- 8. Return: Convert back to Rational domain
+  exists k
+  have : List.sum ((lengths.take k).map (fun l ↦ (2 ^ l : ℚ)⁻¹)) = 1 := by
+    sorry -- Proof: Reverse the scaling from step 2.
+
+  exact this
+
+/--
+Lemma 3.1: Let I be a finite set and let l : I → ℕ satisfy ∑ 2^{-l(i)} ≥ 1.
+There exists a subset S ⊆ I such that ∑_{i ∈ S} 2^{-l(i)} = 1.
+-/
+theorem lemma_3_1 {α : _} (I : Finset α) (l : α → ℕ) :
+    ∑ i ∈ I, (2 ^ l i : ℚ)⁻¹ ≥ 1 ->
+    ∃ S ⊆ I, ∑ i ∈ S, (2 ^ l i : ℚ)⁻¹ = 1 :=
+  sorry
+
+/--
+Theorem 3.2: Let I be a finite set and let l : I → ℕ satisfy ∑ 2^{-l(i)} ≤ 1.
+There exists an injective mapping w : I → {0,1}* whose image is prefix-free,
+and furthermore |w(i)| = l(i).
+-/
+theorem theorem_3_2 {α : _} (I : Finset α) (l : α → ℕ)
+    (h_sum : ∑ i ∈ I, (2 ^ l i : ℚ)⁻¹ ≤ 1) :
+    ∃ w : α → Word,
+      Set.InjOn w I ∧
+      PrefixFree (I.image w) ∧
+      ∀ i ∈ I, (w i).length = l i :=
+  sorry
+
+/-! ## 2. Construction -/
 
 section Helpers
 
@@ -447,31 +733,20 @@ lemma mass_zero_implies_singleton
     (h_zero : 0 ∈ lengths) :
     lengths = [0] := by
   dsimp [mass] at h_mass
-
-  -- Isolate the 0 element from the sum
   rw [List.mem_iff_append] at h_zero
   rcases h_zero with ⟨pre, post, rfl⟩
-
-  -- Rewrite sum: sum(pre ++ [0] ++ post) = sum(pre) + 2^h + sum(post)
   rw [List.map_append, List.sum_append] at h_mass
   rw [List.map_cons, List.sum_cons] at h_mass
   simp only [Nat.sub_zero] at h_mass
-
-  -- 2^h + rest ≤ 2^h  implies  rest = 0
   have h_rest_zero : (pre.map (fun l => 2 ^ (h - l))).sum + (post.map (fun l => 2 ^ (h - l))).sum = 0 := by
     omega
-
-  -- Since 2^k ≥ 1, a sum of powers of 2 is 0 iff the list is empty
   have h_pre_nil : pre = [] := by
     match pre with
     | [] => rfl
     | x :: xs =>
-      -- If pre has a head x, the sum includes 2^(h-x) which is > 0
       simp only [List.map_cons, List.sum_cons] at h_rest_zero
       have : 2 ^ (h - x) > 0 := Nat.pow_pos (by decide)
       omega
-
-  -- Prove post is empty
   have h_post_nil : post = [] := by
     match post with
     | [] => rfl
@@ -479,144 +754,22 @@ lemma mass_zero_implies_singleton
       simp only [List.map_cons, List.sum_cons] at h_rest_zero
       have : 2 ^ (h - x) > 0 := Nat.pow_pos (by decide)
       omega
-
   subst pre post
   rfl
 
+/-- Helper: If disjoint, the lengths of the union are the permutation of the combined lengths. -/
+lemma lengths_union_disjoint {S1 S2 : Code} (h : Disjoint S1 S2) :
+    List.Perm ((S1 ∪ S2).toList.map List.length)
+              ((S1.toList.map List.length) ++ (S2.toList.map List.length)) := by
+  -- Convert to multiset equality which handles permutation automatically
+  sorry
+
+lemma lengths_image_cons (b : Bool) (S : Code) :
+    (S.image (List.cons b)).toList.map List.length =
+    (S.toList.map List.length).map Nat.succ := by
+  sorry
+
 end Helpers
-
-theorem constructSorted_correct (h : ℕ) (lengths : List ℕ)
-    (h_sorted : lengths.IsChain (· ≤ ·))
-    (h_mass : mass h lengths ≤ 2^h) :
-    PrefixFree (constructSorted h lengths) ∧
-    List.Perm ((constructSorted h lengths).toList.map List.length) lengths := by
-  induction h generalizing lengths with
-  | zero =>
-    -- Base Case: Height 0
-    simp [constructSorted]
-    split
-    · -- Subcase: 0 ∈ lengths. Must be [0].
-      rename_i h_zero
-      have := mass_zero_implies_singleton h_mass h_zero
-      subst lengths
-      simp [PrefixFree]
-    · -- Subcase: 0 ∉ lengths. Must be empty.
-      -- If lengths is non-empty but has no 0s, elements are >= 1.
-      -- But at h=0, capacity is 1. Element 1 needs mass 2^(0-1) = 1?
-      -- If we assume valid inputs, lengths must be [].
-      -- (We can derive lengths=[] from h_mass here, but for now we trust valid input)
-      have : lengths = [] := sorry
-      subst lengths
-      simp [PrefixFree]
-
-  | succ n ih =>
-    -- Recursive Step
-    simp [constructSorted]
-
-    -- 1. Check for 0 (The Stop Condition)
-    if h0 : 0 ∈ lengths then
-      simp [h0]
-      have := mass_zero_implies_singleton h_mass h0
-      subst lengths
-      simp [PrefixFree]
-    else
-      simp [h0]
-      -- 2. Prepare Recursive Inputs
-      -- Note: Since 0 ∉ lengths, we map directly without filtering.
-      let next_reqs := lengths.map (· - 1)
-      let weights := next_reqs.map (fun l => 2^(n - l))
-
-      have h_next_sorted : next_reqs.IsChain (· ≤ ·) := by
-        dsimp [next_reqs]
-        rw [List.isChain_map]
-        -- Implication: a <= b -> a-1 <= b-1
-        exact h_sorted.imp (fun _ _ => Nat.pred_le_pred)
-
-      -- 3. Check Split Condition
-      if h_fit : weights.sum ≤ 2^n then
-        -- === CASE A: No Split ===
-        have ⟨ih_pf, ih_perm⟩ := ih next_reqs h_next_sorted h_fit
-
-        constructor
-        · apply prefixFree_cons
-          exact ih_pf
-        · rw [lengths_image_cons]
-          rw [List.perm_map_succ_iff]
-          exact ih_perm
-
-      else
-        -- === CASE B: Split ===
-        -- simp_all
-        let k := splitIndex (2^n) weights
-        let L_left := next_reqs.take k
-        let L_right := next_reqs.drop k
-
-        -- Apply Arithmetic Helper
-        have ⟨m_left, m_right⟩ := split_properties n next_reqs weights rfl (not_le.mp h_fit) h_next_sorted
-
-        -- Recursive Calls
-        have ⟨pf_L, perm_L⟩ := ih L_left (h_next_sorted.sublist (List.take_sublist k next_reqs)) (le_of_eq m_left)
-        have ⟨pf_R, perm_R⟩ := ih L_right (h_next_sorted.sublist (List.drop_sublist k next_reqs)) m_right
-
-        constructor
-        · -- Prefix Free
-          apply prefixFree_union_cons pf_L pf_R
-        · -- Permutation
-          apply List.Perm.trans (lengths_union_disjoint construct_disjoint_cons)
-          rw [List.perm_append_comm]
-          rw [lengths_image_cons, lengths_image_cons]
-          rw [List.map_append]
-          rw [← List.perm_map_succ_iff]
-          apply List.Perm.trans (List.Perm.append perm_L perm_R)
-          rw [List.take_append_drop]
-          exact List.Perm.refl _
-
-/-! ## 3. Correctness Theorems -/
-theorem constructSorted_prefixFree (h : ℕ) (lengths : List ℕ)
-    (h_sorted : lengths.IsChain (· ≤ ·)) :
-    PrefixFree (constructSorted h lengths) := by
-  induction h generalizing lengths with
-  | zero =>
-    -- Base Case
-    simp [constructSorted]
-    split <;> simp [PrefixFree]
-  | succ n ih =>
-    -- Recursive Step
-    simp [constructSorted]
-    split
-    · -- Sub-case: 0 ∈ lengths (Result: {[]})
-      simp [PrefixFree]
-    · -- Sub-case: 0 ∉ lengths
-      rename_i h_no_zero
-
-      -- Since 0 ∉ lengths, we just map (· - 1) without filtering.
-      -- (Assuming your definition of constructSorted uses .map in the else branch)
-      let next_reqs := lengths.map (· - 1)
-
-      have h_next_sorted : next_reqs.IsChain (· ≤ ·) := by
-        dsimp [next_reqs]
-        induction lengths with
-        | nil => simp
-        | cons a tail ih_chain =>
-          cases tail with
-          | nil => simp
-          | cons b rest =>
-            -- Unpack the sorted hypothesis: a ≤ b AND rest is sorted
-            simp_all
-            constructor
-            exact h_sorted.1
-
-      split
-      · -- Case: Fits in Left (No split)
-        apply prefixFree_cons
-        apply ih
-        exact h_next_sorted
-      · -- Case: Split required
-        apply prefixFree_union_cons
-        · apply ih
-          exact h_next_sorted.sublist (List.take_sublist _ _)
-        · apply ih
-          exact h_next_sorted.sublist (List.drop_sublist _ _)
 
 -- Helper: Lengths of a code as a multiset
 def lengthMultiset (S : Code) : Multiset ℕ := S.val.map List.length
@@ -630,37 +783,14 @@ lemma lengthMultiset_union_of_disjoint {S1 S2 : Code} (h : Disjoint S1 S2) :
   -- val of disjUnion is map sum
   simp only [Finset.disjUnion_val, Multiset.map_add]
 
--- Helper: Lengths of image cons are map (+1)
-lemma lengthMultiset_image_cons (b : Bool) (S : Code) :
-    lengthMultiset (S.image (List.cons b)) = (lengthMultiset S).map Nat.succ :=
-    by sorry
-
-theorem constructSorted_lengths_perm (h : ℕ) (lengths : List ℕ)
-    (h_sorted : lengths.IsChain (· ≤ ·))
-    (h_mass : mass h lengths ≤ 2^h) :
-    List.Perm ((constructSorted h lengths).toList.map List.length) (lengths.filter (· > 0)) :=
-    by sorry
-
-/-! ## 4. Main Theorem -/
-
-def constructCode (h : ℕ) (lengths : List ℕ) : Code :=
-  constructSorted h (lengths.insertionSort (· ≤ ·))
-
-theorem kraft_converse (lengths : List ℕ) :
-    let h := lengths.foldr max 0
-    let S := constructCode h lengths
-    (mass h lengths ≤ 2^h) →
-    PrefixFree S ∧
-    List.Perm (S.toList.map List.length) (lengths.filter (· > 0)) := by
-  intro h S h_mass
-  let sorted := lengths.insertionSort (· ≤ ·)
-  have h_chain : sorted.IsChain (· ≤ ·) := (lengths.pairwise_insertionSort (· ≤ ·)).isChain
-  have h_perm : sorted.Perm lengths := lengths.perm_insertionSort (· ≤ ·)
-  have h_mass_sorted : mass h sorted = mass h lengths := mass_perm h_perm
-  rw [← h_mass_sorted] at h_mass
-
-  constructor
-  · exact constructSorted_prefixFree h sorted h_chain
-  · have h1 := constructSorted_lengths_perm h sorted h_chain h_mass
-    have h2 := h_perm.filter (· > 0)
-    exact List.Perm.trans h1 h2
+-- Word = List Bool in your development
+lemma lengths_image_cons_perm (b : Bool) (S : Code) :
+    ((S.image (List.cons b)).toList.map List.length
+      ).Perm ((S.toList.map List.length).map Nat.succ) := by
+  classical
+  -- Convert to multisets; then simp.
+  -- This relies on standard facts:
+  --   (i) toList forgets order only (toMultiset),
+  --  (ii) image with injective = map on the underlying multiset,
+  -- (iii) length (b :: w) = succ (length w).
+  sorry

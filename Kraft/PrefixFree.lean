@@ -1,6 +1,7 @@
 import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Nat.Basic
+import Mathlib.Data.Rat.Defs
 import Mathlib.Algebra.BigOperators.Fin
 
 abbrev Word := List Bool
@@ -9,6 +10,12 @@ abbrev Code := Finset Word
 /-- Prefix-free set of binary words -/
 def PrefixFree (S : Code) : Prop :=
   ∀ ⦃x y⦄, x ∈ S → y ∈ S → x <+: y → x = y
+
+open BigOperators
+
+def kraftSum (S : Code) : ℚ :=
+  ∑ w ∈ S, (2 ^ w.length)⁻¹
+
 
 lemma prefixFree_singleton_nil {S : Code}
     (hpf : PrefixFree S) (h_in : ([] : Word) ∈ S) : S = {[]} := by

@@ -138,9 +138,6 @@ theorem kraft_inequality_nat (n : ℕ) (S : Code)
 
 /-! ## 5. Rational Corollary -/
 
-def kraftSum (S : Code) : ℚ :=
-  ∑ w ∈ S, (2 ^ w.length)⁻¹
-
 theorem kraft_inequality (S : Code) (hpf : PrefixFree S) :
     kraftSum S ≤ 1 := by
   rcases S.eq_empty_or_nonempty with rfl | hne; · simp [kraftSum]
