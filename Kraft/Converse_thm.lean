@@ -2,10 +2,12 @@ import Mathlib.Data.List.Sort
 import Mathlib.Data.List.Chain
 import Mathlib.Data.List.Perm.Basic
 import Mathlib.Data.Nat.Log
+import Mathlib.Data.Nat.GCD.Basic
 import Mathlib.Algebra.BigOperators.Group.List.Lemmas
 import Mathlib.Algebra.Order.BigOperators.Group.List
+import Mathlib.Algebra.Order.BigOperators.Group.Finset
+
 import Mathlib.Tactic.Linarith
-import Mathlib.Data.Nat.GCD.Basic
 
 import Batteries.Data.List.Basic
 
@@ -248,7 +250,16 @@ lemma kraft_singleton_of_exists_len_zero
   -- pick i0 with l i0 = 0. Then the summand at i0 is 1.
   -- If there were any other j ∈ I, its summand is > 0, so total sum > 1. Contradiction.
   -- hence card I ≤ 1, so I is empty or singleton.
-  sorry
+  obtain ⟨ i, hi, hi' ⟩ := hz;
+  contrapose! h_sum;
+  rw [Finset.sum_eq_add_sum_diff_singleton hi];
+  apply lt_add_of_le_of_pos (by norm_num [hi'])
+  apply Finset.sum_pos (fun x hx => by simp)
+  apply Finset.nonempty_of_ne_empty
+  simp_all
+  intro a
+  simp_all only [Finset.notMem_empty]
+
 
 -- For the positive-length case, split I into S and its complement so that both sums ≤ 1/2.
 -- If total ≤ 1/2, take S = I. Otherwise use corollary_3_1_half to carve S with sum = 1/2.
@@ -324,7 +335,13 @@ theorem theorem_3_2_aux
         have : I = ∅ ∨ ∃ i, I = {i} :=
           kraft_singleton_of_exists_len_zero (I := I) (l := l) h_sum hz
         -- build w from cases
-        sorry
+        obtain ⟨w, h_1⟩ := hz
+        obtain ⟨left, right⟩ := h_1
+        cases this with
+        | inl h_1 => simp_all
+        | inr h_2 =>
+          obtain ⟨w_1, h_1⟩ := h_2
+          simp_all
       · -- Otherwise, all lengths are positive on I.
         have h_pos : ∀ i ∈ I, 0 < l i := by
           intro i hi
