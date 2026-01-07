@@ -1,6 +1,7 @@
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
 
+import Kraft.DyadicHelpers
 import Kraft.PrefixFree
 
 open BigOperators
@@ -189,17 +190,6 @@ lemma pow2_chain_dvd_of_lt (ws : List ℕ)
 
   simpa [hj, hji] using hdiv
 
-
-/-- Helper: If every element in a list is divisible by k, their sum is divisible by k. -/
-lemma sum_dvd_of_forall_dvd {k : ℕ} {L : List ℕ} (h : ∀ x ∈ L, k ∣ x) : k ∣ L.sum := by
-  induction L with
-  | nil => simp
-  | cons head tail ih =>
-    simp
-    apply Nat.dvd_add
-    · apply h; simp
-    · apply ih; intro x hx; apply h; simp [hx]
-
 /--
 In a non-increasing dyadic list, `ws[k]` divides the sum of the prefix `take k`.
 -/
@@ -209,7 +199,7 @@ lemma pow2_chain_dvd_prefix_sum (ws : List ℕ)
     ∀ k (hk : k < ws.length),
       ws.get ⟨k, hk⟩ ∣ (ws.take k).sum := by
   intro k hk
-  apply sum_dvd_of_forall_dvd
+  apply Dyadic.sum_dvd_of_forall_dvd
   intro x hx
   -- x is some ws[i] with i < k (and i < length)
   rcases (List.mem_take_iff_getElem.mp hx) with ⟨i, hi, rfl⟩
@@ -280,27 +270,6 @@ lemma le_foldr_max (l : List ℕ) (x : ℕ) (hx : x ∈ l) :
     · exact Nat.le_max_left _ _
     · exact le_trans (ih h_in_tail) (Nat.le_max_right _ _)
 
-
-lemma scale_term (h l : ℕ) (hl : l ≤ h) :
-    (2^h ) * (2^l)⁻¹ = (2^(h - l) : ℚ) := by
-  -- 2^h = 2^l * 2^(h-l)
-  have hpow : (2^h : ℚ) = (2^l) * (2^(h - l)) := by
-    -- use h = l + (h-l)
-    calc
-      (2^h) = (2^(l + (h - l)) : ℚ) := by simp [Nat.add_sub_of_le hl]
-      _ = (2^l ) * (2^(h - l) ) := by simp [pow_add]
-
-  have hne : (2^l) ≠ 0 := by exact pow_ne_zero l (by norm_num)
-  -- cancel 2^l
-  calc
-    (2^h ) * (2^l)⁻¹
-        = ((2^l ) * (2^(h - l))) * (2^l )⁻¹ := by simp [hpow]
-    _ = (2^l) * ((2^(h - l) : ℚ) * (2^l )⁻¹) := by simp [mul_assoc]
-    _ = (2^l) * ((2^l)⁻¹ * (2^(h - l))) := by simp [mul_comm]
-    _ = ((2^l) * (2^l)⁻¹) * (2^(h - l) ) := by simp
-    _ = (2^(h - l) ) := by simp
-
-
 /--
 Scaling identity on a list: if every `l` in `lengths` satisfies `l ≤ h`, then
 
@@ -318,8 +287,8 @@ lemma scale_sum_eq (h : ℕ) (lengths : List ℕ)
       have h_bound_tl : ∀ l ∈ tl, l ≤ h := by
         intro l hl
         exact h_bound l (by simp [hl])
-      -- expand sums, distribute, rewrite the head term via `scale_term`, recurse
-      simp [ih h_bound_tl, scale_term h a ha, mul_add]
+      -- expand sums, distribute, rewrite the head term via `two_pow_mul_inv'`, recurse
+      simp [ih h_bound_tl, Dyadic.two_pow_mul_inv' h a ha, mul_add]
 
 /-- Cast a list-sum: `((∑ f) : ℚ) = ∑ (cast ∘ f)` -/
 lemma rat_cast_sum_map {α : Type _} (xs : List α) (f : α → ℕ) :
@@ -552,35 +521,24 @@ theorem lemma_3_1 {α : _} [DecidableEq α] (I : Finset α) (l : α → ℕ) :
     -- The rest is just map/comp manipulation matching `hk`
     simpa [Function.comp] using hk
 
+lemma finset_sum_inv_pow_sub_one
+    {α : Type _} (I : Finset α) (l : α → ℕ)
+    (hpos : ∀ i ∈ I, 0 < l i) :
+    (∑ i ∈ I, (2 ^ (l i - 1) : ℚ)⁻¹)
+      = (2 : ℚ) * (∑ i ∈ I, (2 ^ (l i) : ℚ)⁻¹) := by
+  calc
+    (∑ i ∈ I, (2 ^ (l i - 1) : ℚ)⁻¹)
+        = ∑ i ∈ I, (2 : ℚ) * (2 ^ (l i) : ℚ)⁻¹ := by
+            refine Finset.sum_congr rfl ?_
+            intro i hi
+            simpa using (Dyadic.inv_pow_sub_one (n := l i) (hpos i hi))
+    _   = (2 : ℚ) * (∑ i ∈ I, (2 ^ (l i) : ℚ)⁻¹) := by
+            simpa using (Finset.mul_sum I (fun i => (2 ^ (l i) : ℚ)⁻¹) (2 : ℚ)).symm
+
 /-!
   # Corollary 3.1
   If sum 2^{-l(i)} ≥ 1/2 and all l(i) > 0, there exists a subset summing to exactly 1/2.
 -/
-
-/--
-Arithmetic helper: 2^{-(n-1)} = 2 * 2^{-n} for positive n.
-This corresponds to the scaling step in the proof where l'(i) = l(i) - 1.
--/
-lemma inv_pow_sub_one {n : ℕ} (hn : 0 < n) :
-    (2 ^ (n - 1) : ℚ)⁻¹ = 2 * (2 ^ n : ℚ)⁻¹ := by
-  have h2 : (2 : ℚ) ≠ 0 := by norm_num
-  have h1n : 1 ≤ n := Nat.succ_le_iff.2 hn
-
-  have hpow : (2 ^ n : ℚ) = 2 * 2 ^ (n - 1) := by
-    calc
-      (2 ^ n : ℚ) = (2 ^ (n - 1 + 1) : ℚ) := by simp [Nat.sub_add_cancel h1n]
-      _ = (2 ^ (n - 1) : ℚ) * 2 := by simp [pow_succ]
-      _ = 2 * 2 ^ (n - 1) := by simp [mul_comm]
-  simp [hpow]
-
-  have hrhs :
-      (2 : ℚ) * ((2 ^ (n - 1) : ℚ)⁻¹ * (2 : ℚ)⁻¹) = (2 ^ (n - 1) : ℚ)⁻¹ := by
-    calc
-      (2 : ℚ) * ((2 ^ (n - 1) : ℚ)⁻¹ * (2 : ℚ)⁻¹)
-          = ((2 : ℚ) * (2 : ℚ)⁻¹) * (2 ^ (n - 1) : ℚ)⁻¹ := by ac_rfl
-      _ = (1 : ℚ) * (2 ^ (n - 1) : ℚ)⁻¹ := by simp [h2]
-      _ = (2 ^ (n - 1) : ℚ)⁻¹ := by simp
-  simp [hrhs]
 
 /--
 Corollary 3.1 (corrected): if `∑ 2^{-l(i)} ≥ 1/2` and all `l(i) > 0`,
@@ -598,19 +556,9 @@ theorem corollary_3_1_half {α : Type _} [DecidableEq α] (I : Finset α) (l : �
   let l' : α → ℕ := fun i => l i - 1
 
   -- rewrite the shifted-sum as `2 * original-sum`
-  have hrew :
-      (∑ i ∈ I, (2 ^ l' i : ℚ)⁻¹)
-        = (2 : ℚ) * (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) := by
-    calc
-      (∑ i ∈ I, (2 ^ l' i : ℚ)⁻¹)
-          = ∑ i ∈ I, (2 : ℚ) * (2 ^ l i : ℚ)⁻¹ := by
-              refine Finset.sum_congr rfl ?_
-              intro i hi
-              -- l'(i)=l(i)-1 and inv_pow_sub_one gives the scaling
-              simp [l', inv_pow_sub_one (n := l i) (h_pos i hi)]
-      _ = (2 : ℚ) * (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) := by
-              simpa using
-                (Finset.mul_sum I  (fun i => (2 ^ l i : ℚ)⁻¹) (2 : ℚ)).symm
+  have hrew : (∑ i ∈ I, (2 ^ l' i : ℚ)⁻¹)
+            = (2 : ℚ) * (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) := by
+    simpa [l'] using finset_sum_inv_pow_sub_one I l h_pos
 
   -- hence the shifted-sum is ≥ 1
   have h_sum' : (∑ i ∈ I, (2 ^ l' i : ℚ)⁻¹) ≥ (1 : ℚ) := by
@@ -622,25 +570,51 @@ theorem corollary_3_1_half {α : Type _} [DecidableEq α] (I : Finset α) (l : �
   rcases lemma_3_1 I l' h_sum' with ⟨S, hSsub, hS_exact⟩
 
   -- convert exactness back to l, giving 1/2
-  have hrewS :
-      (∑ i ∈ S, (2 ^ l' i : ℚ)⁻¹)
-        = (2 : ℚ) * (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) := by
-    calc
-      (∑ i ∈ S, (2 ^ l' i : ℚ)⁻¹)
-          = ∑ i ∈ S, (2 : ℚ) * (2 ^ l i : ℚ)⁻¹ := by
-              refine Finset.sum_congr rfl ?_
-              intro i hi
-              -- note: hi : i ∈ S, and S ⊆ I so we can use h_pos
-              have hiI : i ∈ I := hSsub hi
-              simp [l', inv_pow_sub_one (n := l i) (h_pos i hiI)]
-      _ = (2 : ℚ) * (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) := by
-              simpa using
-                (Finset.mul_sum S  (fun i => (2 ^ l i : ℚ)⁻¹) (2 : ℚ)).symm
-
-  have hS_mul : (2 : ℚ) * (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) = (1 : ℚ) := by
-    simpa [hrewS] using hS_exact
+  have hrewS : (∑ i ∈ S, (2 ^ l' i : ℚ)⁻¹)
+             = (2 : ℚ) * (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) := by
+    have hposS : ∀ i ∈ S, 0 < l i := by
+      intro i hi
+      exact h_pos i (hSsub hi)
+    simpa [l'] using finset_sum_inv_pow_sub_one S l hposS
 
   have hS_half : (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) = (1/2 : ℚ) := by
+    have hS_mul : (2 : ℚ) * (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) = (1 : ℚ) := by
+      simpa [hrewS] using hS_exact
     linarith [hS_mul]
 
   exact ⟨S, hSsub, hS_half⟩
+
+
+/-- Counterexample to the (incorrect) `= 1` conclusion. -/
+example :
+    let I : Finset Bool := {true}
+    let l : Bool → ℕ := fun _ => 1
+    (∀ i ∈ I, 0 < l i) ∧
+    (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹ ≥ (1/2 : ℚ)) ∧
+    ¬ (∃ S ⊆ I, ∑ i ∈ S, (2 ^ l i : ℚ)⁻¹ = (1 : ℚ)) := by
+  let I : Finset Bool := {true}
+  let l : Bool → ℕ := fun _ => 1
+  refine ⟨?_, ?_, ?_⟩
+
+  · -- positivity is immediate on a singleton
+    simp
+  · -- the bounded sum over `{true}` simplifies to `1/2`
+    -- (rewrite `≥` as `≤` to close with `le_rfl`)
+    simp [ge_iff_le]
+  · intro h
+    rcases h with ⟨S, hSI, hSsum⟩
+
+    -- any subset of a singleton is either empty or the singleton
+    have hcases : S = ∅ ∨ S = I := by
+      have : S ⊆ ({true} : Finset Bool) := by simpa [I] using hSI
+      simpa [I] using (Finset.subset_singleton_iff.mp this)
+
+    cases hcases with
+    | inl hS =>
+        subst hS
+        have : (0 : ℚ) = 1 := by simp at hSsum
+        norm_num at this
+    | inr hS =>
+        subst hS
+        have : (1/2 : ℚ) = 1 := by simp [I] at hSsum
+        norm_num at this
