@@ -522,12 +522,12 @@ theorem lemma_3_1 {α : _} [DecidableEq α] (I : Finset α) (l : α → ℕ) :
   let f : ℕ → ℚ := fun n => (2^n : ℚ)⁻¹
   let g : α → ℚ := fun x => f (l x)
 
-  have hI_toList : (I.toList.map g).sum ≥ 1 := by simpa
-  have h_perm_sum : (L.map g).sum = (I.toList.map g).sum := by simpa using (p.map g).sum_eq
-  have hL_sum_ge : (L.map g).sum ≥ 1 := by simpa [hI_toList, h_perm_sum]
   have h_list :
       ((L.map l).map f).sum ≥ 1 := by
     -- (L.map l).map f = L.map (fun x => f (l x)) = L.map g
+    have hI_toList : (I.toList.map g).sum ≥ 1 := by simpa
+    have h_perm_sum : (L.map g).sum = (I.toList.map g).sum := by simpa using (p.map g).sum_eq
+    have hL_sum_ge : (L.map g).sum ≥ 1 := by simpa [hI_toList, h_perm_sum]
     simpa [g, f, List.map_map, Function.comp] using hL_sum_ge
 
   have hLnodup : L.Nodup := by
