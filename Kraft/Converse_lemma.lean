@@ -1,4 +1,5 @@
 import Mathlib.Tactic.Linarith
+import Mathlib.Tactic.Ring
 
 import Kraft.PrefixFree
 
@@ -550,3 +551,96 @@ theorem lemma_3_1 {α : _} [DecidableEq α] (I : Finset α) (l : α → ℕ) :
     rw [sum_finset_take_eq_sum_list_take L hLnodup k (fun x ↦ (2^(l x) )⁻¹)]
     -- The rest is just map/comp manipulation matching `hk`
     simpa [Function.comp] using hk
+
+/-!
+  # Corollary 3.1
+  If sum 2^{-l(i)} ≥ 1/2 and all l(i) > 0, there exists a subset summing to exactly 1/2.
+-/
+
+/--
+Arithmetic helper: 2^{-(n-1)} = 2 * 2^{-n} for positive n.
+This corresponds to the scaling step in the proof where l'(i) = l(i) - 1.
+-/
+lemma inv_pow_sub_one {n : ℕ} (hn : 0 < n) :
+    (2 ^ (n - 1) : ℚ)⁻¹ = 2 * (2 ^ n : ℚ)⁻¹ := by
+  have h2 : (2 : ℚ) ≠ 0 := by norm_num
+  have h1n : 1 ≤ n := Nat.succ_le_iff.2 hn
+
+  have hpow : (2 ^ n : ℚ) = 2 * 2 ^ (n - 1) := by
+    calc
+      (2 ^ n : ℚ) = (2 ^ (n - 1 + 1) : ℚ) := by simp [Nat.sub_add_cancel h1n]
+      _ = (2 ^ (n - 1) : ℚ) * 2 := by simp [pow_succ]
+      _ = 2 * 2 ^ (n - 1) := by simp [mul_comm]
+  simp [hpow]
+
+  have hrhs :
+      (2 : ℚ) * ((2 ^ (n - 1) : ℚ)⁻¹ * (2 : ℚ)⁻¹) = (2 ^ (n - 1) : ℚ)⁻¹ := by
+    calc
+      (2 : ℚ) * ((2 ^ (n - 1) : ℚ)⁻¹ * (2 : ℚ)⁻¹)
+          = ((2 : ℚ) * (2 : ℚ)⁻¹) * (2 ^ (n - 1) : ℚ)⁻¹ := by ac_rfl
+      _ = (1 : ℚ) * (2 ^ (n - 1) : ℚ)⁻¹ := by simp [h2]
+      _ = (2 ^ (n - 1) : ℚ)⁻¹ := by simp
+  simp [hrhs]
+
+/--
+Corollary 3.1 (corrected): if `∑ 2^{-l(i)} ≥ 1/2` and all `l(i) > 0`,
+then there exists `S ⊆ I` with `∑_{i∈S} 2^{-l(i)} = 1/2`.
+Note: the paper says `= 1` which is wrong.
+Countereample:
+  take a one-element set with
+  l=1, then the only subset sums are 0 and 1/2.
+-/
+theorem corollary_3_1_half {α : Type _} [DecidableEq α] (I : Finset α) (l : α → ℕ)
+    (h_pos : ∀ i ∈ I, 0 < l i)
+    (h_sum : ∑ i ∈ I, (2 ^ l i : ℚ)⁻¹ ≥ (1/2 : ℚ)) :
+    ∃ S ⊆ I, ∑ i ∈ S, (2 ^ l i : ℚ)⁻¹ = (1/2 : ℚ) := by
+  -- define l' i = l i - 1
+  let l' : α → ℕ := fun i => l i - 1
+
+  -- rewrite the shifted-sum as `2 * original-sum`
+  have hrew :
+      (∑ i ∈ I, (2 ^ l' i : ℚ)⁻¹)
+        = (2 : ℚ) * (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) := by
+    calc
+      (∑ i ∈ I, (2 ^ l' i : ℚ)⁻¹)
+          = ∑ i ∈ I, (2 : ℚ) * (2 ^ l i : ℚ)⁻¹ := by
+              refine Finset.sum_congr rfl ?_
+              intro i hi
+              -- l'(i)=l(i)-1 and inv_pow_sub_one gives the scaling
+              simp [l', inv_pow_sub_one (n := l i) (h_pos i hi)]
+      _ = (2 : ℚ) * (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) := by
+              simpa using
+                (Finset.mul_sum I  (fun i => (2 ^ l i : ℚ)⁻¹) (2 : ℚ)).symm
+
+  -- hence the shifted-sum is ≥ 1
+  have h_sum' : (∑ i ∈ I, (2 ^ l' i : ℚ)⁻¹) ≥ (1 : ℚ) := by
+    have : (2 : ℚ) * (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≥ (1 : ℚ) := by
+      linarith [h_sum]
+    simpa [hrew] using this
+
+  -- apply Lemma 3.1 to l'
+  rcases lemma_3_1 I l' h_sum' with ⟨S, hSsub, hS_exact⟩
+
+  -- convert exactness back to l, giving 1/2
+  have hrewS :
+      (∑ i ∈ S, (2 ^ l' i : ℚ)⁻¹)
+        = (2 : ℚ) * (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) := by
+    calc
+      (∑ i ∈ S, (2 ^ l' i : ℚ)⁻¹)
+          = ∑ i ∈ S, (2 : ℚ) * (2 ^ l i : ℚ)⁻¹ := by
+              refine Finset.sum_congr rfl ?_
+              intro i hi
+              -- note: hi : i ∈ S, and S ⊆ I so we can use h_pos
+              have hiI : i ∈ I := hSsub hi
+              simp [l', inv_pow_sub_one (n := l i) (h_pos i hiI)]
+      _ = (2 : ℚ) * (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) := by
+              simpa using
+                (Finset.mul_sum S  (fun i => (2 ^ l i : ℚ)⁻¹) (2 : ℚ)).symm
+
+  have hS_mul : (2 : ℚ) * (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) = (1 : ℚ) := by
+    simpa [hrewS] using hS_exact
+
+  have hS_half : (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) = (1/2 : ℚ) := by
+    linarith [hS_mul]
+
+  exact ⟨S, hSsub, hS_half⟩
