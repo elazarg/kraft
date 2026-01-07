@@ -9,23 +9,11 @@ import Mathlib.Data.Nat.GCD.Basic
 
 import Batteries.Data.List.Basic
 
+import Kraft.DyadicHelpers
 import Kraft.PrefixFree
+import Kraft.Converse_lemma
 
 open BigOperators
-
-/--
-Theorem 3.2: Let I be a finite set and let l : I → ℕ satisfy ∑ 2^{-l(i)} ≤ 1.
-There exists an injective mapping w : I → {0,1}* whose image is prefix-free,
-and furthermore |w(i)| = l(i).
--/
-theorem theorem_3_2 {α : _} (I : Finset α) (l : α → ℕ)
-    (h_sum : ∑ i ∈ I, (2 ^ l i : ℚ)⁻¹ ≤ 1) :
-    ∃ w : α → Word,
-      Set.InjOn w I ∧
-      PrefixFree (I.image w) ∧
-      ∀ i ∈ I, (w i).length = l i :=
-  sorry
-
 
 -- General disjointness for codes starting with different bits
 lemma disjoint_cons {S1 S2 : Code} :
@@ -104,7 +92,7 @@ lemma split_divisibility
 
 /--
 If you take a prefix of `I.toList` and turn it into a finset, it’s a subset of `I`.
-This is the basic “prefix picks elements from I” fact.
+This is the basic "prefix picks elements from I" fact.
 -/
 lemma take_toFinset_subset {α : _} [DecidableEq α] (I : Finset α) (k : ℕ) :
     (I.toList.take k).toFinset ⊆ I := by
@@ -230,3 +218,227 @@ lemma lengthMultiset_union_of_disjoint {S1 S2 : Code} (h : Disjoint S1 S2) :
   rw [<-Finset.disjUnion_eq_union _ _ h]
   -- val of disjUnion is map sum
   simp only [Finset.disjUnion_val, Multiset.map_add]
+
+
+/-!
+# Theorem 3.2 (Converse of Kraft)
+
+Goal (your `theorem_3_2`):
+If `∑_{i∈I} 2^{-l(i)} ≤ 1`, build an injective `w : I → {0,1}*` such that
+(1) image is prefix-free, and (2) `|w(i)| = l(i)`.
+
+The construction is the standard "binary tree / half-splitting" recursion:
+split the index set into two parts whose Kraft sums are ≤ 1/2, decrement all lengths,
+recurse, then prefix `true` on the left and `false` on the right.
+-/
+
+/-! ## Small helper lemmas used by the induction step -/
+
+section Thm32Helpers
+variable {α : Type _} [DecidableEq α]
+variable (I : Finset α) (l : α → ℕ)
+
+-- If there is a zero-length requirement, the inequality forces `I` to be empty or singleton.
+-- (Because one element with l=0 contributes exactly 1, and all other contributions are positive.)
+lemma kraft_singleton_of_exists_len_zero
+    (h_sum : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≤ 1)
+    (hz : ∃ i ∈ I, l i = 0) :
+    I = ∅ ∨ ∃ i, I = {i} := by
+  -- proof idea:
+  -- pick i0 with l i0 = 0. Then the summand at i0 is 1.
+  -- If there were any other j ∈ I, its summand is > 0, so total sum > 1. Contradiction.
+  -- hence card I ≤ 1, so I is empty or singleton.
+  sorry
+
+-- For the positive-length case, split I into S and its complement so that both sums ≤ 1/2.
+-- If total ≤ 1/2, take S = I. Otherwise use corollary_3_1_half to carve S with sum = 1/2.
+def halfSplit
+    (h_pos : ∀ i ∈ I, 0 < l i)
+    (h_sum : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≤ 1) :
+    {S // S ⊆ I ∧
+         (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) ≤ (1/2 : ℚ) ∧
+         (∑ i ∈ I \ S, (2 ^ l i : ℚ)⁻¹) ≤ (1/2 : ℚ)} := by
+  by_cases hIhalf : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≤ (1/2 : ℚ)
+  · -- take S = I, then complement sum = 0
+    refine ⟨I, ?_, ?_, ?_⟩
+    · exact Finset.Subset.rfl
+    · simpa using hIhalf
+    · -- sum over I \ I is 0
+      simp
+  · -- total sum > 1/2, use corollary to get S with sum exactly 1/2
+    have h_ge_half : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≥ (1/2 : ℚ) := by
+      -- from ¬(≤ 1/2)
+      linarith
+    rcases corollary_3_1_half (I := I) (l := l) h_pos h_ge_half with ⟨S, hSsub, hS_eq⟩
+    refine ⟨S, hSsub, ?_, ?_⟩
+    · -- sum over S is 1/2 hence ≤ 1/2
+      simpa [hS_eq]
+    · -- complement sum = total - 1/2 ≤ 1/2 since total ≤ 1
+      -- use `Finset.sum_sdiff` (needs S ⊆ I) and then `linarith`.
+      -- (Also uses nonnegativity of summands to justify rearrangements if needed.)
+      sorry
+
+-- Decrementing a positive nat that is ≤ h+1 yields something ≤ h.
+lemma sub_one_le_of_le_succ {h n : ℕ} (hnpos : 0 < n) (hle : n ≤ h+1) :
+    n - 1 ≤ h := by
+  omega
+
+-- Length equation: if 0 < n then (n-1)+1 = n
+lemma sub_one_add_one_eq {n : ℕ} (hnpos : 0 < n) : (n - 1) + 1 = n := by
+  -- `Nat.sub_add_cancel` wants `1 ≤ n`
+  exact Nat.sub_add_cancel (Nat.succ_le_iff.mp hnpos)
+
+end Thm32Helpers
+
+
+/-! ## Main auxiliary theorem: induct on a height bound h -/
+
+section Thm32Aux
+
+variable {α : Type _} [DecidableEq α]
+
+-- This is the real induction statement:
+-- assume a *uniform* bound `l i ≤ h` over i∈I, plus Kraft sum ≤ 1,
+-- then build the code.
+theorem theorem_3_2_aux
+    (h : ℕ) (I : Finset α) (l : α → ℕ)
+    (h_bound : ∀ i ∈ I, l i ≤ h)
+    (h_sum : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≤ 1) :
+    ∃ w : α → Word,
+      Set.InjOn w I ∧
+      PrefixFree (I.image w) ∧
+      ∀ i ∈ I, (w i).length = l i := by
+  induction h with
+  | zero =>
+      -- h = 0: all lengths on I are 0.
+      -- Then each summand is 1, so sum = card I ≤ 1, hence card I ≤ 1.
+      -- So I is empty or singleton. Construct w accordingly (always [] works).
+      -- PrefixFree on empty/singleton is trivial, injective on singleton is trivial.
+      sorry
+  | succ h ih =>
+      -- h = h+1 step.
+
+      -- First: handle the "some length is 0" corner case.
+      by_cases hz : (∃ i ∈ I, l i = 0)
+      · -- Then I is empty or singleton (see helper), and we finish like base case.
+        have : I = ∅ ∨ ∃ i, I = {i} :=
+          kraft_singleton_of_exists_len_zero (I := I) (l := l) h_sum hz
+        -- build w from cases
+        sorry
+      · -- Otherwise, all lengths are positive on I.
+        have h_pos : ∀ i ∈ I, 0 < l i := by
+          intro i hi
+          have : l i ≠ 0 := by
+            intro h0
+            exact hz ⟨i, hi, h0⟩
+          exact Nat.pos_of_ne_zero this
+
+        -- Choose S ⊆ I s.t. sum over S ≤ 1/2 and sum over I\S ≤ 1/2.
+        let split := halfSplit (I := I) (l := l) h_pos h_sum
+        rcases split with ⟨S, hSsub, hS_le_half, hC_le_half⟩
+        let C : Finset α := I \ S
+
+        -- Define decremented lengths l' i = l i - 1
+        let l' : α → ℕ := fun i => l i - 1
+
+        -- Show the *scaled* Kraft sums for S and C with l' are ≤ 1 (since original ≤ 1/2).
+        have hS_sum' : (∑ i ∈ S, (2 ^ l' i : ℚ)⁻¹) ≤ 1 := by
+          -- use finset_sum_inv_pow_sub_one on S:
+          --   sum 2^{-(l-1)} = 2 * sum 2^{-l}
+          -- then `linarith` with hS_le_half.
+          -- Need: ∀ i∈S, 0 < l i (follows from h_pos + hSsub).
+          sorry
+
+        have hC_sum' : (∑ i ∈ C, (2 ^ l' i : ℚ)⁻¹) ≤ 1 := by
+          -- same for C = I \ S, using hC_le_half
+          sorry
+
+        -- Show bound `l' i ≤ h` on S and C (since l i ≤ h+1 and l i > 0).
+        have hS_bound' : ∀ i ∈ S, l' i ≤ h := by
+          intro i hi
+          have hiI : i ∈ I := hSsub hi
+          have hle : l i ≤ h+1 := h_bound i hiI
+          exact sub_one_le_of_le_succ (hnpos := h_pos i hiI) hle
+
+        have hC_bound' : ∀ i ∈ C, l' i ≤ h := by
+          intro i hi
+          have hiI : i ∈ I := by
+            -- mem of sdiff implies mem of I
+            exact (Finset.mem_sdiff.mp hi).1
+          have hle : l i ≤ h+1 := h_bound i hiI
+          exact sub_one_le_of_le_succ (hnpos := h_pos i hiI) hle
+
+        -- Apply IH on S and C.
+        rcases ih (I := S) (l := l') hS_bound' hS_sum' with
+          ⟨w0, hw0_inj, hw0_pf, hw0_len⟩
+        rcases ih (I := C) (l := l') hC_bound' hC_sum' with
+          ⟨w1, hw1_inj, hw1_pf, hw1_len⟩
+
+        -- Combine by prefixing a different bit on each side.
+        let w : α → Word := fun i => if i ∈ S then true :: w0 i else false :: w1 i
+
+        refine ⟨w, ?_, ?_, ?_⟩
+
+        · -- Injective on I:
+          -- If w i = w j, then either both i,j ∈ S (strip true:: and use hw0_inj),
+          -- or both i,j ∈ C (strip false:: and use hw1_inj),
+          -- mixed case impossible since true≠false.
+          --
+          -- This is a standard by_cases on membership in S.
+          sorry
+
+        · -- PrefixFree on I.image w:
+          -- First rewrite the image as a union of two "cons" images:
+          --   I.image w = (S.image w0).image (List.cons true) ∪ (C.image w1).image (List.cons false)
+          -- Then use `prefixFree_union_cons` with hw0_pf and hw1_pf.
+          --
+          -- You already proved `prefixFree_union_cons` in Converse_thm.lean.
+          --
+          -- The only bookkeeping work is the `Finset.ext` rewrite of `I.image w`.
+          have h_img :
+              I.image w
+                = ((S.image w0).image (List.cons true)) ∪ ((C.image w1).image (List.cons false)) := by
+            -- prove by ext; cases on i∈S; use simp [w, C, Finset.mem_sdiff]
+            sorry
+          -- now apply prefixfree
+          -- (no disjointness lemma needed; `prefixFree_union_cons` handles cross cases by head-bit contradiction)
+          simpa [h_img] using (prefixFree_union_cons (S1 := S.image w0) (S2 := C.image w1) hw0_pf hw1_pf)
+
+        · -- Lengths: for i∈I, if i∈S then
+          --   length (true::w0 i) = (l i - 1)+1 = l i
+          -- similarly for i∈C.
+          intro i hi
+          by_cases hiS : i ∈ S
+          · -- i in S
+            have : (w0 i).length = l' i := hw0_len i hiS
+            -- unfold w,l'; simp [w, hiS, l', this, sub_one_add_one_eq (h_pos i (hSsub hiS))]
+            sorry
+          · -- i in C = I \ S
+            have hiC : i ∈ C := by
+              -- from hi∈I and hiS false
+              exact Finset.mem_sdiff.mpr ⟨hi, hiS⟩
+            have : (w1 i).length = l' i := hw1_len i hiC
+            -- unfold w,l'; simp [w, hiS, C, l', this, sub_one_add_one_eq (h_pos i hi)]
+            sorry
+
+end Thm32Aux
+
+
+/-! ## Final wrapper: choose h = max length on I and invoke the aux theorem -/
+
+theorem theorem_3_2 {α : _} (I : Finset α) (l : α → ℕ)
+    (h_sum : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≤ 1) :
+    ∃ w : α → Word,
+      Set.InjOn w I ∧
+      PrefixFree (I.image w) ∧
+      ∀ i ∈ I, (w i).length = l i := by
+  classical
+  -- Let h be the maximum value of l on I.
+  -- Any "sup/max" construction works; the only thing we need is:
+  --   (∀ i∈I, l i ≤ h).
+  let h : ℕ := I.sup l
+  have h_bound : ∀ i ∈ I, l i ≤ h := by
+    -- standard fact: le_sup for finset sup
+    -- (`Finset.le_sup` / `Finset.le_sup_of_le` depending on lemmas available)
+    sorry
+  exact theorem_3_2_aux (h := h) (I := I) (l := l) h_bound h_sum
