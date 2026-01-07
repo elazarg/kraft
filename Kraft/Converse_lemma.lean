@@ -89,10 +89,10 @@ def S_prev {cap ws} (ps : PrefixSplit cap ws) : ℕ := (ws.take (ps.k-1)).sum
 def w_last {cap ws} (ps : PrefixSplit cap ws) : ℕ := ws.get ⟨ps.k-1, ps.hk1_lt_len⟩
 
 @[simp] lemma S_prev_def {cap ws} (ps : PrefixSplit cap ws) :
-  PrefixSplit.S_prev ps = (ws.take (ps.k-1)).sum := rfl
+  ps.S_prev = (ws.take (ps.k-1)).sum := rfl
 
 @[simp] lemma w_last_def {cap ws} (ps : PrefixSplit cap ws) :
-  PrefixSplit.w_last ps = ws.get ⟨ps.k-1, ps.hk1_lt_len⟩ := rfl
+  ps.w_last = ws.get ⟨ps.k-1, ps.hk1_lt_len⟩ := rfl
 
 end PrefixSplit
 
@@ -136,16 +136,8 @@ def find_prefix_split_spec (cap : ℕ) (ws : List ℕ)
     h_at_k := h_at_k
   }
 
-lemma find_prefix_ge_prev_add_last (cap : ℕ) (ws : List ℕ)
-    (hcap : 0 < cap)
-    (h_ex : ∃ k, cap ≤ (ws.take k).sum) :
-    let ps := find_prefix_split_spec cap ws hcap h_ex
-    cap ≤ PrefixSplit.S_prev ps + PrefixSplit.w_last ps := by
-  intro ps
-  simpa  using ps.h_at_k
-
 /--
-  Helper 3: The "Gap" Logic [cite: 70-76].
+  Helper 3: The "Gap" Logic.
   If w divides S and T, and S < T ≤ S + w, then S + w = T.
   (In our case T = 2^n).
 -/
@@ -178,7 +170,7 @@ lemma pow2_chain_dvd_of_lt (ws : List ℕ)
     List.isChain_iff_pairwise.mp h_chain
 
   -- This uses `hik` in the *intended* place: i < k ⇒ ws[i] ≥ ws[k]
-  have h_ge :  ws.get ⟨k, hk⟩ ≤ ws.get ⟨i, hi⟩ :=
+  have h_ge : ws.get ⟨k, hk⟩ ≤ ws.get ⟨i, hi⟩ :=
     List.pairwise_iff_getElem.mp h_pairwise i k hi hk hik
 
   rcases h_pow2 (ws.get ⟨k, hk⟩) (List.get_mem ws ⟨k, hk⟩) with ⟨j, hj⟩
@@ -187,12 +179,11 @@ lemma pow2_chain_dvd_of_lt (ws : List ℕ)
 
   -- Turn `ws[i] ≥ ws[k]` into `2^ji ≥ 2^j`, then into `j ≤ ji`
   have hj_le : j ≤ ji := by
-    have : 2^j ≤ (2^ji : ℕ) := by omega
-    -- convert ≥ to ≤ and use monotonicity in exponent
-    have : (2^j : ℕ) ≤ 2^ji := by simpa [ge_iff_le] using this
+    have : 2^j ≤ 2^ji := by omega
+    -- use monotonicity in exponent
     exact (Nat.pow_le_pow_iff_right (by decide)).1 this
 
-  have hdiv : (2^j : ℕ) ∣ 2^ji :=
+  have hdiv : 2^j ∣ 2^ji :=
     (Nat.pow_dvd_pow_iff_le_right (by decide)).2 hj_le
 
   simpa [hj, hji] using hdiv
@@ -227,7 +218,7 @@ lemma pow2_chain_dvd_prefix_sum (ws : List ℕ)
   simpa using (pow2_chain_dvd_of_lt ws h_chain h_pow2 hi_lt_len hk hi_lt_k)
 
 lemma find_prefix_exact_of_dyadic_pow2 (n : ℕ) (ws : List ℕ)
-    (h_ex : ∃ k, (2^n : ℕ) ≤ (ws.take k).sum)
+    (h_ex : ∃ k, 2^n ≤ (ws.take k).sum)
     (h_chain : ws.IsChain (· ≥ ·))
     (h_pow2 : ∀ w ∈ ws, ∃ j, w = 2^j)
     (h_bounded : ∀ w ∈ ws, w ≤ 2^n) :
@@ -235,7 +226,7 @@ lemma find_prefix_exact_of_dyadic_pow2 (n : ℕ) (ws : List ℕ)
     (ws.take k).sum = 2^n := by
   intro k
 
-  have hcap : 0 < (2^n : ℕ) := Nat.pow_pos (by decide)
+  have hcap : 0 < 2^n := Nat.pow_pos (by decide)
 
   let ps : PrefixSplit (2^n) ws := find_prefix_split_spec (2^n) ws hcap h_ex
 
@@ -245,29 +236,30 @@ lemma find_prefix_exact_of_dyadic_pow2 (n : ℕ) (ws : List ℕ)
     simpa using (pow2_chain_dvd_prefix_sum ws h_chain h_pow2 (ps.k - 1) ps.hk1_lt_len)
 
   -- w_last ∣ 2^n
-  have h_dvd_cap : PrefixSplit.w_last ps ∣ (2^n : ℕ) := by
-    have hw_mem : PrefixSplit.w_last ps ∈ ws := by simp
-    rcases h_pow2 (PrefixSplit.w_last ps) hw_mem with ⟨j, hj⟩
-    have hw_le : PrefixSplit.w_last ps ≤ 2^n := h_bounded _ hw_mem
-    have h_le : (2^j : ℕ) ≤ 2^n := by linarith
+  have h_dvd_cap : ps.w_last ∣ 2^n := by
+    have hw_mem : ps.w_last ∈ ws := by simp
+    rcases h_pow2 ps.w_last hw_mem with ⟨j, hj⟩
+    have hw_le : ps.w_last ≤ 2^n := h_bounded _ hw_mem
+    have h_le : 2^j ≤ 2^n := by linarith
     have hj_le : j ≤ n := (Nat.pow_le_pow_iff_right (by decide)).1 h_le
-    have : (2^j : ℕ) ∣ 2^n := (Nat.pow_dvd_pow_iff_le_right (by decide)).2 hj_le
+    have : 2^j ∣ 2^n := (Nat.pow_dvd_pow_iff_le_right (by decide)).2 hj_le
     simp_all
 
   -- exact fit: S_prev + w_last = 2^n
-  have h_gap :
-      PrefixSplit.S_prev ps + PrefixSplit.w_last ps = (2^n : ℕ) :=
+  have h_gap : ps.S_prev + ps.w_last = 2^n :=
     exact_fit_logic
-      (PrefixSplit.S_prev ps) (PrefixSplit.w_last ps) (2^n : ℕ)
-      (by simpa using ps.h_prev_lt)
-      (by simpa using ps.h_at_k)
+      ps.S_prev
+      ps.w_last
+      (2^n)
+      ps.h_prev_lt
+      ps.h_at_k
       h_dvd_prev
       h_dvd_cap
 
-  have h_exact : (ws.take ps.k).sum = (2^n : ℕ) := by
+  have h_exact : (ws.take ps.k).sum = 2^n := by
     calc
       (ws.take ps.k).sum
-          = PrefixSplit.S_prev ps + PrefixSplit.w_last ps := by
+          = ps.S_prev + ps.w_last := by
               simpa using ps.h_decomp
       _ = 2^n := h_gap
 
@@ -289,24 +281,23 @@ lemma le_foldr_max (l : List ℕ) (x : ℕ) (hx : x ∈ l) :
 
 
 lemma scale_term (h l : ℕ) (hl : l ≤ h) :
-    (2^h : ℚ) * (2^l : ℚ)⁻¹ = (2^(h - l) : ℚ) := by
+    (2^h ) * (2^l)⁻¹ = (2^(h - l) : ℚ) := by
   -- 2^h = 2^l * 2^(h-l)
-  have hpow : (2^h : ℚ) = (2^l : ℚ) * (2^(h - l) : ℚ) := by
+  have hpow : (2^h : ℚ) = (2^l) * (2^(h - l)) := by
     -- use h = l + (h-l)
     calc
-      (2^h : ℚ) = (2^(l + (h - l)) : ℚ) := by simp [Nat.add_sub_of_le hl]
-      _ = (2^l : ℚ) * (2^(h - l) : ℚ) := by simp [pow_add]
+      (2^h) = (2^(l + (h - l)) : ℚ) := by simp [Nat.add_sub_of_le hl]
+      _ = (2^l ) * (2^(h - l) ) := by simp [pow_add]
 
-  have hne : (2^l : ℚ) ≠ 0 := by exact pow_ne_zero l (by norm_num)
-
+  have hne : (2^l) ≠ 0 := by exact pow_ne_zero l (by norm_num)
   -- cancel 2^l
   calc
-    (2^h : ℚ) * (2^l : ℚ)⁻¹
-        = ((2^l : ℚ) * (2^(h - l) : ℚ)) * (2^l : ℚ)⁻¹ := by simp [hpow]
-    _ = (2^l : ℚ) * ((2^(h - l) : ℚ) * (2^l : ℚ)⁻¹) := by simp [mul_assoc]
-    _ = (2^l : ℚ) * ((2^l : ℚ)⁻¹ * (2^(h - l) : ℚ)) := by simp [mul_comm]
-    _ = ((2^l : ℚ) * (2^l : ℚ)⁻¹) * (2^(h - l) : ℚ) := by simp
-    _ = (2^(h - l) : ℚ) := by simp [hne]
+    (2^h ) * (2^l)⁻¹
+        = ((2^l ) * (2^(h - l))) * (2^l )⁻¹ := by simp [hpow]
+    _ = (2^l) * ((2^(h - l) : ℚ) * (2^l )⁻¹) := by simp [mul_assoc]
+    _ = (2^l) * ((2^l)⁻¹ * (2^(h - l))) := by simp [mul_comm]
+    _ = ((2^l) * (2^l)⁻¹) * (2^(h - l) ) := by simp
+    _ = (2^(h - l) ) := by simp
 
 
 /--
@@ -402,7 +393,7 @@ theorem list_kraft_exact (lengths : List ℕ)
     fun l hl ↦ h_bound l (List.mem_of_mem_take hl)
 
   let prefSum : ℚ :=
-    ((lengths.take k).map (fun l ↦ (2^l : ℚ)⁻¹)).sum
+    ((lengths.take k).map (fun l ↦ (2^l)⁻¹)).sum
 
   -- bounds for elements in take k
   have h_bound : ∀ l ∈ lengths, l ≤ h := by
@@ -411,13 +402,13 @@ theorem list_kraft_exact (lengths : List ℕ)
 
   have hscale_take :
       (2^h : ℚ) * prefSum
-        = ((lengths.take k).map (fun l ↦ (2^(h - l) : ℚ))).sum := by
+        = ((lengths.take k).map (fun l ↦ (2^(h - l)))).sum := by
     -- just apply scale_sum_eq to the prefix list
     simpa [prefSum] using (scale_sum_eq h (lengths.take k) h_bound_take)
 
   have h_take_cast :
       ((weights.take k).sum : ℚ)
-        = ((lengths.take k).map (fun l : ℕ => (2^(h - l) : ℚ))).sum := by
+        = ((lengths.take k).map (fun l : ℕ => (2^(h - l)))).sum := by
     -- rewrite `weights.take k` to `(lengths.take k).map ...`
     have : weights.take k = (lengths.take k).map (fun l => 2^(h - l)) := by
       simp [weights, List.map_take]
@@ -426,16 +417,15 @@ theorem list_kraft_exact (lengths : List ℕ)
       (rat_cast_sum_map (xs := lengths.take k) (f := fun l => 2^(h - l)))
 
   have hscaled_to_weights :
-      (2^h : ℚ) * prefSum = ((weights.take k).sum : ℚ) := by
+      (2^h) * prefSum = (weights.take k).sum := by
     calc
-      (2^h : ℚ) * prefSum
-          = ((lengths.take k).map (fun l ↦ (2^(h - l) : ℚ))).sum := hscale_take
-      _   = ((weights.take k).sum : ℚ) := by simpa using h_take_cast.symm
+      (2^h) * prefSum
+          = ((lengths.take k).map (fun l ↦ (2^(h - l)))).sum := hscale_take
+      _   = ((weights.take k).sum) := by simpa using h_take_cast.symm
 
-  have hEq : (2^h : ℚ) * prefSum = (2^h : ℚ) := by
+  have hEq : 2^h * prefSum = 2^h := by
     -- target = 2^h
     simpa [target] using (hscaled_to_weights.trans h_int_exact)
-  have hpos : (2^h : ℚ) ≠ 0 := pow_ne_zero h (by norm_num)
 
   have hne : (2^h : ℚ) ≠ 0 := by
     -- 2 ≠ 0 in ℚ
@@ -444,12 +434,6 @@ theorem list_kraft_exact (lengths : List ℕ)
   -- cancel 2^h
   have : prefSum = 1 := by simp_all
   simpa [prefSum] using this
-
-
-/-- Sum over a finset equals sum over its `toList`. -/
-lemma finset_sum_eq_toList_sum {α β : _} [DecidableEq α] [AddCommMonoid β]
-    (I : Finset α) (f : α → β) :
-    (∑ i ∈ I, f i) = (I.toList.map f).sum := by simp
 
 /-- If a list has no duplicates, summing over `toFinset` equals summing over the list. -/
 lemma sum_toFinset_eq_sum_of_nodup {α β : Type _} [DecidableEq α] [AddCommMonoid β]
@@ -488,26 +472,6 @@ lemma take_toFinset_subset_of_perm {α : Type _} [DecidableEq α]
   have hxL2 : x ∈ L2 := p.subset hxL1'
   -- back to finset membership
   simpa using (List.mem_toFinset.mpr hxL2)
-
-lemma sum_take_toFinset_eq_sum_take {α β : Type _} [DecidableEq α] [AddCommMonoid β]
-    (L : List α) (k : ℕ) (hL : L.Nodup) (f : α → β) :
-    (∑ x ∈  (L.take k).toFinset, f x) = ((L.take k).map f).sum := by
-  apply sum_toFinset_eq_sum_of_nodup
-  have htake : (L.take k).Nodup := by simpa using hL.take
-  simpa [hL.take]
-
-/--
-If `L` is a permutation of `I.toList`, then any prefix of `L` (turned into a finset)
-is a subset of `I`.
--/
-lemma take_toFinset_subset_finset_of_perm {α : Type _} [DecidableEq α]
-    {L : List α} {I : Finset α} (p : L.Perm I.toList) (k : ℕ) :
-    (L.take k).toFinset ⊆ I := by
-  -- first land in `I.toList.toFinset`
-  have hsub : (L.take k).toFinset ⊆ I.toList.toFinset :=
-    take_toFinset_subset_of_perm (L1 := L) (L2 := I.toList) p k
-  -- then rewrite `I.toList.toFinset` to `I`
-  simpa using hsub
 
 lemma isChain_insertionSort {α : Type _} (r : α → α → Prop) [DecidableRel r] [IsTotal α r] [IsTrans α r]
     (L : List α) :
@@ -579,9 +543,11 @@ theorem lemma_3_1 {α : _} [DecidableEq α] (I : Finset α) (l : α → ℕ) :
   refine ⟨S, ?_, ?_⟩
 
   · -- subset
-    exact take_toFinset_subset_finset_of_perm p k
-
+    have hsub : (L.take k).toFinset ⊆ I.toList.toFinset :=
+      take_toFinset_subset_of_perm (L1 := L) (L2 := I.toList) p k
+    -- then rewrite `I.toList.toFinset` to `I`
+    simpa using hsub
   · -- sum over S = 1
-    rw [sum_finset_take_eq_sum_list_take L hLnodup k (fun x ↦ (2^(l x) : ℚ)⁻¹)]
+    rw [sum_finset_take_eq_sum_list_take L hLnodup k (fun x ↦ (2^(l x) )⁻¹)]
     -- The rest is just map/comp manipulation matching `hk`
     simpa [Function.comp] using hk
