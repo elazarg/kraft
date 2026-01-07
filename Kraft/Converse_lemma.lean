@@ -497,7 +497,6 @@ theorem lemma_3_1 {α : _} [DecidableEq α] (I : Finset α) (l : α → ℕ) :
 
   have h_chain : (L.map l).IsChain (· ≤ ·) := by
     -- Make the sorting assumptions *instances* (so simp/lemma search can use them)
-    let hdec := (fun a b ↦ (l a).decLe (l b))
     haveI htotal : IsTotal α r := ⟨by
       intro a b
       dsimp [r]
