@@ -1,13 +1,4 @@
-import Mathlib.Data.List.Sort
-import Mathlib.Data.List.Chain
-import Mathlib.Data.List.Perm.Basic
-import Mathlib.Data.Nat.Log
-import Mathlib.Algebra.BigOperators.Group.List.Lemmas
-import Mathlib.Algebra.Order.BigOperators.Group.List
 import Mathlib.Tactic.Linarith
-import Mathlib.Data.Nat.GCD.Basic
-
-import Batteries.Data.List.Basic
 
 import Kraft.PrefixFree
 
@@ -531,10 +522,9 @@ lemma isChain_insertionSort {α : Type _} (r : α → α → Prop) [DecidableRel
 Lemma 3.1: Let I be a finite set and let l : I → ℕ satisfy ∑ 2^{-l(i)} ≥ 1.
 There exists a subset S ⊆ I such that ∑_{i ∈ S} 2^{-l(i)} = 1.
 -/
-theorem lemma_3_1 {α : _} (I : Finset α) (l : α → ℕ) :
+theorem lemma_3_1 {α : _} [DecidableEq α] (I : Finset α) (l : α → ℕ) :
     ∑ i ∈ I, (2 ^ l i : ℚ)⁻¹ ≥ 1 ->
     ∃ S ⊆ I, ∑ i ∈ S, (2 ^ l i : ℚ)⁻¹ = 1 := by
-  classical
   intro hI
 
   -- 1) pick L = I.toList sorted by key l using mergeSort
