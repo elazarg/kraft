@@ -21,7 +21,9 @@ set_option synthInstance.maxHeartbeats 20000
 set_option synthInstance.maxSize 128
 set_option relaxedAutoImplicit false
 set_option autoImplicit false
+
 noncomputable section
+
 /-
 If $S$ is a finite prefix-free code then $\sum_{w \in S} 2^{-|w|} \leq 1$.
 -/
@@ -78,6 +80,7 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree S) :
       exact List.ofFn_injective hfg
     -- card(image) = card(univ) = 2^k
     simp [all_words, Finset.card_image_of_injective, hinj]
+
   -- card of each cylinder
   have cylinder_card (w : List Bool) : (cylinder w).card = 2^(n - w.length) := by
     have hinj : Function.Injective (fun z : List Bool => w ++ z) := by
@@ -152,7 +155,7 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree S) :
   have h_sum_le_totalR :
       (∑ w ∈ S, (2 : ℝ)^(n - w.length)) ≤ (2 : ℝ)^n := by
     have h_cast :
-        ((∑ w ∈ S, (2^(n - w.length) : ℕ)) : ℝ) ≤ (2^n : ℕ) := by
+        ((∑ w ∈ S, 2^(n - w.length)) : ℝ) ≤ (2^n : ℕ) := by
       exact_mod_cast h_sum_le_total
     simpa [Nat.cast_sum, Nat.cast_pow, Nat.cast_two] using h_cast
 
@@ -169,9 +172,7 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree S) :
                 (a := (2 : ℝ)^n)).symm
     _ ≤ (2 : ℝ)^n / (2 : ℝ)^n := by
             exact div_le_div_of_nonneg_right h_sum_le_totalR (by positivity)
-    _ = 1 := by
-            have hnne : (2 : ℝ)^n ≠ 0 := by positivity
-            simp [hnne]
+    _ = 1 := by simp
 
 /-
 If a list of natural numbers is sorted non-decreasingly and the sum of $2^{-x}$ is at least 1, then there is a prefix whose sum is exactly 1.
@@ -201,7 +202,7 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
       norm_num [ mul_assoc, ← mul_pow ]
     rw [ Finset.sum_congr rfl fun i hi => h_term i ( Finset.mem_range.mp hi ) ]
     norm_num [ ← Finset.mul_sum _ _ _, div_eq_mul_inv ]
-    exact ⟨ ∑ i ∈ Finset.range ( k - 1 ), 2 ^ ( l[k - 1]?.getD 0 - l[i]?.getD 0 ), by simp +decide [ div_eq_mul_inv, mul_comm ] ⟩
+    exact ⟨ ∑ i ∈ Finset.range ( k - 1 ), 2 ^ ( l[k - 1]?.getD 0 - l[i]?.getD 0 ), by simp [ div_eq_mul_inv, mul_comm ] ⟩
   -- Since $s_{k-1} < 1$, we have $M < 2^{l_k}$, so $M \leq 2^{l_k} - 1$.
   have hM_le : M ≤ 2 ^ l[k - 1]! - 1 := by
     have := hk.2.2 ( k - 1 )
@@ -209,7 +210,7 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
     exact Nat.le_sub_one_of_lt ( by rw [ ← @Nat.cast_lt ℝ ] ; push_cast; rw [ hM, div_lt_one ( by positivity ) ] at this; linarith )
   -- Now consider $s_k = s_{k-1} + (1/2)^{l_k} = (M + 1) / 2^{l_k}$.
   have hsk : (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) = (M + 1) / 2 ^ l[k - 1]! := by
-    rcases k <;> simp_all +decide [Finset.sum_range_succ]
+    rcases k <;> simp_all [Finset.sum_range_succ]
     · linarith
     · ring
   -- Since $s_k \geq 1$, we have $M + 1 \geq 2^{l_k}$.
@@ -227,9 +228,24 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
   · convert hsk_eq_one using 1
     have h_sum_eq : ∀ (l : List ℕ) (k : ℕ), k ≤ l.length → (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) = (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.take k l)).sum := by
       intros l k hk
-      induction' k with k ih <;> simp_all +decide [Finset.sum_range_succ]
+      induction' k with k ih <;> simp_all [Finset.sum_range_succ]
+      -- l✝ : List ℕ
+      -- h_sorted : List.Pairwise (fun x1 x2 ↦ x1 ≤ x2) l✝
+      -- k✝ M : ℕ
+      -- l : List ℕ
+      -- k : ℕ
+      -- h_sum : 1 ≤ (List.map (fun x ↦ (2 ^ x)⁻¹) l✝).sum
+      -- hM : ∑ x ∈ Finset.range (k✝ - 1), (2 ^ l✝[x]?.getD 0)⁻¹ = (2 ^ l✝[k✝ - 1]?.getD 0 - 1) / 2 ^ l✝[k✝ - 1]?.getD 0
+      -- hsk : ∑ x ∈ Finset.range k✝, (2 ^ l✝[x]?.getD 0)⁻¹ = 1
+      -- hM_ge : 2 ^ l✝[k✝ - 1]?.getD 0 ≤ 2 ^ l✝[k✝ - 1]?.getD 0 - 1 + 1
+      -- hM_eq : M = 2 ^ l✝[k✝ - 1]?.getD 0 - 1
+      -- ih : k ≤ l.length → ∑ x ∈ Finset.range k, (2 ^ l[x]?.getD 0)⁻¹ = (List.take k (List.map (fun x ↦ (2 ^ x)⁻¹) l)).sum
+      -- hk : k + 1 ≤ l.length
+      -- ⊢ ∑ x ∈ Finset.range k, (2 ^ l[x]?.getD 0)⁻¹ + (2 ^ l[k]?.getD 0)⁻¹ =
+      --   (List.take (k + 1) (List.map (fun x ↦ (2 ^ x)⁻¹) l)).sum
       sorry
     rw [ h_sum_eq l k hk.1 ]
+
 /-
 If a multiset of natural numbers is a sub-multiset of the image of a function on a finite type, then there is a subset of the domain whose image is that multiset.
 -/
@@ -300,6 +316,7 @@ lemma exists_subset_of_multiset_le_map {I : Type*} [Fintype I] [DecidableEq I] (
       subst a_2
       exact hv
   exact h _ h_union.choose_spec
+
 /-
 Let $I$ be a finite set and let $\ell\colon I \to \mathbb{N}$ satisfy $\sum_{i \in I} 2^{-\ell(i)} \geq 1$. There exists a subset $S \subseteq I$ such that $\sum_{i \in S} 2^{-\ell(i)} = 1$.
 -/
@@ -312,12 +329,13 @@ lemma exists_subset_sum_eq_one {I : Type*} [Fintype I] [DecidableEq I] (l : I �
     -- Let $ℓ'$ be the list of values of $l$ on the elements of $I$.
     obtain ⟨ℓ', hℓ'⟩ : ∃ ℓ' : List ℕ, List.length ℓ' = n ∧ Multiset.ofList ℓ' = Multiset.map l Finset.univ.val := by
       use Finset.univ.val.map l |> Multiset.toList
-      aesop
-    use fun i => ℓ'[i]
+      simp_all [n]
+    use fun i => ℓ'.get (i.cast hℓ'.1.symm) -- Cast the Fin n to a valid index for ℓ'
     convert hℓ'.2 using 2
-    refine' List.ext_get _ _
-    · sorry
-    · sorry
+    have h_len : (List.ofFn fun i : Fin n => ℓ'.get (i.cast hℓ'.1.symm)).length = ℓ'.length := by
+      simp only [List.length_ofFn, hℓ'.1]
+    refine' List.ext_get h_len _
+    simp_all
   -- Apply `exists_prefix_sum_eq_one_of_sorted` to the sorted list.
   obtain ⟨l'', hl''⟩ : ∃ l'' : List ℕ, l''.Perm (List.ofFn ℓ') ∧ List.Pairwise (· ≤ ·) l'' ∧ (l''.map (fun x => (1 / 2 : ℝ) ^ x)).sum ≥ 1 := by
     refine' ⟨ List.ofFn ℓ' |> List.insertionSort ( · ≤ · ), _, _, _ ⟩
@@ -326,7 +344,7 @@ lemma exists_subset_sum_eq_one {I : Type*} [Fintype I] [DecidableEq I] (l : I �
     · have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum = ∑ i, (1 / 2 : ℝ) ^ (l i) := by
         have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum = Multiset.sum (Multiset.map (fun x => (1 / 2 : ℝ) ^ x) (Multiset.ofList (List.ofFn ℓ'))) := by
           rfl
-        aesop
+        simp_all
       have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.insertionSort (· ≤ ·) (List.ofFn ℓ'))).sum = (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum := by
         have h_sum_eq : List.Perm (List.insertionSort (· ≤ ·) (List.ofFn ℓ')) (List.ofFn ℓ') := by
           exact List.perm_insertionSort (fun x1 x2 ↦ x1 ≤ x2) (List.ofFn ℓ')
@@ -340,29 +358,65 @@ lemma exists_subset_sum_eq_one {I : Type*} [Fintype I] [DecidableEq I] (l : I �
     apply_rules [ exists_subset_of_multiset_le_map ]
     have h_subset : Multiset.ofList l''' ≤ Multiset.ofList l'' := by
       exact hl'''.1.sublist.subperm
-    exact h_subset.trans ( by rw [ ← hℓ' ] ; exact Multiset.le_iff_exists_add.mpr ⟨ ∅, by simp +decide [ hl''.1.symm ] ⟩ )
+    exact h_subset.trans ( by rw [ ← hℓ' ] ; exact Multiset.le_iff_exists_add.mpr ⟨ ∅, by simp [ hl''.1.symm ] ⟩ )
   replace hS := congr_arg ( fun m => Multiset.sum ( m.map fun x => ( 1 / 2 : ℝ ) ^ x ) ) hS ; aesop
+
 /-
 Let $I$ be a finite set and let $\ell\colon I \to \mathbb{N}$ satisfy $\sum_{i\in I} 2^{-\ell(i)} \leq 1$.
 There exists an injective mapping $w \colon I \to \{0,1\}^*$ whose image is prefix-free, and furthermore $|w(i)| = \ell(i)$.
 -/
 theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I → ℕ)
     (h : ∑ i, (1 / 2 : ℝ) ^ l i ≤ 1) :
-    ∃ w : I → List Bool, Function.Injective w ∧ PrefixFree (Set.range w) ∧ ∀ i, (w i).length = l i := by
+    ∃ w : I → List Bool, (
+      Function.Injective w
+      ∧ PrefixFree (Finset.univ.image w)
+      ∧ ∀ i, (w i).length = l i)
+ := by
   by_contra h_contra
   -- Let $m = \max_{i \in I} \ell(i)$.
-  set m := sSup (Set.range l) with hm_def
+  let m : ℕ := Finset.univ.sup l
   -- We prove this by strong induction on $m$.
-  have h_ind : ∀ m : ℕ, ∀ (I : Type) [Fintype I] [DecidableEq I] (l : I → ℕ), (∀ i, l i ≤ m) → (∑ i, (1 / 2 : ℝ) ^ l i) ≤ 1 → ∃ (w : I → (List Bool)), (Function.Injective w) ∧ (PrefixFree (Set.range w)) ∧ (∀ i, ((w i).length = (l i))) := by
+  have h_ind : ∀ m : ℕ, ∀ (I : Type) [Fintype I] [DecidableEq I]
+       (l : I → ℕ), (∀ i, l i ≤ m)
+        → (∑ i, (1 / 2 : ℝ) ^ l i) ≤ 1
+        → ∃ (w : I → (List Bool)),
+          (Function.Injective w)
+          ∧ PrefixFree (Finset.univ.image w)
+          ∧ (∀ i, ((w i).length = (l i))) := by
     intro m
     induction' m with m ih
     · intro I _ _ l hl hsum
       by_cases hI : Nonempty I
-      · simp_all +decide [ show l = fun _ => 0 from funext fun i => le_antisymm ( hl i ) ( Nat.zero_le _ ) ]
-        interval_cases _ : Fintype.card I <;> simp_all +decide [ Fintype.card_eq_one_iff ]
-        aesop_cat
-      · simp_all +decide [ Function.Injective ]
-        simp +decide [ PrefixFree ]
+      · simp_all [ show l = fun _ => 0 from funext fun i => le_antisymm ( hl i ) ( Nat.zero_le _ ) ]
+        interval_cases z : Fintype.card I <;> simp_all [ Fintype.card_eq_one_iff ]
+        obtain ⟨w, h_1⟩ := z
+        simp_all only [forall_const]
+        apply Exists.intro
+        · constructor
+          · intro a₁ a₂ a
+            simp_all only
+          · constructor
+            · intro x a y a_1 a_2
+              simp_all
+            · rfl
+      ·
+        -- I✝ : Type u_1
+        -- inst✝³ : Fintype I✝
+        -- inst✝² : DecidableEq I✝
+        -- l✝ : I✝ → ℕ
+        -- h : ∑ i, (1 / 2) ^ l✝ i ≤ 1
+        -- h_contra : ¬∃ w, Function.Injective w ∧ PrefixFree (Finset.image w Finset.univ) ∧ ∀ (i : I✝), (w i).length = l✝ i
+        -- m : ℕ := sSup (Set.range l✝)
+        -- hm_def : m = sSup (Set.range l✝)
+        -- I : Type
+        -- inst✝¹ : Fintype I
+        -- inst✝ : DecidableEq I
+        -- l : I → ℕ
+        -- hl : ∀ (i : I), l i ≤ 0
+        -- hsum : ∑ i, (1 / 2) ^ l i ≤ 1
+        -- hI : ¬Nonempty I
+        -- ⊢ ∃ w, Function.Injective w ∧ PrefixFree (Finset.image w Finset.univ) ∧ ∀ (i : I), (w i).length = l i
+        sorry
     · intro I _ _ l hl hsum
       by_cases h_exists_zero : ∃ i, l i = 0
       · obtain ⟨i₀, hi₀⟩ : ∃ i₀, l i₀ = 0 := h_exists_zero
@@ -379,14 +433,14 @@ theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I �
         rw [ Fintype.card_eq_one_iff ] at h_card
         obtain ⟨ x, hx ⟩ := h_card
         use fun _ => List.replicate (l x) Bool.true
-        simp +decide [ Function.Injective, hx ]
-        simp +decide [PrefixFree]
+        simp [ Function.Injective, hx ]
+        simp [PrefixFree]
       · -- If $\sum_{i \in I} 2^{-\ell(i)} \leq \frac{1}{2}$, then we can take $S = I$.
         by_cases h_sum_half : (∑ i, (1 / 2 : ℝ) ^ (l i)) ≤ 1 / 2
         · -- Define $\ell'\colon I \to \mathbb{N}$ by $\ell'(i) = \ell(i) - 1$.
           set l' : I → ℕ := fun i => l i - 1 with hl'_def
           -- By the induction hypothesis, there exists an injective mapping $w' \colon I \to \{0,1\}^*$ whose image is prefix-free, and furthermore $|w'(i)| = \ell'(i)$.
-          obtain ⟨w', hw'_inj, hw'_prefix, hw'_length⟩ : ∃ (w' : I → (List Bool)), (Function.Injective w') ∧ (PrefixFree (Set.range w')) ∧ (∀ i, ((w' i).length = (l' i))) := by
+          obtain ⟨w', hw'_inj, hw'_prefix, hw'_length⟩ : ∃ (w' : I → (List Bool)), (Function.Injective w') ∧ (PrefixFree (Finset.univ.image w')) ∧ (∀ i, ((w' i).length = (l' i))) := by
             apply ih I l'
             · exact fun i => Nat.sub_le_of_le_add <| by linarith [ hl i ]
             · convert mul_le_mul_of_nonneg_left h_sum_half zero_le_two using 1 <;> norm_num [ pow_succ', Finset.mul_sum _ _ _ ]
@@ -409,13 +463,14 @@ theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I �
           -- Define $\ell'\colon I \to \mathbb{N}$ by $\ell'(i) = \ell(i) - 1$.
           set l' : I → ℕ := fun i => l i - 1 with hl'_def
           -- By the induction hypothesis, there exist injective maps $w_0\colon S \to \{0,1\}^*$ and $w_1\colon S^c \to \{0,1\}^*$ such that $w_0(S)$ and $w_1(S^c)$ are prefix-free; $|w_0(i)| = \ell'(i)$ for all $i \in S$; and $|w_1(i)| = \ell'(i)$ for all $i \in S^c$.
-          obtain ⟨w0, hw0_inj, hw0_prefix, hw0_len⟩ : ∃ w0 : S → (List Bool), (Function.Injective w0) ∧ (PrefixFree (Set.range w0)) ∧ (∀ i, ((w0 i).length = (l' i))) := by
+          obtain ⟨w0, hw0_inj, hw0_prefix, hw0_len⟩ : ∃ w0 : S → (List Bool), (Function.Injective w0) ∧ (PrefixFree (Finset.univ.image w0)) ∧ (∀ i, ((w0 i).length = (l' i))) := by
             apply ih
             · exact fun i => Nat.sub_le_of_le_add <| by linarith [ hl i ]
             · rw [ ← Finset.sum_coe_sort ] at *
               convert mul_le_mul_of_nonneg_left hS.le zero_le_two using 1 <;> norm_num [ pow_succ', ← mul_assoc, Finset.mul_sum _ _ _ ]
               exact Finset.sum_congr rfl fun x hx => by rw [ show l ( x : I ) = l' ( x : I ) + 1 from by rw [ Nat.sub_add_cancel ( Nat.pos_of_ne_zero fun hi => h_exists_zero ⟨ x, hi ⟩ ) ] ] ; ring
-          obtain ⟨w1, hw1_inj, hw1_prefix, hw1_len⟩ : ∃ w1 : { x // x ∉ S } → (List Bool), (Function.Injective w1) ∧ (PrefixFree (Set.range w1)) ∧ (∀ i, ((w1 i).length = (l' i))) := by
+
+          obtain ⟨w1, hw1_inj, hw1_prefix, hw1_len⟩ : ∃ w1 : { x // x ∉ S } → (List Bool), (Function.Injective w1) ∧ (PrefixFree (Finset.univ.image w1)) ∧ (∀ i, ((w1 i).length = (l' i))) := by
             apply ih { x // x ∉ S } (fun i => l' i)
             · exact fun i => Nat.sub_le_of_le_add <| by linarith [ hl i ]
             · have h_sum_complement : ∑ i ∈ Finset.univ \ S, (1 / 2 : ℝ) ^ (l i) ≤ 1 / 2 := by
@@ -434,11 +489,62 @@ theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I �
             by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp +decide [ hi, hj ] at hij ⊢
             · exact Subtype.ext_iff.mp ( hw0_inj hij )
             · exact congr_arg Subtype.val ( hw1_inj hij )
-          · rintro _ ⟨ i, rfl ⟩ _ ⟨ j, rfl ⟩ hij
+          ·
+            -- case h.refine'_2
+            -- I✝ : Type u_1
+            -- inst✝³ : Fintype I✝
+            -- inst✝² : DecidableEq I✝
+            -- l✝ : I✝ → ℕ
+            -- h : ∑ i, (1 / 2) ^ l✝ i ≤ 1
+            -- h_contra : ¬∃ w, Function.Injective w ∧ PrefixFree ↑(Finset.image w Finset.univ) ∧ ∀ (i : I✝), (w i).length = l✝ i
+            -- m✝ : ℕ := Finset.univ.sup l✝
+            -- m : ℕ
+            -- ih : ∀ (I : Type) [inst : Fintype I] [DecidableEq I] (l : I → ℕ),
+            --   (∀ (i : I), l i ≤ m) →
+            --     ∑ i, (1 / 2) ^ l i ≤ 1 →
+            --       ∃ w, Function.Injective w ∧ PrefixFree ↑(Finset.image w Finset.univ) ∧ ∀ (i : I), (w i).length = l i
+            -- I : Type
+            -- inst✝¹ : Fintype I
+            -- inst✝ : DecidableEq I
+            -- l : I → ℕ
+            -- hl : ∀ (i : I), l i ≤ m + 1
+            -- hsum : ∑ i, (1 / 2) ^ l i ≤ 1
+            -- h_exists_zero : ¬∃ i, l i = 0
+            -- h_sum_half : ¬∑ i, (1 / 2) ^ l i ≤ 1 / 2
+            -- S : Finset I
+            -- hS : ∑ i ∈ S, (1 / 2) ^ l i = 1 / 2
+            -- l' : I → ℕ := fun i ↦ l i - 1
+            -- hl'_def : l' = fun i ↦ l i - 1
+            -- w0 : ↥S → List Bool
+            -- hw0_inj : Function.Injective w0
+            -- hw0_prefix : PrefixFree ↑(Finset.image w0 Finset.univ)
+            -- hw0_len : ∀ (i : ↥S), (w0 i).length = l' ↑i
+            -- w1 : { x // x ∉ S } → List Bool
+            -- hw1_inj : Function.Injective w1
+            -- hw1_prefix : PrefixFree ↑(Finset.image w1 Finset.univ)
+            -- hw1_len : ∀ (i : { x // x ∉ S }), (w1 i).length = l' ↑i
+            -- ⊢ PrefixFree ↑(Finset.image (fun i ↦ if hi : i ∈ S then 0 :: w0 ⟨i, hi⟩ else 1 :: w1 ⟨i, hi⟩) Finset.univ)
+
+            -- Tactic `rcases` failed: `a✝ : Quot.lift (fun l ↦ x✝ ∈ l) ⋯
+            -- (Finset.image (fun i ↦ if hi : i ∈ S then 0 :: w0 ⟨i, hi⟩ else 1 :: w1 ⟨i, hi⟩)
+            --     Finset.univ).val` is not an inductive datatype
+            rintro _ ⟨ i, rfl ⟩ _ ⟨ j, rfl ⟩ hij
             by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp +decide [ hi, hj ] at hij ⊢
             · exact hw0_prefix _ ⟨ _, rfl ⟩ _ ⟨ _, rfl ⟩ hij
             · exact hw1_prefix _ ⟨ _, rfl ⟩ _ ⟨ _, rfl ⟩ hij
-          · grind
+
+          ·
+            -- Try these:
+            --   [apply] grind only [= List.length_cons, #167f, #a292, #2035, #3bd0, #e5fe, #8064]
+            --   [apply] grind only [= List.length_cons]
+            --   [apply] grind =>
+            --     instantiate only [#167f]
+            --     cases #a292
+            --     · instantiate only [#2035, = List.length_cons]
+            --       cases #3bd0
+            --     · instantiate only [#e5fe, = List.length_cons]
+            --       cases #8064
+            grind?
   apply h_contra
   convert h_ind m ( ULift ( Fin ( Fintype.card I ) ) ) ( fun i => l ( Fintype.equivFin I |>.symm i.down ) ) _ _
   · constructor <;> rintro ⟨ w, hw₁, hw₂, hw₃ ⟩
@@ -449,12 +555,14 @@ theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I �
   · exact fun i => le_csSup ( Set.finite_range l |> Set.Finite.bddAbove ) ( Set.mem_range_self _ )
   · convert h using 1
     refine' Finset.sum_bij ( fun x _ => Fintype.equivFin I |>.symm x.down ) _ _ _ _ <;> simp +decide
-    exact fun b => ⟨ Fintype.equivFin I b, by simp +decide ⟩
+    exact fun b => ⟨ Fintype.equivFin I b, by simp⟩
+
 /-
 A finite set $S$ of words is uniquely decodable if every $x \in \{0,1\}^*$ can be written in at most one way as $x = w_1 \ldots w_r$ (for any $r$), where $w_1,\dots,w_r \in S$.
 -/
-def UniquelyDecodable (S : Set (List Bool)) : Prop :=
+def UniquelyDecodable (S : Finset (List Bool)) : Prop :=
   ∀ (L1 L2 : List (List Bool)), (∀ w ∈ L1, w ∈ S) → (∀ w ∈ L2, w ∈ S) → L1.flatten = L2.flatten → L1 = L2
+
 /-
 If a code is uniquely decodable, it does not contain the empty string.
 -/
@@ -463,8 +571,10 @@ lemma epsilon_not_mem_of_uniquely_decodable {S : Finset (List Bool)} (h : Unique
   have h_empty : ∀ x ∈ S, x ≠ [] := by
     intro x hx
     have := h
-    specialize this [ x ] [ x, x ] ; aesop
+    specialize this [ x ] [ x, x ]
+    simp_all
   exact fun h => h_empty _ h rfl
+
 /-
 If $S$ is uniquely decodable, then the concatenation map from $S^r$ to strings is injective.
 -/
@@ -473,9 +583,21 @@ lemma uniquely_decodable_extension_injective {S : Finset (List Bool)} (h : Uniqu
   -- Assume two functions w1 and w2 map to the same flattened list. We need to show w1 = w2.
   intro w1 w2 h_eq
   have h_lists : List.ofFn (fun i => (w1 i).val) = List.ofFn (fun i => (w2 i).val) := by
-    specialize h ( List.ofFn fun i => ( w1 i : List Bool ) ) ( List.ofFn fun i => ( w2 i : List Bool ) ) ; aesop
+    specialize h ( List.ofFn fun i => ( w1 i : List Bool ) ) ( List.ofFn fun i => ( w2 i : List Bool ) )
+    simp_all
   ext i
-  replace h_lists := congr_arg (fun l => l i) h_lists; aesop
+  -- S : Finset (List Bool)
+  -- h : UniquelyDecodable ↑S
+  -- r : ℕ
+  -- w1 w2 : Fin r → ↥S
+  -- h_eq : (fun w ↦ (List.ofFn fun i ↦ ↑(w i)).flatten) w1 = (fun w ↦ (List.ofFn fun i ↦ ↑(w i)).flatten) w2
+  -- h_lists : (List.ofFn fun i ↦ ↑(w1 i)) = List.ofFn fun i ↦ ↑(w2 i)
+  -- i : Fin r
+  -- i✝ : ℕ
+  -- a✝ : Bool
+  -- ⊢ (↑(w1 i))[i✝]? = some a✝ ↔ (↑(w2 i))[i✝]? = some a✝
+  sorry
+
 /-
 If $S$ is uniquely decodable, then $(\sum_{w \in S} 2^{-|w|})^r \le r \ell$.
 -/
@@ -491,41 +613,57 @@ lemma kraft_mcmillan_inequality_aux (S : Finset (List Bool)) (h : UniquelyDecoda
     · rw [ ← Fin.prod_const, Finset.prod_sum ]
       refine' Finset.sum_bij _ _ _ _ _
       use fun a ha i => ⟨ a i ( Finset.mem_univ i ), Finset.mem_pi.mp ha i ( Finset.mem_univ i ) ⟩
-      · grind
-      · simp +contextual [ funext_iff ]
+      · simp
+      · simp [ funext_iff ]
       · exact fun b _ => ⟨ fun i _ => b i |>.1, Finset.mem_pi.mpr fun i _ => b i |>.2, rfl ⟩
-      · aesop
+      · simp_all
   -- Since the map $(w_1,\dots,w_r) \mapsto w_1 \cdots w_r$ is injective, the sum $\sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$ is at most $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}$.
   have h_injective : ∑ w : Fin r → S, (1 / 2 : ℝ) ^ ((List.ofFn (fun i => (w i).val)).flatten.length) ≤ ∑ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / 2 : ℝ) ^ x.length := by
     rw [ ← Finset.sum_biUnion ]
     · refine' le_of_eq _
       refine' Finset.sum_bij ( fun w hw => ( List.ofFn fun i => ( w i : List Bool ) ).flatten ) _ _ _ _ <;> simp +decide
       · simp +zetaDelta at *
-        intro a; exact ⟨ by rw [ List.sum_ofFn ] ; exact le_trans ( by norm_num ) ( Finset.sum_le_sum fun _ _ => Nat.one_le_iff_ne_zero.mpr <| by specialize h ; have := h ( [ ( a ‹_› : List Bool ) ] ) [ ] ; aesop ), by rw [ List.sum_ofFn ] ; exact le_trans ( Finset.sum_le_sum fun _ _ => show List.length ( a _ : List Bool ) ≤ S.sup List.length from Finset.le_sup ( f := List.length ) <| by aesop ) <| by norm_num ⟩
+        intro a
+        exact ⟨ by rw [ List.sum_ofFn ] ; exact le_trans ( by norm_num ) ( Finset.sum_le_sum fun _ _ => Nat.one_le_iff_ne_zero.mpr <| by specialize h ; have := h ( [ ( a ‹_› : List Bool ) ] ) [ ] ; simp_all ), by rw [ List.sum_ofFn ] ; exact le_trans ( Finset.sum_le_sum fun _ _ => show List.length ( a _ : List Bool ) ≤ S.sup List.length from Finset.le_sup ( f := List.length ) <| by simp_all ) <| by norm_num ⟩
       · intro a₁ a₂ h_eq
         have := @uniquely_decodable_extension_injective S h r
         exact this h_eq
-    · exact fun x hx y hy hxy => Finset.disjoint_left.mpr fun z => by aesop
+    · exact fun x hx y hy hxy => Finset.disjoint_left.mpr fun z => by simp_all
   -- Since $\sum_{x \in \{0,1\}^s} 2^{-|x|} = 1$ for any $s$, we have $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|} = \sum_{s=r}^{r\ell} 1 = r\ell - r + 1 \le r\ell$.
   have h_sum_one : ∀ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / 2 : ℝ) ^ x.length ≤ 1 := by
     intros s hs
     have h_card : Finset.card (Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S)))) ≤ 2 ^ s := by
       have h_card : Finset.card (Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S)))) ≤ Finset.card (Finset.image (fun x : Fin s → Bool => List.ofFn x) (Finset.univ : Finset (Fin s → Bool))) := by
         refine Finset.card_le_card ?_
-        simp +decide [ Finset.subset_iff ]
+        simp [ Finset.subset_iff ]
         intro a ha
-        use fun i => ( List.flatten ( List.ofFn fun i => ( a i : List Bool ) ) ) |> List.get! <| i
-        refine' List.ext_get _ _ <;> simp +decide [ ha.symm ]
+        -- S : Finset (List Bool)
+        -- h : UniquelyDecodable ↑S
+        -- r : ℕ
+        -- hr : r ≥ 1
+        -- ℓ : ℕ := S.sup List.length
+        -- hℓ_def : ℓ = S.sup List.length
+        -- h_sum : (∑ w ∈ S, (1 / 2) ^ w.length) ^ r = ∑ w, (1 / 2) ^ (List.ofFn fun i ↦ ↑(w i)).flatten.length
+        -- h_injective : ∑ w, (1 / 2) ^ (List.ofFn fun i ↦ ↑(w i)).flatten.length ≤
+        --   ∑ s ∈ Finset.Icc r (r * ℓ),
+        --     ∑ x ∈ Finset.image (fun w ↦ (List.ofFn fun i ↦ ↑(w i)).flatten) Finset.univ with x.length = s, (1 / 2) ^ x.length
+        -- s : ℕ
+        -- hs : s ∈ Finset.Icc r (r * ℓ)
+        -- a : Fin r → ↥S
+        -- ha : (List.ofFn (List.length ∘ fun i ↦ ↑(a i))).sum = s
+        -- ⊢ ∃ a_1, List.ofFn a_1 = (List.ofFn fun i ↦ ↑(a i)).flatten
+        sorry
       exact h_card.trans ( Finset.card_image_le.trans ( by norm_num [ Finset.card_univ ] ) )
     refine' le_trans ( Finset.sum_le_sum fun x hx => _ ) _
     use fun x => ( 1 / 2 ) ^ s
-    · aesop
+    · simp_all
     · norm_num at *
       exact le_trans ( mul_le_mul_of_nonneg_right ( Nat.cast_le.mpr h_card ) ( by positivity ) ) ( by rw [ ← mul_comm ] ; norm_num [ ← mul_pow ] )
   refine le_trans h_sum.le <| h_injective.trans <| le_trans ( Finset.sum_le_sum h_sum_one ) ?_
   rcases r with ( _ | _ | r ) <;> rcases ℓ with ( _ | _ | ℓ ) <;> norm_num at *
   · positivity
   · rw [ Nat.cast_sub ] <;> push_cast <;> nlinarith only [ hℓ_def ]
+
 /-
 If $S$ is a finite uniquely decodable code then $\sum_{w \in S} 2^{-|w|} \leq 1$.
 -/
@@ -548,6 +686,7 @@ theorem kraft_mcmillan_inequality (S : Finset (List Bool)) (h : UniquelyDecodabl
       simpa [ Real.exp_neg ] using Real.tendsto_pow_mul_exp_neg_atTop_nhds_zero 1
     simpa [ mul_div_right_comm ] using hr_factor.mul_const _
   exact Filter.eventually_atTop.mp ( hr_exists.eventually ( gt_mem_nhds zero_lt_one ) ) |> fun ⟨ r, hr ⟩ ↦ ⟨ r + 1, by linarith, by have := hr ( r + 1 ) ( by linarith ) ; rw [ div_lt_iff₀ ( by positivity ) ] at this; linarith ⟩
+
 /-
 If a finite set $S$ of words is prefix-free and $\epsilon \notin S$ then it is uniquely decodable.
 -/
@@ -557,16 +696,25 @@ theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFr
   have h_induction : ∀ x : List Bool, ∀ L1 L2 : List (List Bool), (∀ w ∈ L1, w ∈ S) → (∀ w ∈ L2, w ∈ S) → L1.flatten = L2.flatten → L1 = L2 := by
     intros x L1 L2 hL1 hL2 hflatten
     induction' L1 with w1 L1 ih generalizing L2
-    · induction L2 <;> aesop
+    · induction L2 <;> simp_all
     · rcases L2 with ( _ | ⟨ x, L2 ⟩ ) <;> simp_all +decide [ List.flatten ]
       -- Since $w1$ and $x$ are both in $S$ and $S$ is prefix-free, we must have $w1 = x$.
       have hw1_eq_x : w1 = x := by
         have := h _ hL1.1 _ hL2.1
         have := h _ hL2.1 _ hL1.1
         rw [ List.append_eq_append_iff ] at hflatten
-        grind
-      aesop
+        -- Try these:
+        --   [apply] grind only [usr List.prefix_append, #0770]
+        --   [apply] grind only [usr List.prefix_append]
+        --   [apply] grind => cases #0770 <;> instantiate only [usr List.prefix_append]
+        grind?
+      simp_all only [true_and, List.append_cancel_left_eq]
+      apply ih
+      · intro w a
+        simp_all only
+      · simp_all only
   exact fun L1 L2 h1 h2 h3 => h_induction ( L1.flatten ) L1 L2 h1 h2 h3
+
 /-
 If a finite set $S$ of words is prefix-free and $|S| \geq 2$ then it is uniquely decodable.
 -/
@@ -575,6 +723,7 @@ theorem prefix_free_is_uniquely_decodable_of_card_ge_two (S : Finset (List Bool)
   have h_eps_not_mem : []∉ S := by
     exact fun h0 => by obtain ⟨ w, hw, hw' ⟩ := Finset.exists_of_ssubset ( Finset.ssubset_iff_subset_ne.mpr ⟨ Finset.singleton_subset_iff.mpr h0, by aesop_cat ⟩ ) ; specialize h _ h0 _ hw ; aesop
   exact prefix_free_is_uniquely_decodable S h h_eps_not_mem
+
 /-
 If $S$ is a (possibly infinite) prefix-free code then $\sum_{w \in S} 2^{-|w|} \leq 1$.
 -/
@@ -582,7 +731,7 @@ theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
     HasSum (fun w : S => (1 / 2 : ℝ) ^ (w : List Bool).length) (∑' w : S, (1 / 2 : ℝ) ^ (w : List Bool).length) ∧
     (∑' w : S, (1 / 2 : ℝ) ^ (w : List Bool).length) ≤ 1 := by
   -- Let $F$ be any finite subset of $S$. Then $F$ is prefix-free. By the finite Kraft inequality, $\sum_{w \in F} 2^{-|w|} \le 1$.
-  have h_finite_subset : ∀ (F : Finset (List Bool)), F.toSet ⊆ S → (∑ w ∈ F, (1 / 2 : ℝ) ^ w.length) ≤ 1 := by
+  have h_finite_subset : ∀ (F : Finset (List Bool)), SetLike.coe F ⊆ S → (∑ w ∈ F, (1 / 2 : ℝ) ^ w.length) ≤ 1 := by
     -- Apply the finite Kraft inequality to the finite subset F.
     intro F hF
     apply kraft_inequality F (by
@@ -592,13 +741,17 @@ theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
       refine' summable_of_sum_le _ _
       exact 1
       · exact fun _ => by positivity
-      · intro u; specialize h_finite_subset ( u.image Subtype.val ) ; aesop
+      · intro u
+        specialize h_finite_subset ( u.image Subtype.val )
+        simp_all
     exact h_summable.hasSum
   · contrapose! h_finite_subset
     -- Since the series is summable, there exists a finite subset $F$ of $S$ such that $\sum_{w \in F} 2^{-|w|} > 1$.
     obtain ⟨F, hF⟩ : ∃ F : Finset (↥S), (∑ w ∈ F, (1 / 2 : ℝ) ^ (w.val.length)) > 1 := by
       exact ( Summable.hasSum ( by exact ( by by_contra h; rw [ tsum_eq_zero_of_not_summable h ] at h_finite_subset; norm_num at h_finite_subset ) ) ) |> fun h => h.eventually ( lt_mem_nhds h_finite_subset ) |> fun h => h.exists
-    use F.image Subtype.val; aesop
+    use F.image Subtype.val
+    simp_all
+
 /-
 If the series $\sum 2^{-l(i)}$ converges, then for any $k$, there are only finitely many $i$ such that $l(i) \le k$.
 -/
