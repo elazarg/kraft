@@ -228,22 +228,19 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
   · convert hsk_eq_one using 1
     have h_sum_eq : ∀ (l : List ℕ) (k : ℕ), k ≤ l.length → (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) = (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.take k l)).sum := by
       intros l k hk
-      induction' k with k ih <;> simp_all [Finset.sum_range_succ]
-      -- l✝ : List ℕ
-      -- h_sorted : List.Pairwise (fun x1 x2 ↦ x1 ≤ x2) l✝
-      -- k✝ M : ℕ
-      -- l : List ℕ
-      -- k : ℕ
-      -- h_sum : 1 ≤ (List.map (fun x ↦ (2 ^ x)⁻¹) l✝).sum
-      -- hM : ∑ x ∈ Finset.range (k✝ - 1), (2 ^ l✝[x]?.getD 0)⁻¹ = (2 ^ l✝[k✝ - 1]?.getD 0 - 1) / 2 ^ l✝[k✝ - 1]?.getD 0
-      -- hsk : ∑ x ∈ Finset.range k✝, (2 ^ l✝[x]?.getD 0)⁻¹ = 1
-      -- hM_ge : 2 ^ l✝[k✝ - 1]?.getD 0 ≤ 2 ^ l✝[k✝ - 1]?.getD 0 - 1 + 1
-      -- hM_eq : M = 2 ^ l✝[k✝ - 1]?.getD 0 - 1
-      -- ih : k ≤ l.length → ∑ x ∈ Finset.range k, (2 ^ l[x]?.getD 0)⁻¹ = (List.take k (List.map (fun x ↦ (2 ^ x)⁻¹) l)).sum
-      -- hk : k + 1 ≤ l.length
-      -- ⊢ ∑ x ∈ Finset.range k, (2 ^ l[x]?.getD 0)⁻¹ + (2 ^ l[k]?.getD 0)⁻¹ =
-      --   (List.take (k + 1) (List.map (fun x ↦ (2 ^ x)⁻¹) l)).sum
-      sorry
+      induction k with
+      | zero => simp
+      | succ k ih =>
+        -- 1. Split the sum on the left (0 to k -> 0 to k-1 + k)
+        rw [Finset.sum_range_succ]
+        -- 2. Split the list on the right (take (k+1) -> take k ++ [l[k]])
+        have h_take : l.take (k + 1) = l.take k ++ [l.get ⟨k, Nat.lt_of_succ_le hk⟩] := by
+          simp_all
+        rw [h_take, List.map_append, List.sum_append]
+        -- 3. Use IH for the prefix
+        rw [ih (Nat.le_of_succ_le hk)]
+        -- 4. Prove the last terms are equal
+        simp_all [lt_of_lt_of_le (Nat.lt_succ_self k) hk]
     rw [ h_sum_eq l k hk.1 ]
 
 /-
@@ -272,31 +269,20 @@ lemma exists_subset_of_multiset_le_map {I : Type*} [Fintype I] [DecidableEq I] (
       rw [ Finset.card_eq_sum_ones ]
       rw [ Finset.sum_subset ]
       ·
-        -- I : Type u_1
-        -- inst✝¹ : Fintype I
-        -- inst✝ : DecidableEq I
-        -- f : I → ℕ
-        -- m : Multiset ℕ
-        -- h✝ : m ≤ Multiset.map f Finset.univ.val
-        -- h : ∀ (S : Finset I), Multiset.map f S.val ≠ m
-        -- h_count : ∀ v ∈ m.toFinset, Multiset.count v m ≤ {i | f i = v}.card
-        -- S : ℕ → Finset I
-        -- hS₁ : ∀ v ∈ m.toFinset, S v ⊆ {i | f i = v}
-        -- hS₂ : ∀ v ∈ m.toFinset, (S v).card = Multiset.count v m
-        -- v : ℕ
-        -- hv : v ∈ m.toFinset
-        -- ⊢ {i ∈ m.toFinset.biUnion S | f i = v} ⊆ S v
-        grind?
-        -- Try these:
-        -- [apply] grind only [= Finset.subset_iff, = Finset.mem_filter, = Finset.mem_biUnion, #5579, #f6c8, #f88c]
-        -- [apply] grind only [= Finset.subset_iff, = Finset.mem_filter, = Finset.mem_biUnion]
-        -- [apply] grind =>
-        --   instantiate only [= Finset.subset_iff]
-        --   instantiate only [= Finset.mem_filter]
-        --   instantiate only [= Finset.mem_biUnion]
-        --   cases #5579 <;>
-        --     instantiate only [#f6c8] <;>
-        --       instantiate only [= Finset.subset_iff] <;> instantiate only [#f88c] <;> instantiate only [= Finset.mem_filter]Lean 4
+        intro x hx
+        -- 1. Unpack that x is in the biUnion and satisfies the filter (f x = v)
+        simp only [Finset.mem_filter, Finset.mem_biUnion] at hx
+        obtain ⟨⟨u, hu_m, hx_Su⟩, hfx⟩ := hx
+
+        -- 2. Use the property that S u contains only elements mapping to u
+        have hfu : f x = u := by
+          -- hS₁ : S u ⊆ {i | f i = u}
+          have := hS₁ u hu_m hx_Su
+          simp only [Finset.mem_filter, Finset.mem_univ, true_and] at this
+          exact this
+
+        -- 3. Conclude u = v, therefore x ∈ S v
+        simp_all
       · simp [ Finset.mem_biUnion ]
         exact fun x hx => ⟨ v, Multiset.mem_toFinset.mp hv, hx, Finset.mem_filter.mp ( hS₁ v hv hx ) |>.2 ⟩
     obtain ⟨ S, hS ⟩ := h_union
@@ -582,21 +568,24 @@ lemma uniquely_decodable_extension_injective {S : Finset (List Bool)} (h : Uniqu
     Function.Injective (fun (w : Fin r → S) => (List.ofFn (fun i => (w i).val)).flatten) := by
   -- Assume two functions w1 and w2 map to the same flattened list. We need to show w1 = w2.
   intro w1 w2 h_eq
+  -- 1. Use Unique Decodability to show the lists of words are equal
   have h_lists : List.ofFn (fun i => (w1 i).val) = List.ofFn (fun i => (w2 i).val) := by
-    specialize h ( List.ofFn fun i => ( w1 i : List Bool ) ) ( List.ofFn fun i => ( w2 i : List Bool ) )
-    simp_all
-  ext i
-  -- S : Finset (List Bool)
-  -- h : UniquelyDecodable ↑S
-  -- r : ℕ
-  -- w1 w2 : Fin r → ↥S
-  -- h_eq : (fun w ↦ (List.ofFn fun i ↦ ↑(w i)).flatten) w1 = (fun w ↦ (List.ofFn fun i ↦ ↑(w i)).flatten) w2
-  -- h_lists : (List.ofFn fun i ↦ ↑(w1 i)) = List.ofFn fun i ↦ ↑(w2 i)
-  -- i : Fin r
-  -- i✝ : ℕ
-  -- a✝ : Bool
-  -- ⊢ (↑(w1 i))[i✝]? = some a✝ ↔ (↑(w2 i))[i✝]? = some a✝
-  sorry
+    apply h
+    · simp only [List.mem_ofFn, forall_exists_index, forall_apply_eq_imp_iff]
+      intro i
+      exact (w1 i).2
+    · simp only [List.mem_ofFn, forall_exists_index, forall_apply_eq_imp_iff]
+      intro i
+      exact (w2 i).2
+    · exact h_eq
+
+  -- 2. List equality implies pointwise equality of values
+  have h_vals : (fun i => (w1 i).val) = (fun i => (w2 i).val) :=
+    List.ofFn_injective h_lists
+  -- 3. Pointwise equality of values implies equality of functions
+  funext i
+  apply Subtype.ext
+  simpa using congrArg (fun f => f i) h_vals
 
 /-
 If $S$ is uniquely decodable, then $(\sum_{w \in S} 2^{-|w|})^r \le r \ell$.
