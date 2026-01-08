@@ -362,7 +362,7 @@ theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I �
   -- Let $m = \max_{i \in I} \ell(i)$.
   let m : ℕ := Finset.univ.sup l
   -- We prove this by strong induction on $m$.
-  have h_ind : ∀ m : ℕ, ∀ (I : Type) [Fintype I] [DecidableEq I]
+  have h_ind : ∀ m : ℕ, ∀ (I : Type _) [Fintype I] [DecidableEq I]
        (l : I → ℕ), (∀ i, l i ≤ m)
         → (∑ i, (1 / 2 : ℝ) ^ l i) ≤ 1
         → ∃ (w : I → (List Bool)),
@@ -373,7 +373,7 @@ theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I �
     induction' m with m ih
     · intro I _ _ l hl hsum
       by_cases hI : Nonempty I
-      · simp_all [ show l = fun _ => 0 from funext fun i => le_antisymm ( hl i ) ( Nat.zero_le _ ) ]
+      · simp_all
         interval_cases z : Fintype.card I <;> simp_all [ Fintype.card_eq_one_iff ]
         obtain ⟨w, h_1⟩ := z
         simp_all only [forall_const]
@@ -385,24 +385,17 @@ theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I �
             · intro x a y a_1 a_2
               simp_all
             · rfl
-      ·
-        -- I✝ : Type u_1
-        -- inst✝³ : Fintype I✝
-        -- inst✝² : DecidableEq I✝
-        -- l✝ : I✝ → ℕ
-        -- h : ∑ i, (1 / 2) ^ l✝ i ≤ 1
-        -- h_contra : ¬∃ w, Function.Injective w ∧ PrefixFree (Finset.image w Finset.univ) ∧ ∀ (i : I✝), (w i).length = l✝ i
-        -- m : ℕ := sSup (Set.range l✝)
-        -- hm_def : m = sSup (Set.range l✝)
-        -- I : Type
-        -- inst✝¹ : Fintype I
-        -- inst✝ : DecidableEq I
-        -- l : I → ℕ
-        -- hl : ∀ (i : I), l i ≤ 0
-        -- hsum : ∑ i, (1 / 2) ^ l i ≤ 1
-        -- hI : ¬Nonempty I
-        -- ⊢ ∃ w, Function.Injective w ∧ PrefixFree (Finset.image w Finset.univ) ∧ ∀ (i : I), (w i).length = l i
-        sorry
+      · -- hI : ¬ Nonempty I
+        haveI : IsEmpty I := ⟨fun i => hI ⟨i⟩⟩
+        refine ⟨(fun i => (isEmptyElim i)), ?_, ?_, ?_⟩
+        · intro a
+          exact (isEmptyElim a)
+        · intro x hx
+          exact (False.elim (by
+            -- since there are no elements, Finset.univ is empty; membership impossible
+            simp at hx))
+        · intro i
+          exact (isEmptyElim i)
     · intro I _ _ l hl hsum
       by_cases h_exists_zero : ∃ i, l i = 0
       · obtain ⟨i₀, hi₀⟩ : ∃ i₀, l i₀ = 0 := h_exists_zero
@@ -476,72 +469,111 @@ theorem kraft_inequality_tight {I : Type*} [Fintype I] [DecidableEq I] (l : I �
             · exact Subtype.ext_iff.mp ( hw0_inj hij )
             · exact congr_arg Subtype.val ( hw1_inj hij )
           ·
-            -- case h.refine'_2
-            -- I✝ : Type u_1
-            -- inst✝³ : Fintype I✝
-            -- inst✝² : DecidableEq I✝
-            -- l✝ : I✝ → ℕ
-            -- h : ∑ i, (1 / 2) ^ l✝ i ≤ 1
-            -- h_contra : ¬∃ w, Function.Injective w ∧ PrefixFree ↑(Finset.image w Finset.univ) ∧ ∀ (i : I✝), (w i).length = l✝ i
-            -- m✝ : ℕ := Finset.univ.sup l✝
-            -- m : ℕ
-            -- ih : ∀ (I : Type) [inst : Fintype I] [DecidableEq I] (l : I → ℕ),
-            --   (∀ (i : I), l i ≤ m) →
-            --     ∑ i, (1 / 2) ^ l i ≤ 1 →
-            --       ∃ w, Function.Injective w ∧ PrefixFree ↑(Finset.image w Finset.univ) ∧ ∀ (i : I), (w i).length = l i
-            -- I : Type
-            -- inst✝¹ : Fintype I
-            -- inst✝ : DecidableEq I
-            -- l : I → ℕ
-            -- hl : ∀ (i : I), l i ≤ m + 1
-            -- hsum : ∑ i, (1 / 2) ^ l i ≤ 1
-            -- h_exists_zero : ¬∃ i, l i = 0
-            -- h_sum_half : ¬∑ i, (1 / 2) ^ l i ≤ 1 / 2
-            -- S : Finset I
-            -- hS : ∑ i ∈ S, (1 / 2) ^ l i = 1 / 2
-            -- l' : I → ℕ := fun i ↦ l i - 1
-            -- hl'_def : l' = fun i ↦ l i - 1
-            -- w0 : ↥S → List Bool
-            -- hw0_inj : Function.Injective w0
-            -- hw0_prefix : PrefixFree ↑(Finset.image w0 Finset.univ)
-            -- hw0_len : ∀ (i : ↥S), (w0 i).length = l' ↑i
-            -- w1 : { x // x ∉ S } → List Bool
-            -- hw1_inj : Function.Injective w1
-            -- hw1_prefix : PrefixFree ↑(Finset.image w1 Finset.univ)
-            -- hw1_len : ∀ (i : { x // x ∉ S }), (w1 i).length = l' ↑i
-            -- ⊢ PrefixFree ↑(Finset.image (fun i ↦ if hi : i ∈ S then 0 :: w0 ⟨i, hi⟩ else 1 :: w1 ⟨i, hi⟩) Finset.univ)
+            -- abbreviate the combined map (same as your `use fun i => if ...`)
+            let w : I → List Bool :=
+              fun i => if hi : i ∈ S then (0 :: w0 ⟨i, hi⟩) else (1 :: w1 ⟨i, hi⟩)
 
-            -- Tactic `rcases` failed: `a✝ : Quot.lift (fun l ↦ x✝ ∈ l) ⋯
-            -- (Finset.image (fun i ↦ if hi : i ∈ S then 0 :: w0 ⟨i, hi⟩ else 1 :: w1 ⟨i, hi⟩)
-            --     Finset.univ).val` is not an inductive datatype
-            rintro _ ⟨ i, rfl ⟩ _ ⟨ j, rfl ⟩ hij
-            by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp +decide [ hi, hj ] at hij ⊢
-            · exact hw0_prefix _ ⟨ _, rfl ⟩ _ ⟨ _, rfl ⟩ hij
-            · exact hw1_prefix _ ⟨ _, rfl ⟩ _ ⟨ _, rfl ⟩ hij
+            -- goal: PrefixFree ↑(Finset.image w Finset.univ)
+            -- unfold PrefixFree
+            intro x hx y hy hxy
 
+            -- move membership from Set-coe to Finset membership, so we can `mem_image` cleanly
+            have hx' : x ∈ ((Finset.univ : Finset I).image w : Finset (List Bool)) := by
+              simpa using hx
+            rcases Finset.mem_image.mp hx' with ⟨i, hiU, rfl⟩
+
+            have hy' : y ∈ ((Finset.univ : Finset I).image w : Finset (List Bool)) := by
+              simpa using hy
+            rcases Finset.mem_image.mp hy' with ⟨j, hjU, rfl⟩
+
+            by_cases hi : i ∈ S <;> by_cases hj : j ∈ S
+            · -- i∈S, j∈S
+              -- reduce the prefix fact to the tails
+              have hxy' : (0 :: w0 ⟨i, hi⟩) <+: (0 :: w0 ⟨j, hj⟩) := by
+                simpa [w, hi, hj] using hxy
+              rcases hxy' with ⟨t, ht⟩
+              -- ht : 0 :: w0 j = (0 :: w0 i) ++ t
+              have ht_tail : w0 ⟨i, hi⟩ <+: w0 ⟨j, hj⟩ := by
+                refine ⟨t, ?_⟩
+                -- strip the leading cons from ht
+                have : 0 :: (w0 ⟨i, hi⟩ ++ t) = (0 :: w0 ⟨j, hj⟩) := by
+                  simpa [List.cons_append] using ht
+                exact (List.cons.inj this).2
+
+              -- membership facts for hw0_prefix
+              have mem_i : w0 ⟨i, hi⟩ ∈ (↑((Finset.univ : Finset (↥S)).image w0) : Set (List Bool)) := by
+                have : w0 ⟨i, hi⟩ ∈ ((Finset.univ : Finset (↥S)).image w0 : Finset (List Bool)) :=
+                  Finset.mem_image_of_mem w0 (by simp)
+                simp
+              have mem_j : w0 ⟨j, hj⟩ ∈ (↑((Finset.univ : Finset (↥S)).image w0) : Set (List Bool)) := by
+                have : w0 ⟨j, hj⟩ ∈ ((Finset.univ : Finset (↥S)).image w0 : Finset (List Bool)) :=
+                  Finset.mem_image_of_mem w0 (by simp)
+                simp
+
+              have tail_eq : w0 ⟨i, hi⟩ = w0 ⟨j, hj⟩ :=
+                hw0_prefix _ mem_i _ mem_j ht_tail
+
+              simp [w, hi, hj, tail_eq]
+
+            · -- i∈S, j∉S : impossible (0 :: …) <+: (1 :: …)
+              have hxy' : (0 :: w0 ⟨i, hi⟩) <+: (1 :: w1 ⟨j, hj⟩) := by
+                simp [w, hi, hj] at hxy
+              rcases hxy' with ⟨t, ht⟩
+              -- ht : 1 :: w1 j = (0 :: w0 i) ++ t = 0 :: (w0 i ++ t)
+              have : (1 : Bool) = 0 := by
+                have : (1 :: w1 ⟨j, hj⟩) = 0 :: (w0 ⟨i, hi⟩ ++ t) := by
+                  simp [List.cons_append] at ht
+                exact (List.cons.inj this).1
+              cases this
+
+            · -- i∉S, j∈S : impossible (1 :: …) <+: (0 :: …)
+              have hxy' : (1 :: w1 ⟨i, hi⟩) <+: (0 :: w0 ⟨j, hj⟩) := by
+                simp [w, hi, hj] at hxy
+              rcases hxy' with ⟨t, ht⟩
+              have : (0 : Bool) = 1 := by
+                have : (0 :: w0 ⟨j, hj⟩) = 1 :: (w1 ⟨i, hi⟩ ++ t) := by
+                  simp [List.cons_append] at ht
+                exact (List.cons.inj this).1
+              cases this
+
+            · -- i∉S, j∉S
+              have hxy' : (1 :: w1 ⟨i, hi⟩) <+: (1 :: w1 ⟨j, hj⟩) := by
+                simpa [w, hi, hj] using hxy
+              rcases hxy' with ⟨t, ht⟩
+              have ht_tail : w1 ⟨i, hi⟩ <+: w1 ⟨j, hj⟩ := by
+                refine ⟨t, ?_⟩
+                have : 1 :: (w1 ⟨i, hi⟩ ++ t) = (1 :: w1 ⟨j, hj⟩)  := by
+                  simpa [List.cons_append] using ht
+                exact (List.cons.inj this).2
+
+              have mem_i : w1 ⟨i, hi⟩ ∈ (↑((Finset.univ : Finset {x // x ∉ S}).image w1) : Set (List Bool)) := by
+                have : w1 ⟨i, hi⟩ ∈ ((Finset.univ : Finset {x // x ∉ S}).image w1 : Finset (List Bool)) :=
+                  Finset.mem_image_of_mem w1 (by simp)
+                simp
+              have mem_j : w1 ⟨j, hj⟩ ∈ (↑((Finset.univ : Finset {x // x ∉ S}).image w1) : Set (List Bool)) := by
+                have : w1 ⟨j, hj⟩ ∈ ((Finset.univ : Finset {x // x ∉ S}).image w1 : Finset (List Bool)) :=
+                  Finset.mem_image_of_mem w1 (by simp)
+                simp
+
+              have tail_eq : w1 ⟨i, hi⟩ = w1 ⟨j, hj⟩ :=
+                hw1_prefix _ mem_i _ mem_j ht_tail
+
+              simp [w, hi, hj, tail_eq]
           ·
-            -- Try these:
-            --   [apply] grind only [= List.length_cons, #167f, #a292, #2035, #3bd0, #e5fe, #8064]
-            --   [apply] grind only [= List.length_cons]
-            --   [apply] grind =>
-            --     instantiate only [#167f]
-            --     cases #a292
-            --     · instantiate only [#2035, = List.length_cons]
-            --       cases #3bd0
-            --     · instantiate only [#e5fe, = List.length_cons]
-            --       cases #8064
-            grind?
-  apply h_contra
-  convert h_ind m ( ULift ( Fin ( Fintype.card I ) ) ) ( fun i => l ( Fintype.equivFin I |>.symm i.down ) ) _ _
-  · constructor <;> rintro ⟨ w, hw₁, hw₂, hw₃ ⟩
-    · exact False.elim ( h_contra ⟨ w, hw₁, hw₂, hw₃ ⟩ )
-    · use fun i => w ⟨ Fintype.equivFin I i ⟩
-      simp_all +decide [Function.Injective]
-      exact ⟨ fun a₁ a₂ h => by simpa [ Fin.ext_iff ] using Fintype.equivFin I |>.injective <| hw₁ _ _ h, fun x hx y hy hxy => by obtain ⟨ i, rfl ⟩ := hx; obtain ⟨ j, rfl ⟩ := hy; exact hw₂ _ ( Set.mem_range_self _ ) _ ( Set.mem_range_self _ ) hxy ⟩
-  · exact fun i => le_csSup ( Set.finite_range l |> Set.Finite.bddAbove ) ( Set.mem_range_self _ )
-  · convert h using 1
-    refine' Finset.sum_bij ( fun x _ => Fintype.equivFin I |>.symm x.down ) _ _ _ _ <;> simp +decide
-    exact fun b => ⟨ Fintype.equivFin I b, by simp⟩
+            have hpos (i : I) : 0 < l i :=
+              Nat.pos_of_ne_zero (by intro h0; exact h_exists_zero ⟨i, h0⟩)
+
+            intro i
+            by_cases hi : i ∈ S
+            · simp [hi, hw0_len, l', Nat.sub_add_cancel (hpos i)]
+            · simp [hi, hw1_len, l', Nat.sub_add_cancel (hpos i)]
+
+  let m : ℕ := (Finset.univ : Finset I).sup l
+  have hlm : ∀ i : I, l i ≤ m := by
+    intro i; exact Finset.le_sup (s := (Finset.univ : Finset I)) (f := l) (by simp)
+  have : ∃ w: I → List Bool, Function.Injective w ∧ PrefixFree ↑((Finset.univ : Finset I).image w) ∧ ∀ i, (w i).length = l i :=
+    h_ind m I l hlm h
+  exact False.elim (h_contra this)
 
 /-
 A finite set $S$ of words is uniquely decodable if every $x \in \{0,1\}^*$ can be written in at most one way as $x = w_1 \ldots w_r$ (for any $r$), where $w_1,\dots,w_r \in S$.
@@ -688,7 +720,7 @@ theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFr
     · induction L2 <;> simp_all
     · rcases L2 with ( _ | ⟨ x, L2 ⟩ ) <;> simp_all +decide [ List.flatten ]
       -- Since $w1$ and $x$ are both in $S$ and $S$ is prefix-free, we must have $w1 = x$.
-      have hw1_eq_x : w1 = x := by
+      have hw1_eq_x : x = w1 := by
         have := h _ hL1.1 _ hL2.1
         have := h _ hL2.1 _ hL1.1
         rw [ List.append_eq_append_iff ] at hflatten
@@ -696,6 +728,8 @@ theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFr
         --   [apply] grind only [usr List.prefix_append, #0770]
         --   [apply] grind only [usr List.prefix_append]
         --   [apply] grind => cases #0770 <;> instantiate only [usr List.prefix_append]
+        -- Since w1 and x are both in S and S is prefix-free, we must have w1 = x.
+        -- 1. Use the append lemma to split into cases
         grind?
       simp_all only [true_and, List.append_cancel_left_eq]
       apply ih
