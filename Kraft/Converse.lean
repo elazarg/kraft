@@ -9,10 +9,6 @@ import Mathlib.Tactic.Ring
 
 import Kraft.Basic
 
-set_option maxHeartbeats 0
-set_option maxRecDepth 4000
-set_option synthInstance.maxHeartbeats 20000
-
 namespace Kraft
 
 open scoped BigOperators Real Nat
@@ -261,7 +257,7 @@ theorem kraft_inequality_tight (l : I → ℕ)
             · rfl
       · -- hI : ¬ Nonempty I
         haveI : IsEmpty I := ⟨fun i => hI ⟨i⟩⟩
-        refine ⟨(fun i => (isEmptyElim i)), ?_, ?_, ?_⟩
+        refine ⟨(fun i => isEmptyElim i), ?_, ?_, ?_⟩
         · intro a
           exact (isEmptyElim a)
         · intro x hx
@@ -278,7 +274,7 @@ theorem kraft_inequality_tight (l : I → ℕ)
           have h_card : ∑ i, (1 / 2 : ℝ) ^ l i ≥ 1 := by
             exact le_trans ( by norm_num [ hi₀ ] ) ( Finset.single_le_sum ( fun i _ => by positivity ) ( Finset.mem_univ i₀ ) )
           have h_card : ∑ i ∈ Finset.univ.erase i₀, (1 / 2 : ℝ) ^ l i = 0 := by
-            norm_num +zetaDelta at *
+            norm_num at *
             rw [ sub_eq_zero, hi₀, pow_zero ]
             linarith
           simp_all
@@ -287,12 +283,11 @@ theorem kraft_inequality_tight (l : I → ℕ)
         rw [ Fintype.card_eq_one_iff ] at h_card
         obtain ⟨ x, hx ⟩ := h_card
         use fun _ => List.replicate (l x) Bool.true
-        simp [ Function.Injective, hx ]
-        simp [PrefixFree]
+        simp [Function.Injective, hx, PrefixFree]
       · -- If $\sum_{i \in I} 2^{-\ell(i)} \leq \frac{1}{2}$, then we can take $S = I$.
         by_cases h_sum_half : (∑ i, (1 / 2 : ℝ) ^ (l i)) ≤ 1 / 2
         · -- Define $\ell'\colon I \to \mathbb{N}$ by $\ell'(i) = \ell(i) - 1$.
-          set l' : I → ℕ := fun i => l i - 1 with hl'_def
+          let l' : I → ℕ := fun i => l i - 1
           -- By the induction hypothesis, there exists an injective mapping $w' \colon I \to \{0,1\}^*$ whose image is prefix-free, and furthermore $|w'(i)| = \ell'(i)$.
           obtain ⟨w', hw'_inj, hw'_prefix, hw'_length⟩ : ∃ (w' : I → (List Bool)), (Function.Injective w') ∧ (PrefixFree (range w')) ∧ (∀ i, ((w' i).length = (l' i))) := by
             apply ih I l'
@@ -315,8 +310,11 @@ theorem kraft_inequality_tight (l : I → ℕ)
             convert congr_arg ( · * ( 1 / 2 : ℝ ) ) hS using 1 <;> norm_num [ Finset.sum_mul _ _ _ ]
             exact Finset.sum_congr rfl fun i hi => by rw [ ← pow_succ, Nat.sub_add_cancel ( Nat.pos_of_ne_zero fun hi' => h_exists_zero ⟨ i, hi' ⟩ ) ]
           -- Define $\ell'\colon I \to \mathbb{N}$ by $\ell'(i) = \ell(i) - 1$.
-          set l' : I → ℕ := fun i => l i - 1 with hl'_def
-          -- By the induction hypothesis, there exist injective maps $w_0\colon S \to \{0,1\}^*$ and $w_1\colon S^c \to \{0,1\}^*$ such that $w_0(S)$ and $w_1(S^c)$ are prefix-free; $|w_0(i)| = \ell'(i)$ for all $i \in S$; and $|w_1(i)| = \ell'(i)$ for all $i \in S^c$.
+          let l' : I → ℕ := fun i => l i - 1
+          -- By the induction hypothesis,
+          -- there exist injective maps $w_0\colon S \to bool^*$ and $w_1\colon S^c \to bool^*$
+          -- such that $w_0(S)$ and $w_1(S^c)$ are prefix-free;
+          -- $|w_0(i)| = \ell'(i)$ for all $i \in S$; and $|w_1(i)| = \ell'(i)$ for all $i \in S^c$.
           obtain ⟨w0, hw0_inj, hw0_prefix, hw0_len⟩ : ∃ w0 : S → (List Bool), (Function.Injective w0) ∧ (PrefixFree (range w0)) ∧ (∀ i, ((w0 i).length = (l' i))) := by
             apply ih
             · exact fun i => Nat.sub_le_of_le_add <| by linarith [ hl i ]
@@ -331,13 +329,20 @@ theorem kraft_inequality_tight (l : I → ℕ)
                 norm_num at *; linarith
               have h_sum_complement : ∑ i ∈ Finset.univ \ S, (1 / 2 : ℝ) ^ (l i - 1) ≤ 1 := by
                 have h_sum_complement : ∑ i ∈ Finset.univ \ S, (1 / 2 : ℝ) ^ (l i - 1) = 2 * ∑ i ∈ Finset.univ \ S, (1 / 2 : ℝ) ^ (l i) := by
-                  rw [ Finset.mul_sum _ _ _ ] ; refine' Finset.sum_congr rfl fun i hi => _ ; rcases k : l i with ( _ | k ) <;> simp_all [ pow_succ' ]
+                  rw [ Finset.mul_sum _ _ _ ]
+                  refine' Finset.sum_congr rfl (fun i hi => _)
+                  rcases k : l i with ( _ | k )
+                  · exfalso
+                    apply h_exists_zero
+                    use i
+                  · simp [ pow_succ' ]
                 linarith
               convert h_sum_complement using 1
               refine' Finset.sum_bij ( fun x _ => x ) _ _ _ _ <;> simp
               exact fun _ _ => rfl
-          -- Define $w\colon I \to \{0, 1\}^*$ by
-          use fun i => if hi : i ∈ S then false :: w0 ⟨i, hi⟩ else true :: w1 ⟨i, hi⟩
+          -- Define $w\colon I \to \{false, true\}^*$ by
+          use fun i => if hi : i ∈ S then false :: w0 ⟨i, hi⟩
+                                     else true  :: w1 ⟨i, hi⟩
           refine' ⟨ _, _, _ ⟩
           · intro i j hij
             by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp +decide [ hi, hj ] at hij ⊢
@@ -348,18 +353,14 @@ theorem kraft_inequality_tight (l : I → ℕ)
             let w : I → List Bool :=
               fun i => if hi : i ∈ S then (false :: w0 ⟨i, hi⟩) else (true :: w1 ⟨i, hi⟩)
 
-            -- goal: PrefixFree ↑(Finset.image w Finset.univ)
-            -- unfold PrefixFree
             intro x hx y hy hxy
 
             -- move membership from Set-coe to Finset membership, so we can `mem_image` cleanly
-            have hx' : x ∈ ((Finset.univ : Finset I).image w : Finset (List Bool)) := by
-              simpa using hx
+            have hx' : x ∈ range w := by simpa using hx
             rcases Finset.mem_image.mp hx' with ⟨i, hiU, rfl⟩
 
-            have hy' : y ∈ ((Finset.univ : Finset I).image w : Finset (List Bool)) := by
-              simpa using hy
-            rcases Finset.mem_image.mp hy' with ⟨j, hjU, rfl⟩
+            have hy' : y ∈ range w := by simpa using hy
+            rcases Finset.mem_image.mp (hy') with ⟨j, hjU, rfl⟩
 
             by_cases hi : i ∈ S <;> by_cases hj : j ∈ S
             · -- i∈S, j∈S
@@ -376,14 +377,8 @@ theorem kraft_inequality_tight (l : I → ℕ)
                 exact (List.cons.inj this).2
 
               -- membership facts for hw0_prefix
-              have mem_i : w0 ⟨i, hi⟩ ∈ (↑((Finset.univ : Finset (↥S)).image w0) : Set (List Bool)) := by
-                have : w0 ⟨i, hi⟩ ∈ ((Finset.univ : Finset (↥S)).image w0 : Finset (List Bool)) :=
-                  Finset.mem_image_of_mem w0 (by simp)
-                simp
-              have mem_j : w0 ⟨j, hj⟩ ∈ (↑((Finset.univ : Finset (↥S)).image w0) : Set (List Bool)) := by
-                have : w0 ⟨j, hj⟩ ∈ ((Finset.univ : Finset (↥S)).image w0 : Finset (List Bool)) :=
-                  Finset.mem_image_of_mem w0 (by simp)
-                simp
+              have mem_i : w0 ⟨i, hi⟩ ∈ range w0 := by simp
+              have mem_j : w0 ⟨j, hj⟩ ∈ range w0 := by simp
 
               have tail_eq : w0 ⟨i, hi⟩ = w0 ⟨j, hj⟩ :=
                 hw0_prefix _ mem_i _ mem_j ht_tail
@@ -405,9 +400,9 @@ theorem kraft_inequality_tight (l : I → ℕ)
               have hxy' : (true :: w1 ⟨i, hi⟩) <+: (false :: w0 ⟨j, hj⟩) := by
                 simp [w, hi, hj] at hxy
               rcases hxy' with ⟨t, ht⟩
+              have : (false :: w0 ⟨j, hj⟩) = true :: (w1 ⟨i, hi⟩ ++ t) := by
+                simp [List.cons_append] at ht
               have : false = true := by
-                have : (false :: w0 ⟨j, hj⟩) = true :: (w1 ⟨i, hi⟩ ++ t) := by
-                  simp [List.cons_append] at ht
                 exact (List.cons.inj this).1
               cases this
 
@@ -422,14 +417,8 @@ theorem kraft_inequality_tight (l : I → ℕ)
 
                 exact (List.cons.inj this).2
 
-              have mem_i : w1 ⟨i, hi⟩ ∈ (↑((Finset.univ : Finset {x // x ∉ S}).image w1) : Set (List Bool)) := by
-                have : w1 ⟨i, hi⟩ ∈ ((Finset.univ : Finset {x // x ∉ S}).image w1 : Finset (List Bool)) :=
-                  Finset.mem_image_of_mem w1 (by simp)
-                simp
-              have mem_j : w1 ⟨j, hj⟩ ∈ (↑((Finset.univ : Finset {x // x ∉ S}).image w1) : Set (List Bool)) := by
-                have : w1 ⟨j, hj⟩ ∈ ((Finset.univ : Finset {x // x ∉ S}).image w1 : Finset (List Bool)) :=
-                  Finset.mem_image_of_mem w1 (by simp)
-                simp
+              have mem_i : w1 ⟨i, hi⟩ ∈ range w1 := by simp
+              have mem_j : w1 ⟨j, hj⟩ ∈ range w1 := by simp
 
               have tail_eq : w1 ⟨i, hi⟩ = w1 ⟨j, hj⟩ :=
                 hw1_prefix _ mem_i _ mem_j ht_tail
@@ -444,9 +433,10 @@ theorem kraft_inequality_tight (l : I → ℕ)
             · simp [hi, hw0_len, l', Nat.sub_add_cancel (hpos i)]
             · simp [hi, hw1_len, l', Nat.sub_add_cancel (hpos i)]
 
-  let m : ℕ := (Finset.univ : Finset I).sup l
+  let m : ℕ := Finset.univ.sup l
   have hlm : ∀ i : I, l i ≤ m := by
-    intro i; exact Finset.le_sup (s := (Finset.univ : Finset I)) (f := l) (by simp)
+    intro i
+    exact Finset.univ.le_sup (f := l) (by simp)
   have : ∃ w: I → List Bool, Function.Injective w ∧ PrefixFree (range w) ∧ ∀ i, (w i).length = l i :=
     h_ind m I l hlm h
   exact False.elim (h_contra this)
