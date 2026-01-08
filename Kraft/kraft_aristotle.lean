@@ -189,9 +189,10 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
     -- Since $l$ is sorted non-decreasingly, we have $l[i] \leq l[k-1]$ for all $i < k-1$.
     have h_le : ∀ i < k - 1, l[i]! ≤ l[k - 1]! := by
       intro i hi
-      have hkpos : 0 < k := lt_trans (Nat.zero_lt_succ i) (by omega)
-      have hkpos' :  k.sub 0 ≠ 0 := by
-        simp_all
+      have hkpos' : k.sub 0 ≠ 0 := by
+        -- i < k-1 forces k ≠ 0
+        intro hk0
+        have : k - 1 = 0 := by simp_all
         omega
       have hk1 : k - 1 < l.length := by
         obtain ⟨hklen, _⟩ := hk

@@ -17,16 +17,6 @@ import Kraft.Converse_lemma
 
 open BigOperators
 
--- General disjointness for codes starting with different bits
-lemma disjoint_cons {S1 S2 : Code} :
-    Disjoint (S1.image (List.cons true)) (S2.image (List.cons false)) := by
-  rw [Finset.disjoint_left]
-  intro w h1 h2
-  rw [Finset.mem_image] at h1 h2
-  rcases h1 with ⟨w1, _, rfl⟩
-  rcases h2 with ⟨w2, _, heads_distinct⟩
-  simp at heads_distinct -- true = false contradiction
-
 -- Prefix-free is preserved under 'cons b'
 lemma prefixFree_cons (b : Bool) {S : Code} (h : PrefixFree S) :
     PrefixFree (S.image (List.cons b)) := by
@@ -106,15 +96,6 @@ lemma take_toFinset_subset {α : _} [DecidableEq α] (I : Finset α) (k : ℕ) :
   have hx_full : x ∈ I.toList := List.mem_of_mem_take hx_list
   -- and `toList` membership is exactly finset membership
   simpa using (Finset.mem_toList.mp hx_full)
-
-/-- Divisibility helper for lists -/
-lemma dvd_sum_of_dvd_forall {l : List ℕ} {k : ℕ} (h : ∀ x ∈ l, k ∣ x) : k ∣ l.sum := by
-  induction l with
-  | nil => simp
-  | cons a l ih =>
-    simp; apply Nat.dvd_add
-    · exact h a List.mem_cons_self
-    · exact ih (fun x hx => h x (List.mem_cons_of_mem _ hx))
 
 /-- Uniqueness of a least index satisfying `P`. -/
 lemma least_index_unique (P : ℕ → Prop) (k1 k2 : ℕ)
