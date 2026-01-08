@@ -250,11 +250,11 @@ lemma kraft_singleton_of_exists_len_zero
   -- pick i0 with l i0 = 0. Then the summand at i0 is 1.
   -- If there were any other j ∈ I, its summand is > 0, so total sum > 1. Contradiction.
   -- hence card I ≤ 1, so I is empty or singleton.
-  obtain ⟨ i, hi, hi' ⟩ := hz;
   contrapose! h_sum;
+  obtain ⟨ i, hi, hi' ⟩ := hz;
   rw [Finset.sum_eq_add_sum_diff_singleton hi];
   apply lt_add_of_le_of_pos (by norm_num [hi'])
-  apply Finset.sum_pos (fun x hx => by simp)
+  apply Finset.sum_pos (by simp)
   apply Finset.nonempty_of_ne_empty
   simp_all
   intro a
@@ -263,31 +263,48 @@ lemma kraft_singleton_of_exists_len_zero
 
 -- For the positive-length case, split I into S and its complement so that both sums ≤ 1/2.
 -- If total ≤ 1/2, take S = I. Otherwise use corollary_3_1_half to carve S with sum = 1/2.
-def halfSplit
+noncomputable def halfSplit
     (h_pos : ∀ i ∈ I, 0 < l i)
     (h_sum : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≤ 1) :
     {S // S ⊆ I ∧
          (∑ i ∈ S, (2 ^ l i : ℚ)⁻¹) ≤ (1/2 : ℚ) ∧
          (∑ i ∈ I \ S, (2 ^ l i : ℚ)⁻¹) ≤ (1/2 : ℚ)} := by
   by_cases hIhalf : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≤ (1/2 : ℚ)
-  · -- take S = I, then complement sum = 0
+  · -- Case 1: Total sum ≤ 1/2.
     refine ⟨I, ?_, ?_, ?_⟩
     · exact Finset.Subset.rfl
-    · simpa using hIhalf
-    · -- sum over I \ I is 0
-      simp
-  · -- total sum > 1/2, use corollary to get S with sum exactly 1/2
-    have h_ge_half : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≥ (1/2 : ℚ) := by
-      -- from ¬(≤ 1/2)
-      linarith
-    rcases corollary_3_1_half (I := I) (l := l) h_pos h_ge_half with ⟨S, hSsub, hS_eq⟩
+    · exact hIhalf
+    · simp only [Finset.sdiff_self, Finset.sum_empty]
+      norm_num
+
+  · -- Case 2: Total sum > 1/2.
+    have h_ge_half : (∑ i ∈ I, (2 ^ l i : ℚ)⁻¹) ≥ (1/2 : ℚ) := by linarith
+
+    -- The existential witness from your corollary
+    let exists_S := corollary_3_1_half I l h_pos h_ge_half
+
+    -- Extract S using Classical Choice
+    let S := Classical.choose exists_S
+    have h_spec := Classical.choose_spec exists_S
+    rcases h_spec with ⟨hSsub, hS_eq⟩
+
     refine ⟨S, hSsub, ?_, ?_⟩
-    · -- sum over S is 1/2 hence ≤ 1/2
-      simpa [hS_eq]
-    · -- complement sum = total - 1/2 ≤ 1/2 since total ≤ 1
-      -- use `Finset.sum_sdiff` (needs S ⊆ I) and then `linarith`.
-      -- (Also uses nonnegativity of summands to justify rearrangements if needed.)
-      sorry
+    · -- S sum is exactly 1/2
+      rw [hS_eq]
+    · -- I \ S sum is ≤ 1/2
+      -- We explicitly provide the function f := ... to resolve the ambiguity
+      have h_decomp := Finset.sum_sdiff (f := fun i => (2 ^ l i : ℚ)⁻¹) hSsub
+
+      -- Now h_decomp is: sum(I \ S) + sum(S) = sum(I)
+
+      -- Substitute known value: sum(S) = 1/2
+      rw [hS_eq] at h_decomp
+
+      -- linarith combines:
+      -- 1. h_decomp: sum(I \ S) + 1/2 = sum(I)
+      -- 2. h_sum:    sum(I) ≤ 1
+      -- Result:      sum(I \ S) ≤ 1/2
+      linarith
 
 -- Decrementing a positive nat that is ≤ h+1 yields something ≤ h.
 lemma sub_one_le_of_le_succ {h n : ℕ} (hnpos : 0 < n) (hle : n ≤ h+1) :
@@ -319,13 +336,23 @@ theorem theorem_3_2_aux
       Set.InjOn w I ∧
       PrefixFree (I.image w) ∧
       ∀ i ∈ I, (w i).length = l i := by
-  induction h with
+  induction h generalizing I l with
   | zero =>
       -- h = 0: all lengths on I are 0.
       -- Then each summand is 1, so sum = card I ≤ 1, hence card I ≤ 1.
       -- So I is empty or singleton. Construct w accordingly (always [] works).
       -- PrefixFree on empty/singleton is trivial, injective on singleton is trivial.
-      sorry
+      exists (fun _ => ∅)
+      simp_all
+      constructor
+      · simp [Set.InjOn]
+        rw [Finset.card_le_one] at h_sum
+        apply h_sum
+      · simp [Finset.image]
+        if I=∅ then
+          simp_all [PrefixFree]
+        else
+          simp_all [PrefixFree]
   | succ h ih =>
       -- h = h+1 step.
 
@@ -333,8 +360,9 @@ theorem theorem_3_2_aux
       by_cases hz : (∃ i ∈ I, l i = 0)
       · -- Then I is empty or singleton (see helper), and we finish like base case.
         have : I = ∅ ∨ ∃ i, I = {i} :=
-          kraft_singleton_of_exists_len_zero (I := I) (l := l) h_sum hz
+          kraft_singleton_of_exists_len_zero I l h_sum hz
         -- build w from cases
+        specialize ih I l
         obtain ⟨w, h_1⟩ := hz
         obtain ⟨left, right⟩ := h_1
         cases this with
@@ -364,11 +392,36 @@ theorem theorem_3_2_aux
           --   sum 2^{-(l-1)} = 2 * sum 2^{-l}
           -- then `linarith` with hS_le_half.
           -- Need: ∀ i∈S, 0 < l i (follows from h_pos + hSsub).
-          sorry
+          -- 1. Establish the scaling relation: sum(2^-(l-1)) = 2 * sum(2^-l)
+            have h_scale : ∑ i ∈ S, (2 ^ l' i : ℚ)⁻¹ = 2 * ∑ i ∈ S, (2 ^ l i : ℚ)⁻¹ := by
+              rw [Finset.mul_sum]
+              apply Finset.sum_congr rfl
+              intro i hi
+              dsimp [l']
+              apply Dyadic.inv_pow_sub_one
+              -- Discharge the positivity requirement (l i > 0)
+              exact h_pos i (hSsub hi)
+
+            -- 2. Substitute and use the bound hS_le_half (sum ≤ 1/2)
+            rw [h_scale]
+            -- 2 * (something ≤ 1/2) is ≤ 1
+            linarith [hS_le_half]
 
         have hC_sum' : (∑ i ∈ C, (2 ^ l' i : ℚ)⁻¹) ≤ 1 := by
           -- same for C = I \ S, using hC_le_half
-          sorry
+          -- 1. Establish the scaling relation for C
+            have h_scale_C : ∑ i ∈ C, (2 ^ l' i : ℚ)⁻¹ = 2 * ∑ i ∈ C, (2 ^ l i : ℚ)⁻¹ := by
+              rw [Finset.mul_sum]
+              apply Finset.sum_congr rfl
+              intro i hi
+              dsimp [l']
+              apply Dyadic.inv_pow_sub_one
+              -- Prove i ∈ I to use h_pos (since C = I \ S)
+              exact h_pos i (Finset.mem_sdiff.mp hi).1
+
+            -- 2. Substitute and use the bound hC_le_half
+            rw [h_scale_C]
+            linarith [hC_le_half]
 
         -- Show bound `l' i ≤ h` on S and C (since l i ≤ h+1 and l i > 0).
         have hS_bound' : ∀ i ∈ S, l' i ≤ h := by
@@ -386,8 +439,7 @@ theorem theorem_3_2_aux
           exact sub_one_le_of_le_succ (hnpos := h_pos i hiI) hle
 
         -- Apply IH on S and C.
-        rcases ih (I := S) (l := l') hS_bound' hS_sum' with
-          ⟨w0, hw0_inj, hw0_pf, hw0_len⟩
+        rcases ih S l' hS_bound' hS_sum' with ⟨w0, hw0_inj, hw0_pf, hw0_len⟩
         rcases ih (I := C) (l := l') hC_bound' hC_sum' with
           ⟨w1, hw1_inj, hw1_pf, hw1_len⟩
 
@@ -402,7 +454,27 @@ theorem theorem_3_2_aux
           -- mixed case impossible since true≠false.
           --
           -- This is a standard by_cases on membership in S.
-          sorry
+          intro x hx y hy h_eq
+          dsimp [w] at h_eq
+          split_ifs at h_eq with hxS hyS
+          · -- Case 1: Both x, y ∈ S
+            -- The heads match (true), so w0 x = w0 y. Use hw0_inj.
+            simp only [List.cons.injEq] at h_eq
+            simp at h_eq
+            exact hw0_inj hxS hyS h_eq
+          · -- Case 2: x ∈ S, y ∉ S (so y ∈ C)
+            -- Heads are true vs false. Contradiction.
+            simp at h_eq
+          · -- Case 3: x ∉ S, y ∈ S (so x ∈ C)
+            -- Heads are false vs true. Contradiction.
+            simp at h_eq
+          · -- Case 4: Both x, y ∉ S (so x, y ∈ C)
+            -- The heads match (false), so w1 x = w1 y. Use hw1_inj.
+            simp only [List.cons.injEq] at h_eq
+            simp at h_eq
+            have hxC : x ∈ C := by simp_all [C]
+            have hyC : y ∈ C := by simp_all [C]
+            exact hw1_inj hxC hyC h_eq
 
         · -- PrefixFree on I.image w:
           -- First rewrite the image as a union of two "cons" images:
@@ -416,7 +488,13 @@ theorem theorem_3_2_aux
               I.image w
                 = ((S.image w0).image (List.cons true)) ∪ ((C.image w1).image (List.cons false)) := by
             -- prove by ext; cases on i∈S; use simp [w, C, Finset.mem_sdiff]
-            sorry
+            nth_rewrite 1 [← Finset.union_sdiff_of_subset hSsub]
+            simp only [Finset.image_union, Finset.image_image]
+            apply congr_arg₂ <;> apply Finset.image_congr <;> intro i hi
+            · simp [w]
+              assumption
+            · simp [w] at hi ⊢
+              simp [hi.2]
           -- now apply prefixfree
           -- (no disjointness lemma needed; `prefixFree_union_cons` handles cross cases by head-bit contradiction)
           simpa [h_img] using (prefixFree_union_cons (S1 := S.image w0) (S2 := C.image w1) hw0_pf hw1_pf)
@@ -428,15 +506,15 @@ theorem theorem_3_2_aux
           by_cases hiS : i ∈ S
           · -- i in S
             have : (w0 i).length = l' i := hw0_len i hiS
-            -- unfold w,l'; simp [w, hiS, l', this, sub_one_add_one_eq (h_pos i (hSsub hiS))]
-            sorry
+            unfold w
+            simp [hiS, l', this, sub_one_add_one_eq (h_pos i (hSsub hiS))]
           · -- i in C = I \ S
             have hiC : i ∈ C := by
               -- from hi∈I and hiS false
               exact Finset.mem_sdiff.mpr ⟨hi, hiS⟩
             have : (w1 i).length = l' i := hw1_len i hiC
-            -- unfold w,l'; simp [w, hiS, C, l', this, sub_one_add_one_eq (h_pos i hi)]
-            sorry
+            unfold w
+            simp [hiS, l', this, sub_one_add_one_eq (h_pos i hi)]
 
 end Thm32Aux
 
@@ -449,13 +527,9 @@ theorem theorem_3_2 {α : _} (I : Finset α) (l : α → ℕ)
       Set.InjOn w I ∧
       PrefixFree (I.image w) ∧
       ∀ i ∈ I, (w i).length = l i := by
-  classical
-  -- Let h be the maximum value of l on I.
-  -- Any "sup/max" construction works; the only thing we need is:
-  --   (∀ i∈I, l i ≤ h).
   let h : ℕ := I.sup l
   have h_bound : ∀ i ∈ I, l i ≤ h := by
-    -- standard fact: le_sup for finset sup
-    -- (`Finset.le_sup` / `Finset.le_sup_of_le` depending on lemmas available)
-    sorry
+    intros a ha
+    exact Finset.le_sup ha
+  classical
   exact theorem_3_2_aux (h := h) (I := I) (l := l) h_bound h_sum
