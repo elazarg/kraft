@@ -261,7 +261,38 @@ lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
       · replace h := congr_arg ( fun l => l[width - 1 - i ]! ) h
         simp_all [Nat.shiftRight_eq_div_pow]
         unfold Kraft.natToBits at h; simp_all +decide [ Nat.testBit, Nat.shiftRight_eq_div_pow ]
-        grind
+
+        have hw : 0 < width := (by exact Nat.zero_lt_of_lt hi)
+        have hcond : width - 1 - i < width := by
+          -- ≤ width-1 < width
+          have hle : width - 1 - i ≤ width - 1 := Nat.sub_le _ _
+          exact lt_of_le_of_lt hle (Nat.pred_lt (by exact Nat.ne_zero_of_lt hi))
+
+        have hsub : width - 1 - (width - 1 - i) = i := by
+          -- `i ≤ width-1` since `i < width`
+          have hi' : i ≤ width - 1 := Nat.le_pred_of_lt hi
+          -- standard arithmetic on `Nat` subtraction
+          omega
+
+        -- extract the Bool equality from `h`
+        have hbool :
+            (n / 2 ^ i % 2 == 1) = (m / 2 ^ i % 2 == 1) := by
+          simpa [hcond, hsub] using h
+
+        -- bridge between `==` and `=` (simp knows this for Nat)
+        have hn_iff : ((n / 2 ^ i % 2 == 1) = true) ↔ (n / 2 ^ i % 2 = 1) := by simp
+        have hm_iff : ((m / 2 ^ i % 2 == 1) = true) ↔ (m / 2 ^ i % 2 = 1) := by simp
+
+        constructor
+        · intro hn1
+          have hntrue : (n / 2 ^ i % 2 == 1) = true := (hn_iff).2 hn1
+          have hmtrue : (m / 2 ^ i % 2 == 1) = true := by simpa [hbool] using hntrue
+          exact (hm_iff).1 hmtrue
+        · intro hm1
+          have hmtrue : (m / 2 ^ i % 2 == 1) = true := (hm_iff).2 hm1
+          have hntrue : (n / 2 ^ i % 2 == 1) = true := by simpa [hbool] using hmtrue
+          exact (hn_iff).1 hntrue
+
       · rw [ Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow ]
         rw [ Nat.div_eq_of_lt ( lt_of_lt_of_le hn ( Nat.pow_le_pow_right ( by decide ) hi ) ), Nat.div_eq_of_lt ( lt_of_lt_of_le hm ( Nat.pow_le_pow_right ( by decide ) hi ) ) ]
 
