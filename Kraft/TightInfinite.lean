@@ -260,7 +260,8 @@ lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
       by_cases hi : i < width <;> simp_all [Nat.testBit]
       · replace h := congr_arg ( fun l => l[width - 1 - i ]! ) h
         simp_all [Nat.shiftRight_eq_div_pow]
-        unfold Kraft.natToBits at h; simp_all [ Nat.testBit, Nat.shiftRight_eq_div_pow ]
+        unfold Kraft.natToBits at h
+        simp_all [ Nat.testBit, Nat.shiftRight_eq_div_pow ]
 
         have hw : 0 < width := (by exact Nat.zero_lt_of_lt hi)
         have hcond : width - 1 - i < width := by
@@ -305,7 +306,8 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
       · -- If `natToBits n w` is a prefix of `natToBits m v`, then `w ≤ v`.
         have h_le : w ≤ v := by
           have := h_1.length_le
-          unfold Kraft.natToBits at this; aesop
+          unfold Kraft.natToBits at this
+          aesop
         -- If `natToBits n w` is a prefix of `natToBits m v`, then `m >> (v - w) = n`.
         have h_shift : m / 2 ^ (v - w) = n := by
           have h_shift : ∀ k < w, m.testBit (v - 1 - k) = n.testBit (w - 1 - k) := by
@@ -368,7 +370,8 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
         unfold Kraft.natToBits
         refine' ⟨ List.ofFn fun i : Fin ( v - w ) => m.testBit ( v - 1 - ( w + i ) ), _ ⟩
         refine' List.ext_get _ _ <;> simp_all [ List.getElem_append ]
-        intro i hi; split_ifs <;> simp_all [ Nat.sub_sub, add_comm ]
+        intro i hi
+        split_ifs <;> simp_all [ Nat.sub_sub, add_comm ]
         exact Eq.symm ( h_binary ⟨ i, by linarith ⟩ )
 
 /-
@@ -461,7 +464,8 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
               exact le_trans ( by norm_num ) ( Finset.single_le_sum ( fun x _ => by positivity ) ( Finset.mem_Ico.mpr ⟨ le_rfl, by linarith ⟩ ) ) |> le_trans <| Finset.sum_le_sum fun x hx => pow_le_pow_of_le_one ( by norm_num ) ( by norm_num ) <| h_mono <| Finset.mem_Ico.mp hx |>.2.le
             simp_all [ Finset.sum_Ico_eq_sub _ ( by linarith : m ≤ n ) ]
             linarith
-        · unfold Kraft.natToBits; aesop
+        · unfold Kraft.natToBits
+          aesop
 
 /-
 `KraftOrder` is a strict total order.
@@ -472,11 +476,12 @@ def KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ) (i j : I) : Prop :=
 lemma KraftOrder_isStrictTotalOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ) :
     IsStrictTotalOrder I (KraftOrder l e) := by
       have h_irrefl : Irreflexive (Kraft.KraftOrder l e) := by
-        intro i hi; cases hi <;> aesop
+        intro i hi
+        cases hi <;> aesop
       refine' { .. }
       · intro a b
         rcases lt_trichotomy ( l a ) ( l b ) with h | h | h <;> rcases lt_trichotomy ( e a ) ( e b ) with h' | h' | h'
-        all_goals unfold Kraft.KraftOrder; aesop
+        all_goals unfold Kraft.KraftOrder; simp_all
       · exact h_irrefl
       · rintro a b c ( h | h ) ( h' | h' )
         · exact Or.inl ( lt_trans h h' )
@@ -545,14 +550,28 @@ lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ 
           have h_eq : ∀ x y, x ≠ y → KraftOrder l e x y ∨ KraftOrder l e y x := by
             intros x y hxy
             have h_total : ∀ x y : I, x ≠ y → l x < l y ∨ l y < l x ∨ (l x = l y ∧ e x < e y) ∨ (l y = l x ∧ e y < e x) := by
-              intro x y hxy; cases lt_trichotomy ( l x ) ( l y ) <;> cases lt_trichotomy ( e x ) ( e y ) <;> aesop
-            specialize h_total x y hxy; unfold Kraft.KraftOrder; aesop
+              intro x y hxy
+              cases lt_trichotomy ( l x ) ( l y ) <;> cases lt_trichotomy ( e x ) ( e y ) <;> aesop
+            specialize h_total x y hxy
+            unfold Kraft.KraftOrder
+            subst hi
+            simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq]
+            cases h_total with
+            | inl h => simp_all only [true_or]
+            | inr h_1 =>
+              cases h_1 with
+              | inl h => simp_all only [true_or, or_true]
+              | inr h_2 =>
+                cases h_2 with
+                | inl h => simp_all only [lt_self_iff_false, and_self, or_true, true_and, false_or, true_or]
+                | inr h_1 => simp_all only [lt_self_iff_false, true_and, false_or, and_self, or_true]
           exact Classical.not_not.1 fun h => by cases h_eq x y h <;> linarith [ kraftRank_lt_of_KraftOrder l e h_finite ‹_› ]
         have h_image : Finset.image (kraftRank l e h_finite) (Set.Finite.toFinset (KraftOrder_finite_initial_segment l e h_finite i)) = Finset.range n := by
           refine' Finset.eq_of_subset_of_card_le ( Finset.image_subset_iff.2 fun x hx => Finset.mem_range.2 <| _ ) _
           · exact hi ▸ kraftRank_lt_of_KraftOrder l e h_finite ( by aesop )
           · aesop
-        replace h_image := Finset.ext_iff.mp h_image m; aesop
+        replace h_image := Finset.ext_iff.mp h_image m
+        aesop
       -- Since `I` is infinite and `kraftRank` is injective, the range is infinite.
       have h_range_infinite : Set.Infinite (Set.range (Kraft.kraftRank l e h_finite)) := by
         refine Set.infinite_range_of_injective ?_
@@ -567,7 +586,9 @@ lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ 
           · exact absurd hij ( ne_of_gt ( kraftRank_lt_of_KraftOrder _ _ _ h ) )
         exact fun i j hij => h_comparable i j hij
       rw [ Set.infinite_iff_exists_gt ] at h_range_infinite
-      intro n; specialize h_range_infinite n; aesop
+      intro n
+      specialize h_range_infinite n
+      aesop
 
 /-
 `kraftRank` is injective.
@@ -627,7 +648,8 @@ def l_ext {k : ℕ} (l : Fin k → ℕ) (hk : k ≠ 0) (i : ℕ) : ℕ :=
 -/
 lemma l_ext_eq {k : ℕ} (l : Fin k → ℕ) (hk : k ≠ 0) (i : Fin k) :
     l_ext l hk i = l i := by
-      unfold Kraft.l_ext; aesop
+      unfold Kraft.l_ext
+      aesop
 
 /-
 `l_ext` is monotone.
