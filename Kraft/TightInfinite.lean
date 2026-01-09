@@ -661,10 +661,12 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
             have h_split_sum : ∑ j ∈ Finset.range k, (1 / 2 : ℝ) ^ (l_ext l (by
             assumption) j) ≤ 1 := by
               rw [ Finset.sum_range ]
-              unfold Kraft.l_ext; aesop
+              unfold Kraft.l_ext
+              aesop
             generalize_proofs at *
             refine' lt_of_lt_of_le ( _ ) h_split_sum
-            rw [ ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ k from i.2.le ) ] ; exact lt_add_of_pos_right _ ( Finset.sum_pos ( fun _ _ => by positivity ) ( by aesop ) )
+            rw [ ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ k from i.2.le ) ]
+            exact lt_add_of_pos_right _ ( Finset.sum_pos ( fun _ _ => by positivity ) ( by aesop ) )
           generalize_proofs at *
           rw [ div_eq_iff ] at * <;> norm_num at *
           exact_mod_cast ( by nlinarith [ pow_pos ( zero_lt_two' ℝ ) ( l i ), show ( 2 : ℝ ) ^ Kraft.l_ext l ‹_› i = 2 ^ l i from by erw [ Kraft.l_ext_eq ] ] : ( Kraft.kraft_A ( Kraft.l_ext l ‹_› ∘ fun i => i ) i : ℝ ) < 2 ^ l i )
@@ -678,9 +680,11 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
           expose_names; exact pf_1 i) ∘ fun i => i) j := by
             apply natToBits_inj
             exact h_split_sum i
-            · replace hij := congr_arg List.length hij ; simp_all [ Kraft.natToBits ]
+            · replace hij := congr_arg List.length hij
+              simp_all [ Kraft.natToBits ]
             · convert hij using 1
-              replace hij := congr_arg List.length hij ; simp_all [ Kraft.natToBits ]
+              replace hij := congr_arg List.length hij
+              simp_all [ Kraft.natToBits ]
           generalize_proofs at *
           -- Since `kraft_A` is strictly monotone, we have `i = j`.
           have h_kraft_A_mono : StrictMono (Kraft.kraft_A (l_ext l (by tauto) ∘ fun i => i)) := by
@@ -689,7 +693,9 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
             exact Nat.lt_of_lt_of_le ( Nat.lt_succ_self _ ) ( Nat.le_mul_of_pos_right _ ( pow_pos ( by decide ) _ ) )
           exact Fin.ext <| h_kraft_A_mono.injective h_kraft_A_eq
         · intro x hx y hy hxy
-          obtain ⟨ i, rfl ⟩ := hx; obtain ⟨ j, rfl ⟩ := hy; simp_all [ natToBits_prefix_iff ]
+          obtain ⟨ i, rfl ⟩ := hx
+          obtain ⟨ j, rfl ⟩ := hy
+          simp_all [ natToBits_prefix_iff ]
           -- If `i < j`, then `S_j \ge S_i + 2^{-l i}`, contradiction.
           by_cases hij : i < j
           · have h_contradiction : (Kraft.kraft_A (l_ext l (by expose_names; exact pf_1 i) ∘ fun i => i) j : ℝ) / 2 ^ (l j) ≥ (Kraft.kraft_A (l_ext l (by
@@ -704,10 +710,12 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
                 all_goals generalize_proofs at *
                 · convert kraft_A_div_pow_eq_sum ( l_ext l ( by tauto ) ∘ fun i => i ) ( l_ext_monotone l h_mono ( by tauto ) ) j using 1
                   generalize_proofs at *
-                  unfold Kraft.l_ext; aesop
+                  unfold Kraft.l_ext
+                  aesop
                 · convert kraft_A_div_pow_eq_sum _ _ _ using 1
                   generalize_proofs at *
-                  · unfold Kraft.l_ext; aesop
+                  · unfold Kraft.l_ext
+                    aesop
                   · exact l_ext_monotone l h_mono ( by tauto )
               generalize_proofs at *
               rw [ h_contradiction.1, h_contradiction.2, ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ j from Nat.le_of_lt hij ) ]
@@ -741,7 +749,8 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
             rw [ div_add', div_lt_div_iff₀ ] <;> norm_cast <;> norm_num
             norm_num [ ← mul_pow ]
             norm_cast
-            convert mul_lt_mul_of_pos_right hxy.2.2 ( pow_pos ( zero_lt_two' ℕ ) ( l i ) ) using 1 ; rw [ show l j = l i + ( l j - l i ) by rw [ Nat.add_sub_of_le hxy.1 ] ]
+            convert mul_lt_mul_of_pos_right hxy.2.2 ( pow_pos ( zero_lt_two' ℕ ) ( l i ) ) using 1
+            rw [ show l j = l i + ( l j - l i ) by rw [ Nat.add_sub_of_le hxy.1 ] ]
             ring_nf
             norm_num
           · cases lt_or_eq_of_le ( le_of_not_gt hij ) <;> simp_all [Fin.ext_iff]
@@ -753,12 +762,17 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
                 -- Since `l` is monotone, `kraft_A` is strictly increasing.
                 have h_kraft_A_mono : StrictMono (Kraft.kraft_A (Kraft.l_ext l (by expose_names; exact pf_1 i) ∘ fun i => i)) := by
                   refine' strictMono_nat_of_lt_succ _
-                  intro n; exact (by
-                  exact Nat.lt_of_lt_of_le ( Nat.lt_succ_self _ ) ( Nat.le_mul_of_pos_right _ ( pow_pos ( by decide ) _ ) ))
+                  intro n
+                  exact Nat.lt_of_lt_of_le ( Nat.lt_succ_self _ ) ( Nat.le_mul_of_pos_right _ ( pow_pos ( by decide ) _ ) )
                 generalize_proofs at *
                 linarith [ h_kraft_A_mono ( show ( j : ℕ ) < i from by assumption ) ]
               linarith
-            · grind
+            · -- 1. Convert the value equality (↑j = ↑i) to index equality (j = i)
+              have heq : j = i := Fin.ext (by assumption)
+              -- 2. Substitute j with i everywhere
+              subst heq
+              -- 3. The goal is now X = X
+              rfl
         · unfold Kraft.natToBits
           aesop
 
