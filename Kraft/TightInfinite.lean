@@ -311,9 +311,20 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
           have h_shift : ∀ k < w, m.testBit (v - 1 - k) = n.testBit (w - 1 - k) := by
             rw [ Kraft.natToBits, Kraft.natToBits ] at h_1
             obtain ⟨ k, hk ⟩ := h_1
-            intro i hi; replace hk := congr_arg ( fun l => l[i]! ) hk
-            simp_all
-            grind
+            intro i hi
+            replace hk := congr_arg ( fun l => l[i]! ) hk
+            have hiv : i < v := lt_of_lt_of_le hi h_le
+            have hnmi : n.testBit (w - 1 - i) = m.testBit (v - 1 - i) := by
+                -- 1. Accessing index 'i' in 'L1 ++ k' falls into 'L1' because i < length L1
+                simp_all
+                rw [List.getElem?_append_left] at hk
+                · -- 2. Accessing index 'i' in 'List.ofFn f' is just 'f i'
+                  rw [List.getElem?_ofFn] at hk
+                  simp_all
+                · -- Proof that i < length L1 (for step 1)
+                  simp [hi]
+            exact hnmi.symm
+
           refine' Nat.eq_of_testBit_eq _
           intro i; specialize h_shift ( w - 1 - i ) ; rcases lt_trichotomy i ( w - 1 ) with hi | rfl | hi <;> simp_all +decide [ Nat.testBit ]
           · convert h_shift ( by omega ) using 2 <;> norm_num [ Nat.shiftRight_eq_div_pow ]
