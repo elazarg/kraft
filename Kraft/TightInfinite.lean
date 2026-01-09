@@ -245,15 +245,13 @@ open scoped BigOperators Real
 
 noncomputable section AristotleLemmas
 
-/-
-Converts a natural number `n` to a list of bits of length `width` (big-endian).
--/
+/-- Converts a natural number `n` to a big-endian list of bits of length `width`.
+
+For example, `natToBits 5 4 = [false, true, false, true]` representing 0101₂ = 5. -/
 def natToBits (n width : ℕ) : List Bool :=
   List.ofFn (fun i : Fin width => n.testBit (width - 1 - i))
 
-/-
-`natToBits` is injective for numbers fitting in the width.
--/
+/-- `natToBits` is injective for numbers less than `2^width`. -/
 lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
     (h : natToBits n width = natToBits m width) : n = m := by
       refine' Nat.eq_of_testBit_eq fun i => _
@@ -297,9 +295,9 @@ lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
       · rw [ Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow ]
         rw [ Nat.div_eq_of_lt ( lt_of_lt_of_le hn ( Nat.pow_le_pow_right ( by decide ) hi ) ), Nat.div_eq_of_lt ( lt_of_lt_of_le hm ( Nat.pow_le_pow_right ( by decide ) hi ) ) ]
 
-/-
-`natToBits n w` is a prefix of `natToBits m v` iff `w ≤ v` and `m` lies in the dyadic interval corresponding to `n`.
--/
+/-- `natToBits n w` is a prefix of `natToBits m v` iff `w ≤ v` and `m` lies in the
+dyadic interval `[n·2^{v-w}, (n+1)·2^{v-w})`. This characterizes when two codewords
+in our construction have a prefix relationship. -/
 lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
     natToBits n w <+: natToBits m v ↔ w ≤ v ∧ n * 2 ^ (v - w) ≤ m ∧ m < (n + 1) * 2 ^ (v - w) := by
       constructor <;> intro h_1
@@ -374,16 +372,18 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
         split_ifs <;> simp_all [ Nat.sub_sub, add_comm ]
         exact Eq.symm ( h_binary ⟨ i, by linarith ⟩ )
 
-/-
-Recursive definition of the integer values corresponding to the cumulative sums.
--/
+/-- The "address" function for constructing prefix-free codes.
+
+For a monotone length sequence `l`, `kraft_A l n` is chosen so that `kraft_A l n / 2^{l n}`
+equals the partial Kraft sum `Σ_{k<n} 2^{-l k}`. The codeword for index `n` is then
+`natToBits (kraft_A l n) (l n)`. -/
 def kraft_A (l : ℕ → ℕ) : ℕ → ℕ
   | 0 => 0
   | n + 1 => (kraft_A l n + 1) * 2 ^ (l (n + 1) - l n)
 
-/-
-If `l` is monotone, then `kraft_A l n / 2^(l n)` equals the partial sum.
--/
+/-- `kraft_A l n / 2^{l n}` equals the partial Kraft sum `Σ_{k<n} 2^{-l k}`.
+
+This is the key invariant that ensures non-overlapping dyadic intervals. -/
 lemma kraft_A_div_pow_eq_sum (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
     (kraft_A l n : ℝ) / 2 ^ l n = ∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k := by
       induction n <;> simp_all [Finset.sum_range_succ]
@@ -398,6 +398,10 @@ lemma kraft_A_div_pow_eq_sum (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
       ring_nf
       norm_num [ ← mul_pow ]
 
+/-- Converse of Kraft's inequality for monotone length sequences indexed by ℕ.
+
+Given a monotone `l : ℕ → ℕ` with summable Kraft sum ≤ 1, we construct a prefix-free
+code by assigning to index `n` the codeword `natToBits (kraft_A l n) (l n)`. -/
 theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
     (h_summable : Summable (fun i => (1 / 2 : ℝ) ^ l i))
     (h_sum : ∑' i, (1 / 2 : ℝ) ^ l i ≤ 1) :
@@ -468,12 +472,13 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
           intro i
           simp_all only [one_div, inv_pow, List.length_ofFn]
 
-/-
-`KraftOrder` is a strict total order.
--/
+/-- A strict total order on indices: first by length, then by an auxiliary embedding.
+
+This is used to enumerate elements in an order that makes the length function monotone. -/
 def KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ) (i j : I) : Prop :=
   l i < l j ∨ (l i = l j ∧ e i < e j)
 
+/-- `KraftOrder` is a strict total order. -/
 lemma KraftOrder_isStrictTotalOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ) :
     IsStrictTotalOrder I (KraftOrder l e) := by
       have h_irrefl : Irreflexive (Kraft.KraftOrder l e) := by
@@ -490,9 +495,10 @@ lemma KraftOrder_isStrictTotalOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
         · exact Or.inl ( by linarith )
         · exact Or.inr ⟨ by linarith, by linarith ⟩
 
-/-
-Initial segments of `KraftOrder` are finite if fibers of `l` are finite.
--/
+/-- Initial segments of `KraftOrder` are finite when length fibers are finite.
+
+Since each length has only finitely many indices (by summability), the set of
+indices smaller than any given index is finite. -/
 lemma KraftOrder_finite_initial_segment {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) (i : I) :
     {j | KraftOrder l e j i}.Finite := by
@@ -516,16 +522,14 @@ lemma KraftOrder_finite_initial_segment {I : Type _} (l : I → ℕ) (e : I ↪ 
           rfl
       )
 
-/-
-The rank of an element `i` is the number of elements strictly smaller than `i` in `KraftOrder`.
--/
+/-- The rank of an element is the number of elements strictly smaller in `KraftOrder`.
+
+This gives a bijection between `I` and `ℕ` that makes `l` monotone. -/
 noncomputable def kraftRank {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) (i : I) : ℕ :=
   (KraftOrder_finite_initial_segment l e h_finite i).toFinset.card
 
-/-
-`kraftRank` is strictly monotone with respect to `KraftOrder`.
--/
+/-- `kraftRank` is strictly monotone with respect to `KraftOrder`. -/
 lemma kraftRank_lt_of_KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) {i j : I} (h : KraftOrder l e i j) :
     kraftRank l e h_finite i < kraftRank l e h_finite j := by
@@ -545,9 +549,7 @@ lemma kraftRank_lt_of_KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
         use i
         simp [h]
 
-/-
-`kraftRank` is surjective.
--/
+/-- `kraftRank` is surjective onto ℕ when `I` is infinite. -/
 lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) :
     Function.Surjective (kraftRank l e h_finite) := by
@@ -626,9 +628,7 @@ lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ 
       apply h_initial_segment
       · exact h
 
-/-
-`kraftRank` is injective.
--/
+/-- `kraftRank` is injective (distinct elements have distinct ranks). -/
 lemma kraftRank_injective {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) :
     Function.Injective (kraftRank l e h_finite) := by
@@ -643,9 +643,10 @@ lemma kraftRank_injective {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
       rcases h_trichotomy with ( H | H ) <;> [ exact hij.not_lt ( kraftRank_lt_of_KraftOrder _ _ _ H )
                                              ; exact hij.not_gt ( kraftRank_lt_of_KraftOrder _ _ _ H ) ]
 
-/-
-If `l` is summable, we can reorder `I` to make `l` monotone.
--/
+/-- An infinite index type with summable Kraft sum can be reordered to make lengths monotone.
+
+This reduces the infinite case to the monotone case by using `kraftRank` to enumerate
+elements in increasing order of length. -/
 lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] (l : I → ℕ)
     (h_summable : Summable (fun i => (1 / 2 : ℝ) ^ l i)) :
     ∃ e : ℕ ≃ I, Monotone (l ∘ e) := by
@@ -672,23 +673,19 @@ lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] (l : I →
       have := kraftRank_lt_of_KraftOrder l e h_finite ( show KraftOrder l e ( e_iso m ) ( e_iso n ) from Or.inl hnm )
       simp_all only [one_div, inv_pow]
 
-/-
-Extension of `l` to `ℕ` preserving monotonicity, assuming `k > 0`.
--/
+/-- Extends a length function on `Fin k` to all of `ℕ`, preserving monotonicity.
+
+For `i < k`, returns `l i`. For `i ≥ k`, returns `l(k-1) + (i - k + 1)`. -/
 def l_ext {k : ℕ} (l : Fin k → ℕ) (hk : k ≠ 0) (i : ℕ) : ℕ :=
   if h : i < k then l ⟨i, h⟩ else l ⟨k - 1, by omega⟩ + (i - k + 1)
 
-/-
-`l_ext` agrees with `l` on `Fin k`.
--/
+/-- `l_ext` agrees with `l` on `Fin k`. -/
 lemma l_ext_eq {k : ℕ} (l : Fin k → ℕ) (hk : k ≠ 0) (i : Fin k) :
     l_ext l hk i = l i := by
       unfold Kraft.l_ext
       simp_all only [Fin.is_lt, ↓reduceDIte, Fin.eta]
 
-/-
-`l_ext` is monotone.
--/
+/-- `l_ext` is monotone when `l` is monotone. -/
 lemma l_ext_monotone {k : ℕ} (l : Fin k → ℕ) (h_mono : Monotone l) (hk : k ≠ 0) :
     Monotone (l_ext l hk) := by
       -- Let's prove the monotonicity of `l_ext` by considering different cases.
@@ -698,6 +695,9 @@ lemma l_ext_monotone {k : ℕ} (l : Fin k → ℕ) (h_mono : Monotone l) (hk : k
       · exact h_mono hij
       · exact le_add_of_le_of_nonneg ( h_mono ( Nat.le_pred_of_lt ‹_› ) ) ( Nat.zero_le _ )
 
+/-- Converse of Kraft's inequality for monotone length sequences on `Fin k`.
+
+Uses `kraft_A` to assign addresses that correspond to non-overlapping dyadic intervals. -/
 lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono : Monotone l)
     (h_sum : ∑ i, (1 / 2 : ℝ) ^ l i ≤ 1) :
     ∃ w : Fin k → List Bool,
@@ -840,9 +840,11 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
           intro i
           simp_all only [one_div, inv_pow, List.length_ofFn]
 
-/-
-We can sort a finite type `I` by `l`.
--/
+/-- Any finite type can be sorted by a function to ℕ.
+
+Given a fintype `I` and a function `l : I → ℕ`, produces an equivalence
+`e : Fin (card I) ≃ I` such that `l ∘ e` is monotone (i.e., maps increasing
+indices to non-decreasing length values). Uses insertion sort internally. -/
 lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
     ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) := by
       have h_order_iso : ∃ (e : Fin (Fintype.card I) ≃ I), ∀ i j, i ≤ j → l (e i) ≤ l (e j) := by
@@ -878,6 +880,15 @@ lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
 
 end AristotleLemmas
 
+/-- **Converse of Kraft's Inequality** (infinite case).
+
+For any index set `I` (finite or infinite) and length function `l : I → ℕ`,
+if `∑' i, 2^{-l(i)} ≤ 1`, then there exists an injective prefix-free code
+`w : I → List Bool` with the prescribed lengths.
+
+The proof handles two cases:
+- **Finite case**: Sort indices by length and apply `kraft_inequality_tight_finite_mono`
+- **Infinite case**: Use equivalence with ℕ and apply `kraft_inequality_tight_nat_mono` -/
 theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
     (h_summable : Summable (fun i ↦ (1 / 2 : ℝ) ^ l i))
     (h_sum : ∑' i, (1 / 2 : ℝ) ^ l i ≤ 1) :

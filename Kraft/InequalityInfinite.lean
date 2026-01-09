@@ -13,11 +13,11 @@ import Kraft.InequalityFinite
 namespace Kraft
 open scoped BigOperators Real
 
-/-- **Kraft's Inequality (Infinite)** -/
+/-- **Kraft's Inequality (Infinite)**: If `S` is a prefix-free code (possibly infinite),
+then the series `∑ 2^{-|w|}` converges and its sum is at most 1.
 
-/-
-If $S$ is a (possibly infinite) prefix-free code then $\sum_{w \in S} 2^{-|w|} \leq 1$.
--/
+The proof shows that every finite subset satisfies the bound (by the finite Kraft inequality),
+which implies summability. The tsum bound then follows from summability. -/
 theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
     HasSum (fun w : S => (1 / 2 : ℝ) ^ (w : List Bool).length) (∑' w : S, (1 / 2 : ℝ) ^ (w : List Bool).length) ∧
     (∑' w : S, (1 / 2 : ℝ) ^ (w : List Bool).length) ≤ 1 := by

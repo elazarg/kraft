@@ -18,9 +18,10 @@ namespace Kraft
 
 variable {S : Finset (List Bool)}
 
-/-
-If a code is uniquely decodable, it does not contain the empty string.
--/
+/-- If a code is uniquely decodable, it does not contain the empty string.
+
+The empty string ε can be "decoded" as either zero or two copies of itself,
+violating unique decodability. -/
 lemma epsilon_not_mem_of_uniquely_decodable (h : UniquelyDecodable (S: Set (List Bool))):
     [] ∉ S := by
   have h_empty : ∀ x ∈ S, x ≠ [] := by
@@ -30,9 +31,10 @@ lemma epsilon_not_mem_of_uniquely_decodable (h : UniquelyDecodable (S: Set (List
     simp_all
   exact fun h => h_empty _ h rfl
 
-/-
-If $S$ is uniquely decodable, then the concatenation map from $S^r$ to strings is injective.
--/
+/-- If `S` is uniquely decodable, then the concatenation map from `S^r` to strings is injective.
+
+This is the key property that makes the Kraft-McMillan proof work: when we expand
+`C^r = (Σ 2^{-|w|})^r`, each term corresponds to a unique concatenation. -/
 lemma uniquely_decodable_extension_injective (h : UniquelyDecodable (S: Set (List Bool))) (r : ℕ) :
     Function.Injective (fun (w : Fin r → S) => (List.ofFn (fun i => (w i).val)).flatten) := by
   -- Assume two functions w1 and w2 map to the same flattened list. We need to show w1 = w2.
@@ -57,9 +59,11 @@ lemma uniquely_decodable_extension_injective (h : UniquelyDecodable (S: Set (Lis
   simpa using congrArg (fun f => f i) h_vals
 
 
-/-
-If $S$ is uniquely decodable, then $(\sum_{w \in S} 2^{-|w|})^r \le r \ell$.
--/
+/-- If `S` is uniquely decodable, then `(Σ 2^{-|w|})^r ≤ r·ℓ` where `ℓ` is the maximum codeword length.
+
+This auxiliary bound is the heart of the Kraft-McMillan proof. The r-th power of the Kraft sum
+counts concatenations of r codewords, which by unique decodability are distinct. Since these
+concatenations have lengths between r and r·ℓ, we get at most r·ℓ - r + 1 ≤ r·ℓ terms. -/
 lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool))) (r : ℕ) (hr : r ≥ 1) :
     (∑ w ∈ S, (1 / 2 : ℝ) ^ w.length) ^ r ≤ r * (Finset.sup S List.length) := by
   -- Let $\ell = \max_{w \in S} |w|$.
@@ -137,9 +141,12 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
   · positivity
   · rw [ Nat.cast_sub ] <;> push_cast <;> nlinarith only [ hℓ_def ]
 
-/-
-If $S$ is a finite uniquely decodable code then $\sum_{w \in S} 2^{-|w|} \leq 1$.
--/
+/-- **Kraft-McMillan Inequality**: If `S` is a finite uniquely decodable code,
+then `Σ 2^{-|w|} ≤ 1`.
+
+This extends Kraft's inequality from prefix-free codes to the larger class of
+uniquely decodable codes. The proof shows that if `C = Σ 2^{-|w|} > 1`, then
+`C^r` grows exponentially while the bound `r·ℓ` grows linearly, a contradiction. -/
 theorem kraft_mcmillan_inequality (h : UniquelyDecodable (S: Set (List Bool))) :
     ∑ w ∈ S, (1 / 2 : ℝ) ^ w.length ≤ 1 := by
   -- Apply the Kraft-McMillan inequality.

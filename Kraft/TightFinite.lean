@@ -15,12 +15,10 @@ open scoped BigOperators Real Nat
 
 variable {I : Type _} [Fintype I] [DecidableEq I]
 
-/-- **Kraft's Inequality (Tight Converse)**:
-    If ∑ 2^(-l) ≤ 1, there exists a prefix-free code with these lengths. -/
+/-- If a multiset of natural numbers is a sub-multiset of the image of a function on a finite type,
+then there exists a subset of the domain whose image equals that multiset.
 
-/-
-If a multiset of natural numbers is a sub-multiset of the image of a function on a finite type, then there is a subset of the domain whose image is that multiset.
--/
+This is used to lift a prefix of a sorted list of lengths back to a subset of the index type. -/
 lemma exists_subset_of_multiset_le_map (f : I → ℕ) (m : Multiset ℕ)
     (h : m ≤ Multiset.map f Finset.univ.val) :
     ∃ S : Finset I, Multiset.map f S.val = m := by
@@ -78,6 +76,7 @@ lemma exists_subset_of_multiset_le_map (f : I → ℕ) (m : Multiset ℕ)
       exact hv
   exact h _ h_union.choose_spec
 
+/-- In a list sorted by `≤`, earlier elements are at most later elements. -/
 lemma pairwise_monotone
     {l : List ℕ} (h_sorted : l.Pairwise (fun a b => a ≤ b))
     {i j : ℕ} (hij : i < j) (hj : j < l.length) :
@@ -88,9 +87,11 @@ lemma pairwise_monotone
   have := hget ⟨i, hi⟩ ⟨j, hj⟩ (by simpa using hij)
   simp_all
 
-/-
-If a list of natural numbers is sorted non-decreasingly and the sum of $2^{-x}$ is at least 1, then there is a prefix whose sum is exactly 1.
--/
+/-- If a sorted list of lengths has Kraft sum ≥ 1, some prefix has Kraft sum exactly 1.
+
+This is the key combinatorial lemma for the converse of Kraft's inequality: by sorting lengths
+in non-decreasing order and taking partial sums, we can find a subset with sum exactly 1/2
+(after appropriate scaling). The integrality of dyadic rationals makes the sum hit 1 exactly. -/
 lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (· ≤ ·))
     (h_sum : (l.map (fun x => (1 / 2 : ℝ) ^ x)).sum ≥ 1) :
     ∃ l', l' <+: l ∧ (l'.map (fun x => (1 / 2 : ℝ) ^ x)).sum = 1 := by
@@ -166,9 +167,10 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
         simp_all [lt_of_lt_of_le (Nat.lt_succ_self k) hk]
     rw [ h_sum_eq l k hk.1 ]
 
-/-
-Let $I$ be a finite set and let $\ell\colon I \to \mathbb{N}$ satisfy $\sum_{i \in I} 2^{-\ell(i)} \geq 1$. There exists a subset $S \subseteq I$ such that $\sum_{i \in S} 2^{-\ell(i)} = 1$.
--/
+/-- If the Kraft sum over a finite index set is ≥ 1, there exists a subset with sum exactly 1.
+
+This lemma is used in the recursive construction: when the total sum exceeds 1/2, we can
+partition the indices into two parts each with sum exactly 1/2, enabling the inductive step. -/
 lemma exists_subset_sum_eq_one (l : I → ℕ)
     (h_sum : 1 ≤ ∑ i, (1 / 2 : ℝ) ^ l i) :
     ∃ S : Finset I, ∑ i ∈ S, (1 / 2 : ℝ) ^ l i = 1 := by
@@ -213,13 +215,16 @@ lemma exists_subset_sum_eq_one (l : I → ℕ)
   apply Exists.intro
   exact hS
 
+/-- The image of a code function as a set. -/
 @[simp]
 def range (w: I → List Bool) := ((Finset.univ.image w): Set (List Bool))
 
-/-
-Let $I$ be a finite set and let $\ell\colon I \to \mathbb{N}$ satisfy $\sum_{i\in I} 2^{-\ell(i)} \leq 1$.
-There exists an injective mapping $w \colon I \to \{0,1\}^*$ whose image is prefix-free, and furthermore $|w(i)| = \ell(i)$.
--/
+/-- **Converse of Kraft's Inequality** (finite case): If `Σ 2^{-ℓ(i)} ≤ 1`, there exists
+an injective function `w : I → List Bool` whose image is prefix-free with `|w(i)| = ℓ(i)`.
+
+The proof is by strong induction on the maximum length. We partition the index set into
+two parts S and Sᶜ, each with Kraft sum ≤ 1/2, then recursively construct codes for each
+and prepend 0 to one and 1 to the other. -/
 theorem kraft_inequality_tight (l : I → ℕ)
     (h : ∑ i, (1 / 2 : ℝ) ^ l i ≤ 1) :
     ∃ w : I → List Bool, (

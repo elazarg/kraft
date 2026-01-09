@@ -3,9 +3,13 @@ import Kraft.Basic
 
 namespace Kraft
 
-/-
-If a finite set $S$ of words is prefix-free and $\epsilon \notin S$ then it is uniquely decodable.
--/
+/-- Prefix-free codes are uniquely decodable (assuming the empty string is excluded).
+
+If `S` is prefix-free (no codeword is a prefix of another) and `[] ∉ S`, then `S`
+is uniquely decodable: any concatenation of codewords can be parsed in exactly one way.
+
+The proof proceeds by strong induction on the total length of the concatenated string.
+At each step, the first codeword is uniquely determined by the prefix-free property. -/
 theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFree (S : Set (List Bool))) (h_eps : [] ∉ S) :
     UniquelyDecodable (S : Set (List Bool)) := by
   -- We prove by strong induction on $|x|$ that every word $x \in \{0,1\}^*$ can be written in at most one way as $x = w_1 \dots w_r$ (for any $r$), where $w_1,\dots,w_r \in S$.
@@ -39,9 +43,11 @@ theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFr
       · simp_all only
   exact fun L1 L2 h1 h2 h3 => h_induction ( L1.flatten ) L1 L2 h1 h2 h3
 
-/-
-If a finite set $S$ of words is prefix-free and $|S| \geq 2$ then it is uniquely decodable.
--/
+/-- Prefix-free codes with at least two codewords are uniquely decodable.
+
+This variant avoids explicitly assuming `[] ∉ S` by deriving it from the cardinality
+constraint: if `|S| ≥ 2` and `S` is prefix-free, then `[]` cannot be in `S`
+(since `[]` is a prefix of every other string). -/
 theorem prefix_free_is_uniquely_decodable_of_card_ge_two (S : Finset (List Bool)) (h : PrefixFree (S: Set (List Bool))) (h_card : S.card ≥ 2) :
     UniquelyDecodable (S: Set (List Bool)) := by
   have h_eps_not_mem : []∉ S := by
