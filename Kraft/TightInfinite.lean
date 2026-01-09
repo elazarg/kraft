@@ -439,7 +439,8 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
               field_simp
               norm_num [ mul_assoc, ← mul_pow ]
               norm_cast
-              rw [ show 2 ^ l m = 2 ^ l n * 2 ^ ( l m - l n ) by rw [ ← pow_add, Nat.add_sub_of_le hnm.1 ] ] ; constructor <;> nlinarith [ pow_pos ( zero_lt_two' ℕ ) ( l n ), pow_pos ( zero_lt_two' ℕ ) ( l m - l n ) ]
+              rw [ show 2 ^ l m = 2 ^ l n * 2 ^ ( l m - l n ) by rw [ ← pow_add, Nat.add_sub_of_le hnm.1 ] ]
+              constructor <;> nlinarith [ pow_pos ( zero_lt_two' ℕ ) ( l n ), pow_pos ( zero_lt_two' ℕ ) ( l m - l n ) ]
             convert h_sum_bounds using 2 <;> norm_num [ kraft_A_div_pow_eq_sum ]
             · rw [ kraft_A_div_pow_eq_sum ]
               assumption
@@ -582,7 +583,8 @@ lemma kraftRank_injective {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
           have := @Kraft.KraftOrder_isStrictTotalOrder I l e
           exact this.toIsTrichotomous
         cases h_trichotomy.trichotomous i j <;> tauto
-      rcases h_trichotomy with ( H | H ) <;> [ exact hij.not_lt ( kraftRank_lt_of_KraftOrder _ _ _ H ) ; exact hij.not_gt ( kraftRank_lt_of_KraftOrder _ _ _ H ) ]
+      rcases h_trichotomy with ( H | H ) <;> [ exact hij.not_lt ( kraftRank_lt_of_KraftOrder _ _ _ H )
+                                             ; exact hij.not_gt ( kraftRank_lt_of_KraftOrder _ _ _ H ) ]
 
 /-
 If `l` is summable, we can reorder `I` to make `l` monotone.
@@ -610,7 +612,8 @@ lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] (l : I →
           exact ⟨ Equiv.symm ( Equiv.ofBijective _ h_bij ), fun n => Equiv.apply_symm_apply ( Equiv.ofBijective _ h_bij ) n ⟩
         refine' ⟨ e_iso, fun n m hnm => _ ⟩
         contrapose! hnm
-        have := kraftRank_lt_of_KraftOrder l e h_finite ( show KraftOrder l e ( e_iso m ) ( e_iso n ) from Or.inl hnm ) ; aesop
+        have := kraftRank_lt_of_KraftOrder l e h_finite ( show KraftOrder l e ( e_iso m ) ( e_iso n ) from Or.inl hnm )
+        aesop
       exact ⟨ e, fun n m hnm => he n m hnm ⟩
 
 /-
@@ -802,7 +805,8 @@ lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
               intro i j hij
               have := List.nodup_iff_injective_get.mp h_sorted.2.2.1
               exact Fin.ext <| by simpa [ h_sorted.2.1 ] using this hij
-            have := Fintype.bijective_iff_injective_and_card ( fun i : Fin ( Fintype.card I ) => sorted_list[i] ) ; aesop
+            have := Fintype.bijective_iff_injective_and_card ( fun i : Fin ( Fintype.card I ) => sorted_list[i] )
+            aesop
           exact ⟨ Equiv.ofBijective _ h_equiv, fun i => rfl ⟩
         obtain ⟨ e, he ⟩ := h_equiv
         refine' ⟨ e, fun i j hij => _ ⟩
