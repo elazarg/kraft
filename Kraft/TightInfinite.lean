@@ -260,7 +260,7 @@ lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
       by_cases hi : i < width <;> simp_all [Nat.testBit]
       · replace h := congr_arg ( fun l => l[width - 1 - i ]! ) h
         simp_all [Nat.shiftRight_eq_div_pow]
-        unfold Kraft.natToBits at h; simp_all +decide [ Nat.testBit, Nat.shiftRight_eq_div_pow ]
+        unfold Kraft.natToBits at h; simp_all [ Nat.testBit, Nat.shiftRight_eq_div_pow ]
 
         have hw : 0 < width := (by exact Nat.zero_lt_of_lt hi)
         have hcond : width - 1 - i < width := by
@@ -314,7 +314,7 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
             intro i hi
             replace hk := congr_arg ( fun l => l[i]! ) hk
             have hiv : i < v := lt_of_lt_of_le hi h_le
-            have hnmi : n.testBit (w - 1 - i) = m.testBit (v - 1 - i) := by
+            have hnmi : m.testBit (v - 1 - i) = n.testBit (w - 1 - i) := by
                 -- 1. Accessing index 'i' in 'L1 ++ k' falls into 'L1' because i < length L1
                 simp_all
                 rw [List.getElem?_append_left] at hk
@@ -323,18 +323,20 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
                   simp_all
                 · -- Proof that i < length L1 (for step 1)
                   simp [hi]
-            exact hnmi.symm
-
+            exact hnmi
           refine' Nat.eq_of_testBit_eq _
-          intro i; specialize h_shift ( w - 1 - i ) ; rcases lt_trichotomy i ( w - 1 ) with hi | rfl | hi <;> simp_all +decide [ Nat.testBit ]
+          intro i
+          specialize h_shift ( w - 1 - i )
+          rcases lt_trichotomy i ( w - 1 ) with hi | rfl | hi <;> simp_all [ Nat.testBit ]
           · convert h_shift ( by omega ) using 2 <;> norm_num [ Nat.shiftRight_eq_div_pow ]
             · rw [ Nat.div_div_eq_div_mul ]
               rw [ ← pow_add, show v - w + i = v - 1 - ( w - 1 - i ) by omega ]
             · rw [ Nat.sub_sub_self ( by omega ) ]
-          · rcases w with ( _ | w ) <;> simp_all +decide [ Nat.shiftRight_eq_div_pow ]
+          · rcases w with ( _ | w ) <;> simp_all [ Nat.shiftRight_eq_div_pow ]
             · rw [ Nat.div_eq_of_lt hm, Nat.zero_mod ]
             · convert h_shift using 1
-              rw [ show v - 1 = v - ( w + 1 ) + w by omega, pow_add ] ; norm_num [ Nat.div_div_eq_div_mul ]
+              rw [ show v - 1 = v - ( w + 1 ) + w by omega, pow_add ]
+              norm_num [ Nat.div_div_eq_div_mul ]
           · rw [ Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow ]
             rw [ Nat.div_eq_of_lt, Nat.div_eq_of_lt ]
             · exact hn.trans_le ( Nat.pow_le_pow_right ( by decide ) ( by omega ) )
@@ -365,8 +367,8 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
           omega
         unfold Kraft.natToBits
         refine' ⟨ List.ofFn fun i : Fin ( v - w ) => m.testBit ( v - 1 - ( w + i ) ), _ ⟩
-        refine' List.ext_get _ _ <;> simp_all +decide [ List.getElem_append ]
-        intro i hi; split_ifs <;> simp_all +decide [ Nat.sub_sub, add_comm ]
+        refine' List.ext_get _ _ <;> simp_all [ List.getElem_append ]
+        intro i hi; split_ifs <;> simp_all [ Nat.sub_sub, add_comm ]
         exact Eq.symm ( h_binary ⟨ i, by linarith ⟩ )
 
 /-
@@ -381,7 +383,7 @@ If `l` is monotone, then `kraft_A l n / 2^(l n)` equals the partial sum.
 -/
 lemma kraft_A_div_pow_eq_sum (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
     (kraft_A l n : ℝ) / 2 ^ l n = ∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k := by
-      induction n <;> simp_all +decide [Finset.sum_range_succ]
+      induction n <;> simp_all [Finset.sum_range_succ]
       -- Substitute the definition of `kraft_A` into the left-hand side.
       have h_sub : (Kraft.kraft_A l (Nat.succ ‹_›) : ℝ) = (Kraft.kraft_A l ‹_› + 1) * 2 ^ (l (Nat.succ ‹_›) - l ‹_›) := by
         norm_cast
@@ -407,7 +409,10 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
             have h_sum_lt : (kraft_A l n : ℝ) / 2 ^ l n = ∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k := by
               exact kraft_A_div_pow_eq_sum l h_mono n
             exact h_sum_lt.symm ▸ lt_of_lt_of_le ( by exact ( show ( ∑ k ∈ Finset.range n, ( 1 / 2 : ℝ ) ^ l k ) < ∑' k : ℕ, ( 1 / 2 : ℝ ) ^ l k from by simpa using ( show ( ∑ k ∈ Finset.range n, ( 1 / 2 : ℝ ) ^ l k ) < ∑' k : ℕ, ( 1 / 2 : ℝ ) ^ l k from by exact lt_of_lt_of_le ( by simpa using ( show ( ∑ k ∈ Finset.range n, ( 1 / 2 : ℝ ) ^ l k ) < ∑ k ∈ Finset.range ( n + 1 ), ( 1 / 2 : ℝ ) ^ l k from by simp [ Finset.sum_range_succ ] ) ) ( Summable.sum_le_tsum ( Finset.range ( n + 1 ) ) ( fun _ _ => by positivity ) h_summable ) ) ) ) h_sum
-          exact fun n => by have := h_kraft_A_lt n; rw [ div_lt_one ( by positivity ) ] at this; exact_mod_cast this
+          intros n
+          have := h_kraft_A_lt n
+          rw [ div_lt_one ( by positivity ) ] at this
+          exact_mod_cast this
         refine' ⟨ fun n => natToBits ( kraft_A l n ) ( l n ), _, _, _ ⟩
         · intro n m hnm
           -- Since $kraft_A n < 2^{l n}$ and $kraft_A m < 2^{l m}$, and $natToBits$ is injective, we have $kraft_A n = kraft_A m$.
@@ -415,8 +420,11 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
             apply natToBits_inj
             exact h_kraft_A_lt n
             · unfold Kraft.natToBits at hnm
-              replace hnm := congr_arg List.length hnm ; aesop
-            · have := congr_arg List.length hnm; norm_num [ Kraft.natToBits ] at this; aesop
+              replace hnm := congr_arg List.length hnm
+              aesop
+            · have := congr_arg List.length hnm
+              norm_num [ Kraft.natToBits ] at this
+              aesop
           -- Since $kraft_A$ is strictly increasing, we have $n = m$.
           have h_kraft_A_inj : StrictMono (kraft_A l) := by
             refine' strictMono_nat_of_lt_succ _
@@ -424,7 +432,7 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
             exact lt_of_lt_of_le ( by norm_num ) ( Nat.mul_le_mul_left _ ( Nat.one_le_pow _ _ ( by norm_num ) ) )
           exact h_kraft_A_inj.injective h_kraft_A_eq
         · rintro _ ⟨ n, rfl ⟩ _ ⟨ m, rfl ⟩ hnm
-          by_cases hnm' : n = m <;> simp_all +decide [ natToBits_prefix_iff ]
+          by_cases hnm' : n = m <;> simp_all [ natToBits_prefix_iff ]
           -- Since $l n \le l m$, we have $S_n \le S_m < S_n + 2^{-l n}$.
           have h_sum_bounds : (∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k) ≤ (∑ k ∈ Finset.range m, (1 / 2 : ℝ) ^ l k) ∧ (∑ k ∈ Finset.range m, (1 / 2 : ℝ) ^ l k) < (∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k) + (1 / 2 : ℝ) ^ l n := by
             have h_sum_bounds : (kraft_A l n : ℝ) / 2 ^ l n ≤ (kraft_A l m : ℝ) / 2 ^ l m ∧ (kraft_A l m : ℝ) / 2 ^ l m < (kraft_A l n : ℝ) / 2 ^ l n + (1 / 2 : ℝ) ^ l n := by
@@ -445,12 +453,12 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
           · -- Since $n < m$, we have $\sum_{k=n}^{m-1} 2^{-l k} \geq 2^{-l n}$.
             have h_sum_ge : ∑ k ∈ Finset.Ico n m, (1 / 2 : ℝ) ^ l k ≥ (1 / 2 : ℝ) ^ l n := by
               exact le_trans ( by norm_num ) ( Finset.single_le_sum ( fun x _ => by positivity ) ( Finset.left_mem_Ico.mpr ‹_› ) )
-            simp_all +decide [ Finset.sum_Ico_eq_sub _ ( by linarith : n ≤ m ) ]
+            simp_all [ Finset.sum_Ico_eq_sub _ ( by linarith : n ≤ m ) ]
             linarith
           · -- Since $m < n$, we have $\sum_{k=m}^{n-1} 2^{-l k} \geq 2^{-l n}$.
             have h_sum_ge : ∑ k ∈ Finset.Ico m n, (1 / 2 : ℝ) ^ l k ≥ (1 / 2 : ℝ) ^ l n := by
               exact le_trans ( by norm_num ) ( Finset.single_le_sum ( fun x _ => by positivity ) ( Finset.mem_Ico.mpr ⟨ le_rfl, by linarith ⟩ ) ) |> le_trans <| Finset.sum_le_sum fun x hx => pow_le_pow_of_le_one ( by norm_num ) ( by norm_num ) <| h_mono <| Finset.mem_Ico.mp hx |>.2.le
-            simp_all +decide [ Finset.sum_Ico_eq_sub _ ( by linarith : m ≤ n ) ]
+            simp_all [ Finset.sum_Ico_eq_sub _ ( by linarith : m ≤ n ) ]
             linarith
         · unfold Kraft.natToBits; aesop
 
@@ -506,8 +514,19 @@ lemma kraftRank_lt_of_KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     kraftRank l e h_finite i < kraftRank l e h_finite j := by
       apply_rules [ Finset.card_lt_card ]
       unfold Kraft.KraftOrder at *
-      simp_all +decide [ Finset.ssubset_def, Finset.subset_iff ]
-      grind
+      simp_all [ Finset.ssubset_def, Finset.subset_iff ]
+      constructor
+      · -- 1. Transitivity: If x < i and i < j, then x < j
+        intro x hx
+        -- Break down the OR/AND structure of the order definition
+        rcases h with (h_lt | ⟨h_eq, h_elt⟩) <;> rcases hx with (hx_lt | ⟨hx_eq, hx_elt⟩)
+        · left; linarith  -- l x < l i < l j
+        · left; linarith  -- l x = l i < l j
+        · left; linarith  -- l x < l i = l j
+        · right; exact ⟨by linarith, lt_trans hx_elt h_elt⟩ -- l x = l j, e x < e i < e j
+      · -- 2. Strictness: i is in the set of j's predecessors, but not i's
+        use i
+        simp [h]
 
 /-
 `kraftRank` is surjective.
@@ -659,9 +678,9 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
           expose_names; exact pf_1 i) ∘ fun i => i) j := by
             apply natToBits_inj
             exact h_split_sum i
-            · replace hij := congr_arg List.length hij ; simp_all +decide [ Kraft.natToBits ]
+            · replace hij := congr_arg List.length hij ; simp_all [ Kraft.natToBits ]
             · convert hij using 1
-              replace hij := congr_arg List.length hij ; simp_all +decide [ Kraft.natToBits ]
+              replace hij := congr_arg List.length hij ; simp_all [ Kraft.natToBits ]
           generalize_proofs at *
           -- Since `kraft_A` is strictly monotone, we have `i = j`.
           have h_kraft_A_mono : StrictMono (Kraft.kraft_A (l_ext l (by tauto) ∘ fun i => i)) := by
@@ -670,7 +689,7 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
             exact Nat.lt_of_lt_of_le ( Nat.lt_succ_self _ ) ( Nat.le_mul_of_pos_right _ ( pow_pos ( by decide ) _ ) )
           exact Fin.ext <| h_kraft_A_mono.injective h_kraft_A_eq
         · intro x hx y hy hxy
-          obtain ⟨ i, rfl ⟩ := hx; obtain ⟨ j, rfl ⟩ := hy; simp_all +decide [ natToBits_prefix_iff ]
+          obtain ⟨ i, rfl ⟩ := hx; obtain ⟨ j, rfl ⟩ := hy; simp_all [ natToBits_prefix_iff ]
           -- If `i < j`, then `S_j \ge S_i + 2^{-l i}`, contradiction.
           by_cases hij : i < j
           · have h_contradiction : (Kraft.kraft_A (l_ext l (by expose_names; exact pf_1 i) ∘ fun i => i) j : ℝ) / 2 ^ (l j) ≥ (Kraft.kraft_A (l_ext l (by
