@@ -154,7 +154,7 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree S) :
             simpa using (rhs_eq w hw).symm
     _ = (∑ w ∈ S, (2 : ℝ)^(n - w.length)) / (2 : ℝ)^n := by
             simpa using
-              (Finset.sum_div (s := S)
+              (S.sum_div
                 (f := fun w => (2 : ℝ)^(n - w.length))
                 (a := (2 : ℝ)^n)).symm
     _ ≤ (2 : ℝ)^n / (2 : ℝ)^n := by
