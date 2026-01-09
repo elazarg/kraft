@@ -307,7 +307,7 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
         have h_le : w ≤ v := by
           have := h_1.length_le
           unfold Kraft.natToBits at this
-          aesop
+          simp_all only [List.length_ofFn]
         -- If `natToBits n w` is a prefix of `natToBits m v`, then `m >> (v - w) = n`.
         have h_shift : m / 2 ^ (v - w) = n := by
           have h_shift : ∀ k < w, m.testBit (v - 1 - k) = n.testBit (w - 1 - k) := by
@@ -424,10 +424,10 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
             exact h_kraft_A_lt n
             · unfold Kraft.natToBits at hnm
               replace hnm := congr_arg List.length hnm
-              aesop
+              simp_all only [one_div, inv_pow, List.length_ofFn]
             · have := congr_arg List.length hnm
               norm_num [ Kraft.natToBits ] at this
-              aesop
+              simp_all only [one_div, inv_pow]
           -- Since $kraft_A$ is strictly increasing, we have $n = m$.
           have h_kraft_A_inj : StrictMono (kraft_A l) := by
             refine' strictMono_nat_of_lt_succ _
@@ -465,7 +465,8 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
             simp_all [ Finset.sum_Ico_eq_sub _ ( by linarith : m ≤ n ) ]
             linarith
         · unfold Kraft.natToBits
-          aesop
+          intro i
+          simp_all only [one_div, inv_pow, List.length_ofFn]
 
 /-
 `KraftOrder` is a strict total order.
@@ -477,7 +478,7 @@ lemma KraftOrder_isStrictTotalOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     IsStrictTotalOrder I (KraftOrder l e) := by
       have h_irrefl : Irreflexive (Kraft.KraftOrder l e) := by
         intro i hi
-        cases hi <;> aesop
+        cases hi <;> simp_all only [lt_self_iff_false]
       refine' { .. }
       · intro a b
         rcases lt_trichotomy ( l a ) ( l b ) with h | h | h <;> rcases lt_trichotomy ( e a ) ( e b ) with h' | h' | h'
@@ -499,11 +500,21 @@ lemma KraftOrder_finite_initial_segment {I : Type _} (l : I → ℕ) (e : I ↪ 
       have h1 : {j | l j < l i} ⊆ ⋃ k < l i, {j | l j = k} := by
         -- Take any $j$ such that $l j < l i$. Then $l j$ is some natural number less than $l i$, so $j$ is in the set $\{j | l j = l j\}$.
         intro j hj
-        aesop
+        simp_all only [Set.mem_setOf_eq, Set.mem_iUnion, exists_prop, exists_eq_right']
       -- The set {j | l j = l i ∧ e j < e i} is a subset of {j | l j = l i}, which is finite by h_finite.
       have h2 : {j | l j = l i ∧ e j < e i} ⊆ {j | l j = l i} := by
-        aesop
-      exact Set.Finite.subset ( Set.Finite.union ( Set.Finite.biUnion ( Set.finite_lt_nat ( l i ) ) fun k hk => h_finite k ) ( h_finite _ ) ) ( by rintro j; unfold Kraft.KraftOrder; aesop )
+        simp_all only [Set.setOf_subset_setOf, implies_true]
+      exact Set.Finite.subset ( Set.Finite.union ( Set.Finite.biUnion ( Set.finite_lt_nat ( l i ) ) fun k hk => h_finite k ) ( h_finite _ ) ) ( by
+        rintro j
+        unfold Kraft.KraftOrder
+        intro a
+        simp_all only [Set.setOf_subset_setOf, implies_true, Set.mem_setOf_eq, Set.mem_union, Set.mem_iUnion, exists_prop, exists_eq_right']
+        cases a with
+        | inl h => simp_all only [Set.setOf_subset_setOf, implies_true, true_or]
+        | inr h_1 =>
+          simp_all only [Set.setOf_subset_setOf, implies_true, lt_self_iff_false, false_or]
+          rfl
+      )
 
 /-
 The rank of an element `i` is the number of elements strictly smaller than `i` in `KraftOrder`.
@@ -551,7 +562,20 @@ lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ 
             intros x y hxy
             have h_total : ∀ x y : I, x ≠ y → l x < l y ∨ l y < l x ∨ (l x = l y ∧ e x < e y) ∨ (l y = l x ∧ e y < e x) := by
               intro x y hxy
-              cases lt_trichotomy ( l x ) ( l y ) <;> cases lt_trichotomy ( e x ) ( e y ) <;> aesop
+              subst hi
+              cases lt_trichotomy ( l x ) ( l y ) <;> cases lt_trichotomy ( e x ) ( e y )
+              · simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq, and_true, true_or]
+              · simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq, true_or]
+              · rename_i h h_1
+                simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq, and_true]
+                cases h with
+                | inl h_2 => simp_all only [lt_self_iff_false, true_and, true_or, or_true]
+                | inr h_3 => simp_all only [true_or, or_true]
+              · rename_i h h_1
+                simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq, EmbeddingLike.apply_eq_iff_eq, false_or, and_true]
+                cases h with
+                | inl h_2 => simp_all only [lt_self_iff_false, true_and, or_true]
+                | inr h_3 => simp_all only [true_or, or_true]
             specialize h_total x y hxy
             unfold Kraft.KraftOrder
             subst hi
@@ -568,10 +592,19 @@ lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ 
           exact Classical.not_not.1 fun h => by cases h_eq x y h <;> linarith [ kraftRank_lt_of_KraftOrder l e h_finite ‹_› ]
         have h_image : Finset.image (kraftRank l e h_finite) (Set.Finite.toFinset (KraftOrder_finite_initial_segment l e h_finite i)) = Finset.range n := by
           refine' Finset.eq_of_subset_of_card_le ( Finset.image_subset_iff.2 fun x hx => Finset.mem_range.2 <| _ ) _
-          · exact hi ▸ kraftRank_lt_of_KraftOrder l e h_finite ( by aesop )
-          · aesop
+          · exact hi ▸ kraftRank_lt_of_KraftOrder l e h_finite ( by
+              subst hi
+              simp_all only [Set.Finite.mem_toFinset, Set.mem_setOf_eq]
+            )
+          · subst hi
+            simp_all only [Finset.card_range, le_refl]
         replace h_image := Finset.ext_iff.mp h_image m
-        aesop
+        subst hi
+        simp_all only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_setOf_eq, Finset.mem_range, iff_true]
+        obtain ⟨w, h⟩ := h_image
+        obtain ⟨left, right⟩ := h
+        subst right
+        simp_all only [exists_apply_eq_apply]
       -- Since `I` is infinite and `kraftRank` is injective, the range is infinite.
       have h_range_infinite : Set.Infinite (Set.range (Kraft.kraftRank l e h_finite)) := by
         refine Set.infinite_range_of_injective ?_
@@ -588,7 +621,10 @@ lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ 
       rw [ Set.infinite_iff_exists_gt ] at h_range_infinite
       intro n
       specialize h_range_infinite n
-      aesop
+      simp_all only [forall_exists_index, forall_apply_eq_imp_iff, Set.mem_range, exists_exists_eq_and]
+      obtain ⟨w, h⟩ := h_range_infinite
+      apply h_initial_segment
+      · exact h
 
 /-
 `kraftRank` is injective.
@@ -613,29 +649,28 @@ If `l` is summable, we can reorder `I` to make `l` monotone.
 lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] (l : I → ℕ)
     (h_summable : Summable (fun i => (1 / 2 : ℝ) ^ l i)) :
     ∃ e : ℕ ≃ I, Monotone (l ∘ e) := by
-      obtain ⟨e, he⟩ : ∃ e : ℕ ≃ I, ∀ n m, n ≤ m → l (e n) ≤ l (e m) := by
-        have h_countable : Countable I := by
-          have := h_summable.countable_support
-          simp_all [ Function.support ]
-          exact Set.countable_univ_iff.mp this
-        -- Let `e = Encodable.encode`.
-        obtain ⟨e, he⟩ : ∃ e : I ↪ ℕ, True := by
-          simp
-          exact countable_iff_nonempty_embedding.mp h_countable
-        have h_finite : ∀ k, {i : I | l i = k}.Finite := by
-          intro k
-          refine' Set.Finite.subset ( h_summable.tendsto_cofinite_zero.eventually ( gt_mem_nhds <| show 0 < ( 1 / 2 : ℝ ) ^ k by positivity ) ) _
-          exact fun x hx => by aesop
-        -- By definition of `kraftRank`, we know that `kraftRank` is a bijection between `I` and `ℕ`.
-        have h_bij : Function.Bijective (kraftRank l e h_finite) := by
-          exact ⟨ kraftRank_injective l e h_finite, kraftRank_surjective l e h_finite ⟩
-        obtain ⟨e_iso, he_iso⟩ : ∃ e_iso : ℕ ≃ I, ∀ n, kraftRank l e h_finite (e_iso n) = n := by
-          exact ⟨ Equiv.symm ( Equiv.ofBijective _ h_bij ), fun n => Equiv.apply_symm_apply ( Equiv.ofBijective _ h_bij ) n ⟩
-        refine' ⟨ e_iso, fun n m hnm => _ ⟩
-        contrapose! hnm
-        have := kraftRank_lt_of_KraftOrder l e h_finite ( show KraftOrder l e ( e_iso m ) ( e_iso n ) from Or.inl hnm )
-        aesop
-      exact ⟨ e, fun n m hnm => he n m hnm ⟩
+      have h_countable : Countable I := by
+        have := h_summable.countable_support
+        simp_all [ Function.support ]
+        exact Set.countable_univ_iff.mp this
+      -- Let `e = Encodable.encode`.
+      obtain ⟨e, he⟩ : ∃ e : I ↪ ℕ, True := by
+        simp
+        exact countable_iff_nonempty_embedding.mp h_countable
+      have h_finite : ∀ k, {i : I | l i = k}.Finite := by
+        intro k
+        refine' Set.Finite.subset ( h_summable.tendsto_cofinite_zero.eventually ( gt_mem_nhds <| show 0 < ( 1 / 2 : ℝ ) ^ k by positivity ) ) _
+        intros x hx
+        simp_all only [one_div, inv_pow, Set.mem_setOf_eq, Set.mem_compl_iff, lt_self_iff_false, not_false_eq_true]
+      -- By definition of `kraftRank`, we know that `kraftRank` is a bijection between `I` and `ℕ`.
+      have h_bij : Function.Bijective (kraftRank l e h_finite) := by
+        exact ⟨ kraftRank_injective l e h_finite, kraftRank_surjective l e h_finite ⟩
+      obtain ⟨e_iso, he_iso⟩ : ∃ e_iso : ℕ ≃ I, ∀ n, kraftRank l e h_finite (e_iso n) = n := by
+        exact ⟨ Equiv.symm ( Equiv.ofBijective _ h_bij ), fun n => Equiv.apply_symm_apply ( Equiv.ofBijective _ h_bij ) n ⟩
+      refine' ⟨ e_iso, fun n m hnm => _ ⟩
+      contrapose! hnm
+      have := kraftRank_lt_of_KraftOrder l e h_finite ( show KraftOrder l e ( e_iso m ) ( e_iso n ) from Or.inl hnm )
+      simp_all only [one_div, inv_pow]
 
 /-
 Extension of `l` to `ℕ` preserving monotonicity, assuming `k > 0`.
@@ -649,7 +684,7 @@ def l_ext {k : ℕ} (l : Fin k → ℕ) (hk : k ≠ 0) (i : ℕ) : ℕ :=
 lemma l_ext_eq {k : ℕ} (l : Fin k → ℕ) (hk : k ≠ 0) (i : Fin k) :
     l_ext l hk i = l i := by
       unfold Kraft.l_ext
-      aesop
+      simp_all only [Fin.is_lt, ↓reduceDIte, Fin.eta]
 
 /-
 `l_ext` is monotone.
@@ -687,11 +722,13 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
             assumption) j) ≤ 1 := by
               rw [ Finset.sum_range ]
               unfold Kraft.l_ext
-              aesop
+              simp_all only [one_div, inv_pow, ne_eq, not_false_eq_true, implies_true, Fin.is_lt, ↓reduceDIte, Fin.eta]
             generalize_proofs at *
             refine' lt_of_lt_of_le ( _ ) h_split_sum
             rw [ ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ k from i.2.le ) ]
-            exact lt_add_of_pos_right _ ( Finset.sum_pos ( fun _ _ => by positivity ) ( by aesop ) )
+            exact lt_add_of_pos_right _ ( Finset.sum_pos ( fun _ _ => by positivity ) ( by
+              simp_all only [one_div, inv_pow, ne_eq, not_false_eq_true, implies_true, Finset.nonempty_Ico, Fin.is_lt]
+            ) )
           generalize_proofs at *
           rw [ div_eq_iff ] at * <;> norm_num at *
           exact_mod_cast ( by nlinarith [ pow_pos ( zero_lt_two' ℝ ) ( l i ), show ( 2 : ℝ ) ^ Kraft.l_ext l ‹_› i = 2 ^ l i from by erw [ Kraft.l_ext_eq ] ] : ( Kraft.kraft_A ( Kraft.l_ext l ‹_› ∘ fun i => i ) i : ℝ ) < 2 ^ l i )
@@ -736,11 +773,12 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
                 · convert kraft_A_div_pow_eq_sum ( l_ext l ( by tauto ) ∘ fun i => i ) ( l_ext_monotone l h_mono ( by tauto ) ) j using 1
                   generalize_proofs at *
                   unfold Kraft.l_ext
-                  aesop
+                  simp_all only [Function.comp_apply, Fin.is_lt, ↓reduceDIte, Fin.eta]
                 · convert kraft_A_div_pow_eq_sum _ _ _ using 1
                   generalize_proofs at *
                   · unfold Kraft.l_ext
-                    aesop
+                    simp_all only [Fin.is_lt, ↓reduceDIte, Fin.eta, ne_eq, pow_eq_zero_iff', OfNat.ofNat_ne_zero, false_and, not_false_eq_true, div_left_inj', Nat.cast_inj]
+                    rfl
                   · exact l_ext_monotone l h_mono ( by tauto )
               generalize_proofs at *
               rw [ h_contradiction.1, h_contradiction.2, ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ j from Nat.le_of_lt hij ) ]
@@ -799,7 +837,8 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
               -- 3. The goal is now X = X
               rfl
         · unfold Kraft.natToBits
-          aesop
+          intro i
+          simp_all only [one_div, inv_pow, List.length_ofFn]
 
 /-
 We can sort a finite type `I` by `l`.
@@ -828,7 +867,7 @@ lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
               have := List.nodup_iff_injective_get.mp h_sorted.2.2.1
               exact Fin.ext <| by simpa [ h_sorted.2.1 ] using this hij
             have := Fintype.bijective_iff_injective_and_card ( fun i : Fin ( Fintype.card I ) => sorted_list[i] )
-            aesop
+            simp_all only [Fin.getElem_fin, Multiset.bijective_iff_map_univ_eq_univ, Fin.univ_val_map, Fintype.card_fin, and_self, iff_true]
           exact ⟨ Equiv.ofBijective _ h_equiv, fun i => rfl ⟩
         obtain ⟨ e, he ⟩ := h_equiv
         refine' ⟨ e, fun i j hij => _ ⟩
@@ -875,7 +914,15 @@ theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
     refine' ⟨ fun i => w ( e.symm i ), _, _, _ ⟩
     · exact hw₁.comp e.symm.injective
     · intro x hx y hy hxy
-      aesop
-    · aesop
+      simp_all only [one_div, inv_pow, not_finite_iff_infinite, Set.mem_range]
+      obtain ⟨w_1, h⟩ := hx
+      obtain ⟨w_2, h_1⟩ := hy
+      subst h h_1
+      apply hw₂
+      · simp_all only [Set.mem_range, exists_apply_eq_apply]
+      · simp_all only [Set.mem_range, exists_apply_eq_apply]
+      · simp_all only
+    · intro i
+      simp_all only [one_div, inv_pow, not_finite_iff_infinite, Equiv.apply_symm_apply]
 
 end Kraft
