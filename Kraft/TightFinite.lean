@@ -100,8 +100,15 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
     have h_exists_k : ∃ k : ℕ, k ≤ l.length ∧ (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) ≥ 1 := by
       use l.length
       convert h_sum.le using 1
-      norm_num [ Finset.sum_range ]
-    exact ⟨ Nat.find h_exists_k, Nat.find_spec h_exists_k |>.1, Nat.find_spec h_exists_k |>.2, fun j hj => not_le.1 fun h => Nat.find_min h_exists_k hj ⟨ Nat.le_trans ( Nat.le_of_lt hj ) ( Nat.find_spec h_exists_k |>.1 ), h ⟩ ⟩
+      norm_num [Finset.sum_range]
+    -- Take the smallest such k
+    use Nat.find h_exists_k
+    obtain ⟨hk_len, hk_ge⟩ := Nat.find_spec h_exists_k
+    refine ⟨hk_len, hk_ge, fun j hj => ?_⟩
+    -- For j < k, the sum must be < 1 (otherwise k wouldn't be minimal)
+    by_contra h_not_lt
+    push_neg at h_not_lt
+    exact Nat.find_min h_exists_k hj ⟨Nat.le_trans (Nat.le_of_lt hj) hk_len, h_not_lt⟩
   -- Let $M$ be the integer such that $s_{k-1} = M / 2^{l_k}$.
   obtain ⟨M, hM⟩ : ∃ M : ℕ, (∑ i ∈ Finset.range (k - 1), (1 / 2 : ℝ) ^ l[i]!) = M / 2 ^ l[k - 1]! := by
     -- Since $l$ is sorted non-decreasingly, we have $l[i] \leq l[k-1]$ for all $i < k-1$.
@@ -276,15 +283,24 @@ theorem kraft_inequality_tight (l : I → ℕ)
       by_cases h_exists_zero : ∃ i, l i = 0
       · obtain ⟨i₀, hi₀⟩ : ∃ i₀, l i₀ = 0 := h_exists_zero
         have h_card : Fintype.card I = 1 := by
-          have h_card : ∑ i, (1 / 2 : ℝ) ^ l i ≥ 1 := by
-            exact le_trans ( by norm_num [ hi₀ ] ) ( Finset.single_le_sum ( fun i _ => by positivity ) ( Finset.mem_univ i₀ ) )
-          have h_card : ∑ i ∈ Finset.univ.erase i₀, (1 / 2 : ℝ) ^ l i = 0 := by
-            norm_num at *
-            rw [ sub_eq_zero, hi₀, pow_zero ]
+          -- The term (1/2)^0 = 1 already saturates the sum
+          have h_sum_ge : ∑ i, (1 / 2 : ℝ) ^ l i ≥ 1 :=
+            le_trans (by norm_num [hi₀]) (Finset.single_le_sum (fun _ _ => by positivity) (Finset.mem_univ i₀))
+          -- So the sum over remaining elements must be 0
+          have h_rest_zero : ∑ i ∈ Finset.univ.erase i₀, (1 / 2 : ℝ) ^ l i = 0 := by
+            have h1 : ∑ i, (1 / 2 : ℝ) ^ l i = 1 := le_antisymm hsum h_sum_ge
+            simp_all
+          -- A sum of positive terms is 0 only if the set is empty
+          have h_empty : Finset.univ.erase i₀ = ∅ := by
+            by_contra h_ne
+            have := Finset.sum_pos (fun x _ => by positivity : ∀ x ∈ Finset.univ.erase i₀, 0 < (1/2 : ℝ) ^ l x)
+                    (Finset.nonempty_of_ne_empty h_ne)
             linarith
-          simp_all
-          rw [ Finset.sum_eq_add_sum_diff_singleton ( Finset.mem_univ i₀ ) ] at h_card
-          exact le_antisymm ( le_of_not_gt fun h => absurd h_card <| ne_of_gt <| sub_pos_of_lt <| lt_add_of_le_of_pos ( by norm_num [ hi₀ ] ) <| Finset.sum_pos ( fun x hx => inv_pos.mpr <| pow_pos zero_lt_two _ ) <| Finset.card_pos.mp <| by simp [ Finset.card_sdiff, * ] ) ( Fintype.card_pos_iff.mpr ⟨ i₀ ⟩ )
+          simp only [Finset.erase_eq_empty_iff, Finset.univ_eq_empty_iff] at h_empty
+          -- h_empty : IsEmpty I ∨ Finset.univ = {i₀}
+          rcases h_empty with h_empty | h_univ
+          · exact (h_empty.false i₀).elim
+          · simp [← Finset.card_univ, h_univ]
         rw [ Fintype.card_eq_one_iff ] at h_card
         obtain ⟨ x, hx ⟩ := h_card
         use fun _ => List.replicate (l x) Bool.true
