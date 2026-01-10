@@ -75,23 +75,38 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
       norm_num [ List.sum_ofFn ]
     · rw [ ← Fin.prod_const, Finset.prod_sum ]
       refine' Finset.sum_bij _ _ _ _ _
-      use fun a ha i => ⟨ a i ( Finset.mem_univ i ), Finset.mem_pi.mp ha i ( Finset.mem_univ i ) ⟩
+      · use fun a ha i => ⟨ a i ( Finset.mem_univ i ), Finset.mem_pi.mp ha i ( Finset.mem_univ i ) ⟩
       · simp
       · simp [ funext_iff ]
       · exact fun b _ => ⟨ fun i _ => b i |>.1, Finset.mem_pi.mpr fun i _ => b i |>.2, rfl ⟩
       · simp_all
   -- Since the map $(w_1,\dots,w_r) \mapsto w_1 \cdots w_r$ is injective, the sum $\sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$ is at most $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}$.
   have h_injective : ∑ w : Fin r → S, (1 / 2 : ℝ) ^ ((List.ofFn (fun i => (w i).val)).flatten.length) ≤ ∑ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / 2 : ℝ) ^ x.length := by
-    rw [ ← Finset.sum_biUnion ]
-    · refine' le_of_eq _
-      refine' Finset.sum_bij ( fun w hw => ( List.ofFn fun i => ( w i : List Bool ) ).flatten ) _ _ _ _ <;> simp +decide
-      · simp +zetaDelta at *
-        intro a
-        exact ⟨ by rw [ List.sum_ofFn ] ; exact le_trans ( by norm_num ) ( Finset.sum_le_sum fun _ _ => Nat.one_le_iff_ne_zero.mpr <| by specialize h ; have := h ( [ ( a ‹_› : List Bool ) ] ) [ ] ; simp_all ), by rw [ List.sum_ofFn ] ; exact le_trans ( Finset.sum_le_sum fun _ _ => show List.length ( a _ : List Bool ) ≤ S.sup List.length from Finset.le_sup ( f := List.length ) <| by simp_all ) <| by norm_num ⟩
-      · intro a₁ a₂ h_eq
-        have := @uniquely_decodable_extension_injective S h r
-        exact this h_eq
-    · exact fun x hx y hy hxy => Finset.disjoint_left.mpr fun z => by simp_all
+    rw [← Finset.sum_biUnion]
+    · refine le_of_eq ?_
+      refine Finset.sum_bij (fun w _ => (List.ofFn fun i => (w i : List Bool)).flatten) ?_ ?_ ?_ ?_
+      -- Membership: flattened length is in [r, r*ℓ]
+      · intro a _
+        simp only [Finset.mem_biUnion, Finset.mem_Icc, Finset.mem_filter, Finset.mem_image,
+                   Finset.mem_univ, true_and]
+        use (List.ofFn fun i => (a i : List Bool)).flatten.length
+        refine ⟨⟨?_, ?_⟩, ⟨a, rfl⟩, rfl⟩
+        -- Lower bound: r ≤ length (each codeword has length ≥ 1)
+        · rw [List.length_flatten, List.map_ofFn, List.sum_ofFn]
+          refine le_trans (by simp) (Finset.sum_le_sum fun i _ => Nat.one_le_iff_ne_zero.mpr ?_)
+          exact ne_of_gt (List.length_pos_iff.mpr (ne_of_mem_of_not_mem (a i).2 (epsilon_not_mem_of_uniquely_decodable h)))
+        -- Upper bound: length ≤ r * ℓ (each codeword has length ≤ ℓ)
+        · rw [List.length_flatten, List.map_ofFn, List.sum_ofFn]
+          exact le_trans (Finset.sum_le_sum fun i _ => Finset.le_sup (f := List.length) (a i).2) (by simp_all)
+      -- Injectivity: follows from unique decodability
+      · intro a₁ _ a₂ _ h_eq
+        exact uniquely_decodable_extension_injective h r h_eq
+      -- Image property
+      · simp
+      -- Surjectivity onto image
+      · simp
+    · intro _ _ _ _ hxy
+      exact Finset.disjoint_left.mpr fun z hz1 hz2 => hxy (by simp_all)
   -- Since $\sum_{x \in \{0,1\}^s} 2^{-|x|} = 1$ for any $s$, we have $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|} = \sum_{s=r}^{r\ell} 1 = r\ell - r + 1 \le r\ell$.
   have h_sum_one : ∀ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / 2 : ℝ) ^ x.length ≤ 1 := by
     intros s hs
@@ -166,6 +181,10 @@ theorem kraft_mcmillan_inequality (h : UniquelyDecodable (S: Set (List Bool))) :
         rw [ mul_assoc, mul_inv_cancel₀ ( ne_of_gt ( Real.log_pos h_kraft ) ), mul_one ]
       simpa [ Real.exp_neg ] using Real.tendsto_pow_mul_exp_neg_atTop_nhds_zero 1
     simpa [ mul_div_right_comm ] using hr_factor.mul_const _
-  exact Filter.eventually_atTop.mp ( hr_exists.eventually ( gt_mem_nhds zero_lt_one ) ) |> fun ⟨ r, hr ⟩ ↦ ⟨ r + 1, by linarith, by have := hr ( r + 1 ) ( by linarith ) ; rw [ div_lt_iff₀ ( by positivity ) ] at this; linarith ⟩
+  obtain ⟨r, hr⟩ := Filter.eventually_atTop.mp (hr_exists.eventually (gt_mem_nhds zero_lt_one))
+  refine ⟨r + 1, by linarith, ?_⟩
+  have := hr (r + 1) (by linarith)
+  rw [div_lt_iff₀ (by positivity)] at this
+  linarith
 
 end Kraft
