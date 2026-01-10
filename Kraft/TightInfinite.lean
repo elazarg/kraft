@@ -179,15 +179,21 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
       ∀ i, (w i).length = l i := by
         -- By definition of $kraft_A$, we know that $kraft_A n < 2^{l n}$ for all $n$.
         have h_kraft_A_lt : ∀ n, kraft_A l n < 2 ^ l n := by
-          have h_kraft_A_lt : ∀ n, (kraft_A l n : ℝ) / 2 ^ l n < 1 := by
-            intro n
-            have h_sum_lt : (kraft_A l n : ℝ) / 2 ^ l n = ∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k := by
-              exact kraft_A_div_pow_eq_sum l h_mono n
-            exact h_sum_lt.symm ▸ lt_of_lt_of_le ( by exact ( show ( ∑ k ∈ Finset.range n, ( 1 / 2 : ℝ ) ^ l k ) < ∑' k : ℕ, ( 1 / 2 : ℝ ) ^ l k from by simpa using ( show ( ∑ k ∈ Finset.range n, ( 1 / 2 : ℝ ) ^ l k ) < ∑' k : ℕ, ( 1 / 2 : ℝ ) ^ l k from by exact lt_of_lt_of_le ( by simpa using ( show ( ∑ k ∈ Finset.range n, ( 1 / 2 : ℝ ) ^ l k ) < ∑ k ∈ Finset.range ( n + 1 ), ( 1 / 2 : ℝ ) ^ l k from by simp [ Finset.sum_range_succ ] ) ) ( Summable.sum_le_tsum ( Finset.range ( n + 1 ) ) ( fun _ _ => by positivity ) h_summable ) ) ) ) h_sum
-          intros n
-          have := h_kraft_A_lt n
-          rw [ div_lt_one ( by positivity ) ] at this
-          exact_mod_cast this
+          intro n
+          -- The partial Kraft sum equals kraft_A / 2^l
+          have h_eq : (kraft_A l n : ℝ) / 2 ^ l n = ∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k :=
+            kraft_A_div_pow_eq_sum l h_mono n
+          -- Partial sum < partial sum with one more term
+          have h_lt_succ : ∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k < ∑ k ∈ Finset.range (n + 1), (1 / 2 : ℝ) ^ l k := by
+            simp [Finset.sum_range_succ]
+          -- Partial sum ≤ tsum
+          have h_le_tsum : ∑ k ∈ Finset.range (n + 1), (1 / 2 : ℝ) ^ l k ≤ ∑' k, (1 / 2 : ℝ) ^ l k :=
+            Summable.sum_le_tsum _ (fun _ _ => by positivity) h_summable
+          -- Combine: partial sum < tsum ≤ 1
+          have h_lt_one : ∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k < 1 :=
+            lt_of_lt_of_le (lt_of_lt_of_le h_lt_succ h_le_tsum) h_sum
+          rw [<-h_eq, div_lt_one (by positivity)] at h_lt_one
+          exact_mod_cast h_lt_one
         refine' ⟨ fun n => natToBits ( kraft_A l n ) ( l n ), _, _, _ ⟩
         · intro n m hnm
           -- Since $kraft_A n < 2^{l n}$ and $kraft_A m < 2^{l m}$, and $natToBits$ is injective, we have $kraft_A n = kraft_A m$.
