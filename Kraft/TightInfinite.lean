@@ -480,12 +480,12 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
           have h_split_sum : kraft_A (l_ext l (by assumption) ∘ fun i => i) i / (2 : ℝ) ^ (l_ext l (by assumption) i)
                            = ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (by assumption) j) := by
             convert kraft_A_div_pow_eq_sum ( l_ext l ‹_› ∘ fun i => i ) ( l_ext_monotone l h_mono ‹_› ) i using 1
-          have h_split_sum : ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (by assumption) j) < 1 := by
-            have h_split_sum : ∑ j ∈ Finset.range k, (1 / 2 : ℝ) ^ (l_ext l (by assumption) j) ≤ 1 := by
+          have h_split_sum_lt : ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (by assumption) j) < 1 := by
+            have h_split_sum_le : ∑ j ∈ Finset.range k, (1 / 2 : ℝ) ^ (l_ext l (by assumption) j) ≤ 1 := by
               rw [ Finset.sum_range ]
               unfold Kraft.l_ext
               simp_all only [one_div, inv_pow, Fin.is_lt, ↓reduceDIte, Fin.eta]
-            refine' lt_of_lt_of_le ( _ ) h_split_sum
+            refine' lt_of_lt_of_le ( _ ) h_split_sum_le
             rw [ ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ k from i.2.le ) ]
             exact lt_add_of_pos_right _ ( Finset.sum_pos ( fun _ _ => by positivity ) ( by
               simp_all only [one_div, inv_pow, Finset.nonempty_Ico, Fin.is_lt]
