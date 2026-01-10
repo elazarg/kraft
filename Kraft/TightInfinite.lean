@@ -43,22 +43,9 @@ lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
           -- standard arithmetic on `Nat` subtraction
           omega
 
-        -- extract the Bool equality from `h`
-        have hbool :
-            (n / 2 ^ i % 2 == 1) = (m / 2 ^ i % 2 == 1) := by
-          simpa [hcond, hsub] using h
-
-        -- bridge between `==` and `=` (simp knows this for Nat)
-        have hn_iff : ((n / 2 ^ i % 2 == 1) = true) ↔ (n / 2 ^ i % 2 = 1) := by simp
-        have hm_iff : ((m / 2 ^ i % 2 == 1) = true) ↔ (m / 2 ^ i % 2 = 1) := by simp
-
-        constructor
-        · intro hn1
-          have hmtrue : (m / 2 ^ i % 2 == 1) = true := by simpa [hbool] using (hn_iff).2 hn1
-          exact (hm_iff).1 hmtrue
-        · intro hm1
-          have hntrue : (n / 2 ^ i % 2 == 1) = true := by simpa [hbool] using (hm_iff).2 hm1
-          exact (hn_iff).1 hntrue
+        -- extract the Bool equality from `h` and convert == to =
+        have hbool : (n / 2 ^ i % 2 == 1) = (m / 2 ^ i % 2 == 1) := by simpa [hcond, hsub] using h
+        simpa [Nat.beq_eq_true_eq, decide_eq_decide] using hbool
 
       · rw [ Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow ]
         rw [ Nat.div_eq_of_lt ( lt_of_lt_of_le hn ( Nat.pow_le_pow_right ( by decide ) hi ) ), Nat.div_eq_of_lt ( lt_of_lt_of_le hm ( Nat.pow_le_pow_right ( by decide ) hi ) ) ]
