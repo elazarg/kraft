@@ -25,13 +25,13 @@ theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
   have h_finite_subset : ∀ (F : Finset (List Bool)), SetLike.coe F ⊆ S → (∑ w ∈ F, (1 / 2 : ℝ) ^ w.length) ≤ 1 := by
     -- Apply the finite Kraft inequality to the finite subset F.
     intro F hF
-    apply kraft_inequality F (by
-    exact fun x hx y hy hxy => h x ( hF hx ) y ( hF hy ) hxy)
+    apply kraft_inequality F (fun x hx y hy hxy => h x ( hF hx ) y ( hF hy ) hxy)
   refine' ⟨ _, _ ⟩
   · have h_summable : Summable (fun w : S => (1 / 2 : ℝ) ^ w.val.length) := by
       refine' summable_of_sum_le _ _
       exact 1
-      · exact fun _ => by positivity
+      · intro _
+        positivity
       · intro u
         specialize h_finite_subset ( u.image Subtype.val )
         simp_all
@@ -39,7 +39,11 @@ theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
   · contrapose! h_finite_subset
     -- Since the series is summable, there exists a finite subset $F$ of $S$ such that $\sum_{w \in F} 2^{-|w|} > 1$.
     obtain ⟨F, hF⟩ : ∃ F : Finset (↥S), (∑ w ∈ F, (1 / 2 : ℝ) ^ (w.val.length)) > 1 := by
-      exact ( Summable.hasSum ( by exact ( by by_contra h; rw [ tsum_eq_zero_of_not_summable h ] at h_finite_subset; norm_num at h_finite_subset ) ) ) |> fun h => h.eventually ( lt_mem_nhds h_finite_subset ) |> fun h => h.exists
+      have h_summable : Summable (fun w : S => (1 / 2 : ℝ) ^ w.val.length) := by
+        by_contra h
+        rw [tsum_eq_zero_of_not_summable h] at h_finite_subset
+        norm_num at h_finite_subset
+      exact h_summable.hasSum.eventually (lt_mem_nhds h_finite_subset) |>.exists
     use F.image Subtype.val
     simp_all
 
