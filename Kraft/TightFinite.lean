@@ -316,7 +316,7 @@ theorem kraft_inequality_tight (l : I → ℕ)
             · convert mul_le_mul_of_nonneg_left h_sum_half zero_le_two using 1 <;> norm_num [ pow_succ', Finset.mul_sum _ _ _ ]
               exact Finset.sum_congr rfl fun i _ => by rw [ show l i = l' i + 1 by rw [ Nat.sub_add_cancel ( Nat.pos_of_ne_zero fun hi => h_exists_zero ⟨ i, hi ⟩ ) ] ]; ring
           use fun i => false :: w' i
-          simp_all +decide [ Function.Injective, PrefixFree ]
+          simp_all [ Function.Injective, PrefixFree ]
           exact ⟨ hw'_inj, hw'_prefix, fun i => Nat.succ_pred_eq_of_pos ( Nat.pos_of_ne_zero ( h_exists_zero i ) ) ⟩
         · -- Otherwise, we can find a subset $S \subseteq I$ such that $\sum_{i \in S} 2^{-\ell(i)} = \frac{1}{2}$.
           obtain ⟨S, hS⟩ : ∃ S : Finset I, (∑ i ∈ S, (1 / 2 : ℝ) ^ (l i)) = 1 / 2 := by
@@ -366,7 +366,7 @@ theorem kraft_inequality_tight (l : I → ℕ)
                                      else true  :: w1 ⟨i, hi⟩
           refine' ⟨ _, _, _ ⟩
           · intro i j hij
-            by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp +decide [ hi, hj ] at hij ⊢
+            by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp [ hi, hj ] at hij ⊢
             · exact Subtype.ext_iff.mp ( hw0_inj hij )
             · exact congr_arg Subtype.val ( hw1_inj hij )
           ·
@@ -383,68 +383,17 @@ theorem kraft_inequality_tight (l : I → ℕ)
             have hy' : y ∈ range w := by simpa using hy
             rcases Finset.mem_image.mp (hy') with ⟨j, hjU, rfl⟩
 
-            by_cases hi : i ∈ S <;> by_cases hj : j ∈ S
-            · -- i∈S, j∈S
-              -- reduce the prefix fact to the tails
-              have hxy' : (false :: w0 ⟨i, hi⟩) <+: (false :: w0 ⟨j, hj⟩) := by
-                simpa [w, hi, hj] using hxy
-              rcases hxy' with ⟨t, ht⟩
-              -- ht : 0 :: w0 j = (0 :: w0 i) ++ t
-              have ht_tail : w0 ⟨i, hi⟩ <+: w0 ⟨j, hj⟩ := by
-                refine ⟨t, ?_⟩
-                -- strip the leading cons from ht
-                have : false :: (w0 ⟨i, hi⟩ ++ t) = (false :: w0 ⟨j, hj⟩) := by
-                  simpa [List.cons_append] using ht
-                exact (List.cons.inj this).2
-
-              -- membership facts for hw0_prefix
-              have mem_i : w0 ⟨i, hi⟩ ∈ range w0 := by simp
-              have mem_j : w0 ⟨j, hj⟩ ∈ range w0 := by simp
-
-              have tail_eq : w0 ⟨i, hi⟩ = w0 ⟨j, hj⟩ :=
-                hw0_prefix _ mem_i _ mem_j ht_tail
-
-              simp [w, hi, hj, tail_eq]
-
-            · -- i∈S, j∉S : impossible (0 :: …) <+: (1 :: …)
-              have hxy' : (false :: w0 ⟨i, hi⟩) <+: (true :: w1 ⟨j, hj⟩) := by
-                simp [w, hi, hj] at hxy
-              rcases hxy' with ⟨t, ht⟩
-              -- ht : 1 :: w1 j = (0 :: w0 i) ++ t = 0 :: (w0 i ++ t)
-              have : true = false := by
-                have : (true :: w1 ⟨j, hj⟩) = false :: (w0 ⟨i, hi⟩ ++ t) := by
-                  simp [List.cons_append] at ht
-                exact (List.cons.inj this).1
-              cases this
-
-            · -- i∉S, j∈S : impossible (1 :: …) <+: (0 :: …)
-              have hxy' : (true :: w1 ⟨i, hi⟩) <+: (false :: w0 ⟨j, hj⟩) := by
-                simp [w, hi, hj] at hxy
-              rcases hxy' with ⟨t, ht⟩
-              have : (false :: w0 ⟨j, hj⟩) = true :: (w1 ⟨i, hi⟩ ++ t) := by
-                simp [List.cons_append] at ht
-              have : false = true := by
-                exact (List.cons.inj this).1
-              cases this
-
-            · -- i∉S, j∉S
-              have hxy' : (true :: w1 ⟨i, hi⟩) <+: (true :: w1 ⟨j, hj⟩) := by
-                 simpa [w, hi, hj] using hxy
-              rcases hxy' with ⟨t, ht⟩
-              have ht_tail : w1 ⟨i, hi⟩ <+: w1 ⟨j, hj⟩ := by
-                refine ⟨t, ?_⟩
-                have : true :: (w1 ⟨i, hi⟩ ++ t) = (true :: w1 ⟨j, hj⟩)  := by
-                  simpa [List.cons_append] using ht
-
-                exact (List.cons.inj this).2
-
-              have mem_i : w1 ⟨i, hi⟩ ∈ range w1 := by simp
-              have mem_j : w1 ⟨j, hj⟩ ∈ range w1 := by simp
-
-              have tail_eq : w1 ⟨i, hi⟩ = w1 ⟨j, hj⟩ :=
-                hw1_prefix _ mem_i _ mem_j ht_tail
-
-              simp [w, hi, hj, tail_eq]
+            by_cases hi : i ∈ S <;> by_cases hj : j ∈ S <;> simp only [w, hi, hj] at hxy ⊢
+            · -- i∈S, j∈S: use prefix-freeness of w0
+              have := (List.cons_prefix_cons (a := false)).mp hxy
+              exact congrArg _ (hw0_prefix _ (by simp) _ (by simp) this.2)
+            · -- i∈S, j∉S: impossible (false :: …) <+: (true :: …)
+              exact absurd (List.cons_prefix_cons.mp hxy).1 Bool.false_ne_true
+            · -- i∉S, j∈S: impossible (true :: …) <+: (false :: …)
+              exact absurd (List.cons_prefix_cons.mp hxy).1.symm Bool.false_ne_true
+            · -- i∉S, j∉S: use prefix-freeness of w1
+              have := (List.cons_prefix_cons (a := true)).mp hxy
+              exact congrArg _ (hw1_prefix _ (by simp) _ (by simp) this.2)
           ·
             have hpos (i : I) : 0 < l i :=
               Nat.pos_of_ne_zero (by intro h0; exact h_exists_zero ⟨i, h0⟩)
