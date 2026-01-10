@@ -55,14 +55,15 @@ lemma exists_subset_of_multiset_le_map (f : I → ℕ) (m : Multiset ℕ)
           exact this
 
         -- 3. Conclude u = v, therefore x ∈ S v
-        simp_all
+        simp_all only [ne_eq, Multiset.mem_toFinset]
       · simp [ Finset.mem_biUnion ]
         exact fun x hx => ⟨ v, Multiset.mem_toFinset.mp hv, hx, Finset.mem_filter.mp ( hS₁ v hv hx ) |>.2 ⟩
     obtain ⟨ S, hS ⟩ := h_union
     use S.filter (fun i => f i ∈ m)
     ext v
-    by_cases hv : v ∈ m <;> simp_all [ Multiset.count_map ]
-    · convert hS v hv using 1
+    by_cases hv : v ∈ m
+    · simp_all only [ne_eq, Multiset.mem_toFinset, Finset.filter_val, Multiset.count_map, Multiset.filter_filter]
+      convert hS v hv using 1
       exact congr_arg Finset.card (Finset.filter_congr fun x hx => by
         apply Iff.intro
         · intro a
@@ -71,7 +72,8 @@ lemma exists_subset_of_multiset_le_map (f : I → ℕ) (m : Multiset ℕ)
           subst a
           simp_all only [and_self]
       )
-    · intro a a_1 a_2
+    · simp_all only [Finset.filter_val, Multiset.count_map, Multiset.filter_filter, not_false_eq_true, Multiset.count_eq_zero_of_notMem, Multiset.card_eq_zero, Multiset.filter_eq_nil, not_and]
+      intro a a_1 a_2
       subst a_2
       exact hv
   exact h _ h_union.choose_spec
@@ -85,7 +87,7 @@ lemma pairwise_monotone
     List.pairwise_iff_get.mp h_sorted
   have hi : i < l.length := lt_trans hij hj
   have := hget ⟨i, hi⟩ ⟨j, hj⟩ (by simpa using hij)
-  simp_all
+  simp_all only [List.get_eq_getElem, getElem!_pos]
 
 /-- If a sorted list of lengths has Kraft sum ≥ 1, some prefix has Kraft sum exactly 1.
 
@@ -117,7 +119,7 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
       have hkpos' : k.sub 0 ≠ 0 := by
         -- i < k-1 forces k ≠ 0
         intro hk0
-        have : k - 1 = 0 := by simp_all
+        have : k - 1 = 0 := by simp_all only [one_div, inv_pow, ge_iff_le, List.getElem!_eq_getElem?_getD, Nat.default_eq_zero, Nat.sub_eq, tsub_zero, zero_tsub]
         omega
       have hk1 : k - 1 < l.length := by
         obtain ⟨hklen, _⟩ := hk
@@ -141,9 +143,12 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
     exact Nat.le_sub_one_of_lt ( by rw [ ← @Nat.cast_lt ℝ ] ; push_cast; rw [ hM, div_lt_one ( by positivity ) ] at this; linarith )
   -- Now consider $s_k = s_{k-1} + (1/2)^{l_k} = (M + 1) / 2^{l_k}$.
   have hsk : (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) = (M + 1) / 2 ^ l[k - 1]! := by
-    rcases k <;> simp_all [Finset.sum_range_succ]
-    · linarith
-    · ring
+    rcases k
+    · simp_all only [zero_le, Finset.range_zero, Finset.sum_empty, not_lt_zero, IsEmpty.forall_iff]
+      linarith
+    · simp_all only [one_div, inv_pow, Finset.sum_range_succ, add_tsub_cancel_right]
+      ring
+
   -- Since $s_k \geq 1$, we have $M + 1 \geq 2^{l_k}$.
   have hM_ge : M + 1 ≥ 2 ^ l[k - 1]! := by
     exact_mod_cast ( by rw [ hsk ] at hk; rw [ ge_iff_le ] at hk; rw [ le_div_iff₀ ( by positivity ) ] at hk; linarith : ( 2 : ℝ ) ^ l[k - 1]! ≤ M + 1 )
@@ -166,12 +171,18 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
         rw [Finset.sum_range_succ]
         -- 2. Split the list on the right (take (k+1) -> take k ++ [l[k]])
         have h_take : l.take (k + 1) = l.take k ++ [l.get ⟨k, Nat.lt_of_succ_le hk⟩] := by
-          simp_all
+          simp_all only [one_div, inv_pow, ge_iff_le, List.getElem!_eq_getElem?_getD, Nat.default_eq_zero, Nat.ofNat_pos,
+            pow_pos, Nat.cast_pred, Nat.cast_pow, Nat.cast_ofNat, le_refl, sub_add_cancel, ne_eq, pow_eq_zero_iff',
+            OfNat.ofNat_ne_zero, false_and, not_false_eq_true, div_self, List.map_take, List.get_eq_getElem,
+            List.take_append_getElem]
         rw [h_take, List.map_append, List.sum_append]
         -- 3. Use IH for the prefix
         rw [ih (Nat.le_of_succ_le hk)]
         -- 4. Prove the last terms are equal
-        simp_all [lt_of_lt_of_le (Nat.lt_succ_self k) hk]
+        simp_all only [lt_of_lt_of_le (Nat.lt_succ_self k) hk, Nat.ofNat_pos,
+                      pow_pos, Nat.cast_pred, le_refl, sub_add_cancel,  List.get_eq_getElem,
+                      List.take_append_getElem, getElem!_pos, List.map_cons, List.map_nil,
+                      List.sum_cons, List.sum_nil, add_zero]
     rw [ h_sum_eq l k hk.1 ]
 
 /-- If the Kraft sum over a finite index set is ≥ 1, there exists a subset with sum exactly 1.
@@ -187,13 +198,13 @@ lemma exists_subset_sum_eq_one (l : I → ℕ)
     -- Let $ℓ'$ be the list of values of $l$ on the elements of $I$.
     obtain ⟨ℓ', hℓ'⟩ : ∃ ℓ' : List ℕ, List.length ℓ' = n ∧ Multiset.ofList ℓ' = Multiset.map l Finset.univ.val := by
       use Finset.univ.val.map l |> Multiset.toList
-      simp_all [n]
+      simp_all only [n, Multiset.length_toList, Multiset.card_map, Finset.card_val, Finset.card_univ, Multiset.coe_toList, and_self]
     use fun i => ℓ'.get (i.cast hℓ'.1.symm) -- Cast the Fin n to a valid index for ℓ'
     convert hℓ'.2 using 2
     have h_len : (List.ofFn fun i : Fin n => ℓ'.get (i.cast hℓ'.1.symm)).length = ℓ'.length := by
       simp only [List.length_ofFn, hℓ'.1]
     refine' List.ext_get h_len _
-    simp_all
+    simp_all only [List.get_eq_getElem, Fin.coe_cast, List.getElem_ofFn, implies_true]
   -- Apply `exists_prefix_sum_eq_one_of_sorted` to the sorted list.
   obtain ⟨l'', hl''⟩ : ∃ l'' : List ℕ, l''.Perm (List.ofFn ℓ') ∧ List.Pairwise (· ≤ ·) l'' ∧ (l''.map (fun x => (1 / 2 : ℝ) ^ x)).sum ≥ 1 := by
     refine' ⟨ List.ofFn ℓ' |> List.insertionSort ( · ≤ · ), _, _, _ ⟩
@@ -202,7 +213,7 @@ lemma exists_subset_sum_eq_one (l : I → ℕ)
     · have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum = ∑ i, (1 / 2 : ℝ) ^ (l i) := by
         have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum = Multiset.sum (Multiset.map (fun x => (1 / 2 : ℝ) ^ x) (Multiset.ofList (List.ofFn ℓ'))) := by
           rfl
-        simp_all
+        simp_all only [ Multiset.map_map, Function.comp_apply, Finset.sum_map_val]
       have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.insertionSort (· ≤ ·) (List.ofFn ℓ'))).sum = (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum := by
         have h_sum_eq : List.Perm (List.insertionSort (· ≤ ·) (List.ofFn ℓ')) (List.ofFn ℓ') := by
           exact List.perm_insertionSort (fun x1 x2 ↦ x1 ≤ x2) (List.ofFn ℓ')
@@ -218,7 +229,7 @@ lemma exists_subset_sum_eq_one (l : I → ℕ)
       exact hl'''.1.sublist.subperm
     exact h_subset.trans ( by rw [ ← hℓ' ] ; exact Multiset.le_iff_exists_add.mpr ⟨ ∅, by simp [ hl''.1.symm ] ⟩ )
   replace hS := congr_arg ( fun m => Multiset.sum ( m.map fun x => ( 1 / 2 : ℝ ) ^ x ) ) hS
-  simp_all
+  simp_all only [Multiset.map_map, Multiset.map_coe, Multiset.sum_coe]
   apply Exists.intro
   exact hS
 
@@ -255,7 +266,7 @@ theorem kraft_inequality_tight (l : I → ℕ)
     | zero =>
       intro I _ _ l hl hsum
       by_cases hI : Nonempty I
-      · simp_all
+      · simp_all only [nonpos_iff_eq_zero, pow_zero, Finset.sum_const, Finset.card_univ, nsmul_eq_mul, mul_one, Nat.cast_le_one]
         interval_cases z : Fintype.card I <;> simp_all [ Fintype.card_eq_one_iff ]
         obtain ⟨w, h_1⟩ := z
         simp_all only [forall_const]
@@ -265,7 +276,7 @@ theorem kraft_inequality_tight (l : I → ℕ)
             simp_all only
           · constructor
             · intro x a y a_1 a_2
-              simp_all
+              simp_all only [Set.mem_range, exists_const]
             · rfl
       · -- hI : ¬ Nonempty I
         haveI : IsEmpty I := ⟨fun i => hI ⟨i⟩⟩
@@ -289,7 +300,7 @@ theorem kraft_inequality_tight (l : I → ℕ)
           -- So the sum over remaining elements must be 0
           have h_rest_zero : ∑ i ∈ Finset.univ.erase i₀, (1 / 2 : ℝ) ^ l i = 0 := by
             have h1 : ∑ i, (1 / 2 : ℝ) ^ l i = 1 := le_antisymm hsum h_sum_ge
-            simp_all
+            simp_all only [not_exists, not_and, Finset.mem_univ, Finset.sum_erase_eq_sub, pow_zero, sub_self]
           -- A sum of positive terms is 0 only if the set is empty
           have h_empty : Finset.univ.erase i₀ = ∅ := by
             by_contra h_ne
@@ -316,7 +327,9 @@ theorem kraft_inequality_tight (l : I → ℕ)
             · convert mul_le_mul_of_nonneg_left h_sum_half zero_le_two using 1 <;> norm_num [ pow_succ', Finset.mul_sum _ _ _ ]
               exact Finset.sum_congr rfl fun i _ => by rw [ show l i = l' i + 1 by rw [ Nat.sub_add_cancel ( Nat.pos_of_ne_zero fun hi => h_exists_zero ⟨ i, hi ⟩ ) ] ]; ring
           use fun i => false :: w' i
-          simp_all [ Function.Injective, PrefixFree ]
+          simp_all only [Function.Injective, PrefixFree, range, Finset.coe_image, Finset.coe_univ,
+                         Set.image_univ, Set.mem_range, forall_exists_index, forall_apply_eq_imp_iff, not_exists,
+                         List.cons.injEq, true_and, List.cons_prefix_cons, List.length_cons]
           exact ⟨ hw'_inj, hw'_prefix, fun i => Nat.succ_pred_eq_of_pos ( Nat.pos_of_ne_zero ( h_exists_zero i ) ) ⟩
         · -- Otherwise, we can find a subset $S \subseteq I$ such that $\sum_{i \in S} 2^{-\ell(i)} = \frac{1}{2}$.
           obtain ⟨S, hS⟩ : ∃ S : Finset I, (∑ i ∈ S, (1 / 2 : ℝ) ^ (l i)) = 1 / 2 := by
