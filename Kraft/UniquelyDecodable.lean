@@ -3,6 +3,8 @@ import Kraft.Basic
 
 namespace Kraft
 
+variable {α : Type _}
+
 /-- Prefix-free codes are uniquely decodable (assuming the empty string is excluded).
 
 If `S` is prefix-free (no codeword is a prefix of another) and `[] ∉ S`, then `S`
@@ -10,10 +12,10 @@ is uniquely decodable: any concatenation of codewords can be parsed in exactly o
 
 The proof proceeds by strong induction on the total length of the concatenated string.
 At each step, the first codeword is uniquely determined by the prefix-free property. -/
-theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFree (S : Set (List Bool))) (h_eps : [] ∉ S) :
-    UniquelyDecodable (S : Set (List Bool)) := by
+theorem prefix_free_is_uniquely_decodable (S : Finset (List α)) (h : PrefixFree (S : Set (List α))) (h_eps : [] ∉ S) :
+    UniquelyDecodable (S : Set (List α)) := by
   -- We prove by strong induction on $|x|$ that every word $x \in \{0,1\}^*$ can be written in at most one way as $x = w_1 \dots w_r$ (for any $r$), where $w_1,\dots,w_r \in S$.
-  have h_induction : ∀ x : List Bool, ∀ L1 L2 : List (List Bool), (∀ w ∈ L1, w ∈ S) → (∀ w ∈ L2, w ∈ S) → L1.flatten = L2.flatten → L1 = L2 := by
+  have h_induction : ∀ x : List α, ∀ L1 L2 : List (List α), (∀ w ∈ L1, w ∈ S) → (∀ w ∈ L2, w ∈ S) → L1.flatten = L2.flatten → L1 = L2 := by
     intros x L1 L2 hL1 hL2 hflatten
     induction L1 generalizing L2 with
     | nil => induction L2
@@ -52,8 +54,8 @@ theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFr
 This variant avoids explicitly assuming `[] ∉ S` by deriving it from the cardinality
 constraint: if `|S| ≥ 2` and `S` is prefix-free, then `[]` cannot be in `S`
 (since `[]` is a prefix of every other string). -/
-theorem prefix_free_is_uniquely_decodable_of_card_ge_two (S : Finset (List Bool)) (h : PrefixFree (S: Set (List Bool))) (h_card : S.card ≥ 2) :
-    UniquelyDecodable (S: Set (List Bool)) := by
+theorem prefix_free_is_uniquely_decodable_of_card_ge_two (S : Finset (List α)) (h : PrefixFree (S: Set (List α))) (h_card : S.card ≥ 2) :
+    UniquelyDecodable (S: Set (List α)) := by
   have h_eps_not_mem : [] ∉ S := by
     intro h0
     obtain ⟨ w, hw, hw' ⟩ := Finset.exists_of_ssubset (Finset.ssubset_iff_subset_ne.mpr ⟨ Finset.singleton_subset_iff.mpr h0, by
