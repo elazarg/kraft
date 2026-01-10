@@ -34,7 +34,7 @@ theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
         positivity
       · intro u
         specialize h_finite_subset ( u.image Subtype.val )
-        simp_all
+        simp_all only [Finset.coe_image, Set.image_subset_iff, Subtype.coe_preimage_self, Set.subset_univ, Subtype.forall, Subtype.mk.injEq, implies_true, Set.injOn_of_eq_iff_eq, Finset.sum_image]
     exact h_summable.hasSum
   · contrapose! h_finite_subset
     -- Since the series is summable, there exists a finite subset $F$ of $S$ such that $\sum_{w \in F} 2^{-|w|} > 1$.
@@ -45,6 +45,6 @@ theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
         norm_num at h_finite_subset
       exact h_summable.hasSum.eventually (lt_mem_nhds h_finite_subset) |>.exists
     use F.image Subtype.val
-    simp_all
+    simp_all only [Finset.coe_image, Set.image_subset_iff, Subtype.coe_preimage_self, Set.subset_univ, Subtype.forall, Subtype.mk.injEq, implies_true, Set.injOn_of_eq_iff_eq, Finset.sum_image, and_self]
 
 end Kraft

@@ -70,7 +70,7 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree (S : Set (List
   have cylinder_card (w : List Bool) : (cylinder w).card = 2^(n - w.length) := by
     have hinj : Function.Injective (fun z : List Bool => w ++ z) := by
       intro a b hab
-      simp_all
+      simp_all only [ne_eq, List.append_cancel_left_eq]
     -- cylinder w = image (w++·) (all_words (n - |w|))
     simp [cylinder, Finset.card_image_of_injective, hinj, all_words_card]
 

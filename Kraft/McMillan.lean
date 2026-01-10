@@ -28,7 +28,7 @@ lemma epsilon_not_mem_of_uniquely_decodable (h : UniquelyDecodable (S: Set (List
     intro x hx
     have := h
     specialize this [ x ] [ x, x ]
-    simp_all
+    simp_all only [List.mem_cons, List.not_mem_nil, or_false, SetLike.mem_coe,  or_self, List.flatten_cons, List.self_eq_append_left, List.ne_cons_self, imp_false, forall_const, ne_eq, not_false_eq_true]
   exact fun h => h_empty _ h rfl
 
 /-- If `S` is uniquely decodable, then the concatenation map from `S^r` to strings is injective.
@@ -79,7 +79,7 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
       · simp
       · simp [ funext_iff ]
       · exact fun b _ => ⟨ fun i _ => b i |>.1, Finset.mem_pi.mpr fun i _ => b i |>.2, rfl ⟩
-      · simp_all
+      · simp_all only [Finset.prod_attach_univ, implies_true]
   -- Since the map $(w_1,\dots,w_r) \mapsto w_1 \cdots w_r$ is injective, the sum $\sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$ is at most $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}$.
   have h_injective : ∑ w : Fin r → S, (1 / 2 : ℝ) ^ ((List.ofFn (fun i => (w i).val)).flatten.length) ≤ ∑ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / 2 : ℝ) ^ x.length := by
     rw [← Finset.sum_biUnion]
@@ -97,7 +97,9 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
           exact ne_of_gt (List.length_pos_iff.mpr (ne_of_mem_of_not_mem (a i).2 (epsilon_not_mem_of_uniquely_decodable h)))
         -- Upper bound: length ≤ r * ℓ (each codeword has length ≤ ℓ)
         · rw [List.length_flatten, List.map_ofFn, List.sum_ofFn]
-          exact le_trans (Finset.sum_le_sum fun i _ => Finset.le_sup (f := List.length) (a i).2) (by simp_all)
+          exact le_trans (Finset.sum_le_sum fun i _ => Finset.le_sup (f := List.length) (a i).2) (by
+            simp_all only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, smul_eq_mul, le_refl]
+          )
       -- Injectivity: follows from unique decodability
       · intro a₁ _ a₂ _ h_eq
         exact uniquely_decodable_extension_injective h r h_eq
@@ -106,7 +108,9 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
       -- Surjectivity onto image
       · simp
     · intro _ _ _ _ hxy
-      exact Finset.disjoint_left.mpr fun z hz1 hz2 => hxy (by simp_all)
+      exact Finset.disjoint_left.mpr fun z hz1 hz2 => hxy (by
+        simp_all only [ne_eq, Finset.mem_filter]
+      )
   -- Since $\sum_{x \in \{0,1\}^s} 2^{-|x|} = 1$ for any $s$, we have $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|} = \sum_{s=r}^{r\ell} 1 = r\ell - r + 1 \le r\ell$.
   have h_sum_one : ∀ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / 2 : ℝ) ^ x.length ≤ 1 := by
     intros s hs
@@ -131,18 +135,7 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
         refine ⟨(fun j : Fin s => x.get ⟨j.1, by simp [hxlen]⟩), ?_⟩
 
         -- prove List.ofFn f = x
-        apply List.ext_get
-        · -- lengths
-          simp [List.length_ofFn]
-          simp_all
-        · intro n hn_ofFn hn_x
-          -- turn hn_ofFn : n < (List.ofFn f).length into n < s
-          have hn_s : n < s := by
-            simpa [List.length_ofFn] using hn_ofFn
-          -- the "derived" proof that n < x.length coming from hn_s and hxlen
-          have hn_x' : n < x.length := by
-            simpa [hxlen] using hn_s
-          simp [x]
+        apply List.ext_get <;> (subst s; simp [x])
 
       exact h_card.trans ( Finset.card_image_le.trans ( by norm_num [ Finset.card_univ ] ) )
     refine' le_trans ( Finset.sum_le_sum fun x hx => _ ) _
