@@ -20,14 +20,14 @@ theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFr
              · rfl
              · simp_all only [List.mem_cons,  List.not_mem_nil, IsEmpty.forall_iff, List.flatten_cons, List.append_left_eq_self, List.nil_eq, forall_const, forall_eq_or_imp, List.flatten_nil, List.append_eq_nil_iff, and_true]
     | cons w1 L1 ih =>
-      rcases L2 with ( _ | ⟨ x, L2 ⟩ )
+      rcases L2 with (_ | ⟨ x, L2 ⟩)
       · simp_all only [List.mem_cons, forall_eq_or_imp, List.flatten, List.append_eq, List.append_eq_nil_iff, false_and]
       · simp_all only [List.mem_cons, forall_eq_or_imp, List.flatten, List.append_eq]
         -- Since $w1$ and $x$ are both in $S$ and $S$ is prefix-free, we must have $w1 = x$.
         have hw1_eq_x : x = w1 := by
           have := h _ hL1.1 _ hL2.1
           have := h _ hL2.1 _ hL1.1
-          rw [ List.append_eq_append_iff ] at hflatten
+          rw [List.append_eq_append_iff] at hflatten
           -- `hflatten` is one of the two "overlap" cases
           cases hflatten with
           | inl hcase =>
@@ -45,7 +45,7 @@ theorem prefix_free_is_uniquely_decodable (S : Finset (List Bool)) (h : PrefixFr
         · intro w a
           simp_all only
         · simp_all only
-  exact fun L1 L2 h1 h2 h3 => h_induction ( L1.flatten ) L1 L2 h1 h2 h3
+  exact fun L1 L2 h1 h2 h3 => h_induction (L1.flatten) L1 L2 h1 h2 h3
 
 /-- Prefix-free codes with at least two codewords are uniquely decodable.
 
@@ -56,11 +56,11 @@ theorem prefix_free_is_uniquely_decodable_of_card_ge_two (S : Finset (List Bool)
     UniquelyDecodable (S: Set (List Bool)) := by
   have h_eps_not_mem : [] ∉ S := by
     intro h0
-    obtain ⟨ w, hw, hw' ⟩ := Finset.exists_of_ssubset ( Finset.ssubset_iff_subset_ne.mpr ⟨ Finset.singleton_subset_iff.mpr h0, by
+    obtain ⟨ w, hw, hw' ⟩ := Finset.exists_of_ssubset (Finset.ssubset_iff_subset_ne.mpr ⟨ Finset.singleton_subset_iff.mpr h0, by
       intro a
       subst a
       simp_all only [Finset.card_singleton, ge_iff_le, Nat.reduceLeDiff]
-    ⟩ )
+    ⟩)
     specialize h _ h0 _ hw
     simp_all only [List.nil_prefix, Finset.mem_singleton]
   exact prefix_free_is_uniquely_decodable S h h_eps_not_mem

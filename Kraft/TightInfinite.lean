@@ -26,7 +26,7 @@ lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
     (h : natToBits n width = natToBits m width) : n = m := by
       refine' Nat.eq_of_testBit_eq fun i => _
       by_cases hi : i < width
-      · replace h := congr_arg ( fun l => l[width - 1 - i ]! ) h
+      · replace h := congr_arg (fun l => l[width - 1 - i]!) h
         unfold Kraft.natToBits at h
         simp_all only [Nat.shiftRight_eq_div_pow, Nat.testBit, Nat.shiftRight_eq_div_pow]
 
@@ -47,8 +47,8 @@ lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
         simpa [Nat.beq_eq_true_eq, decide_eq_decide] using hbool
 
       · simp_all only [not_lt, Nat.testBit]
-        rw [ Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow ]
-        rw [ Nat.div_eq_of_lt ( lt_of_lt_of_le hn ( Nat.pow_le_pow_right ( by decide ) hi ) ), Nat.div_eq_of_lt ( lt_of_lt_of_le hm ( Nat.pow_le_pow_right ( by decide ) hi ) ) ]
+        rw [Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow]
+        rw [Nat.div_eq_of_lt (lt_of_lt_of_le hn (Nat.pow_le_pow_right (by decide) hi)), Nat.div_eq_of_lt (lt_of_lt_of_le hm (Nat.pow_le_pow_right (by decide) hi))]
 
 /-- `natToBits n w` is a prefix of `natToBits m v` iff `w ≤ v` and `m` lies in the
 dyadic interval `[n·2^{v-w}, (n+1)·2^{v-w})`. This characterizes when two codewords
@@ -64,10 +64,10 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
         -- If `natToBits n w` is a prefix of `natToBits m v`, then `m >> (v - w) = n`.
         have h_shift : m / 2 ^ (v - w) = n := by
           have h_shift : ∀ k < w, m.testBit (v - 1 - k) = n.testBit (w - 1 - k) := by
-            rw [ Kraft.natToBits, Kraft.natToBits ] at h_1
+            rw [Kraft.natToBits, Kraft.natToBits] at h_1
             obtain ⟨ k, hk ⟩ := h_1
             intro i hi
-            replace hk := congr_arg ( fun l => l[i]! ) hk
+            replace hk := congr_arg (fun l => l[i]!) hk
             have hiv : i < v := lt_of_lt_of_le hi h_le
             have hnmi : m.testBit (v - 1 - i) = n.testBit (w - 1 - i) := by
                 -- 1. Accessing index 'i' in 'L1 ++ k' falls into 'L1' because i < length L1
@@ -81,34 +81,34 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
             exact hnmi
           refine' Nat.eq_of_testBit_eq _
           intro i
-          specialize h_shift ( w - 1 - i )
-          rcases lt_trichotomy i ( w - 1 ) with hi | rfl | hi
+          specialize h_shift (w - 1 - i)
+          rcases lt_trichotomy i (w - 1) with hi | rfl | hi
           · simp_all only [Nat.testBit]
-            convert h_shift ( by omega ) using 2 <;> norm_num [ Nat.shiftRight_eq_div_pow ]
-            · rw [ Nat.div_div_eq_div_mul ]
-              rw [ ← pow_add, show v - w + i = v - 1 - ( w - 1 - i ) by omega ]
-            · rw [ Nat.sub_sub_self ( by omega ) ]
+            convert h_shift (by omega) using 2 <;> norm_num [Nat.shiftRight_eq_div_pow]
+            · rw [Nat.div_div_eq_div_mul]
+              rw [← pow_add, show v - w + i = v - 1 - (w - 1 - i) by omega]
+            · rw [Nat.sub_sub_self (by omega)]
           · simp_all only [Nat.testBit]
-            rcases w with ( _ | w )
+            rcases w with (_ | w)
             · simp_all only [pow_zero, Nat.lt_one_iff, tsub_zero, Nat.shiftRight_eq_div_pow, Nat.one_and_eq_mod_two, Nat.mod_two_bne_zero]
-              rw [ Nat.div_eq_of_lt hm, Nat.zero_mod ]
+              rw [Nat.div_eq_of_lt hm, Nat.zero_mod]
             · simp_all only [tsub_self, tsub_zero, Nat.shiftRight_eq_div_pow]
               convert h_shift using 1
-              rw [ show v - 1 = v - ( w + 1 ) + w by omega, pow_add ]
-              norm_num [ Nat.div_div_eq_div_mul ]
+              rw [show v - 1 = v - (w + 1) + w by omega, pow_add]
+              norm_num [Nat.div_div_eq_div_mul]
           · simp_all only [Nat.testBit]
-            rw [ Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow ]
-            rw [ Nat.div_eq_of_lt, Nat.div_eq_of_lt ]
-            · exact hn.trans_le ( Nat.pow_le_pow_right ( by decide ) ( by omega ) )
-            · rw [ Nat.div_lt_iff_lt_mul <| by positivity ]
-              rw [ ← pow_add ]
-              exact hm.trans_le ( pow_le_pow_right₀ ( by decide ) ( by omega ) )
-        exact ⟨ h_le, by nlinarith [ Nat.div_mul_le_self m ( 2 ^ ( v - w ) ), pow_pos ( zero_lt_two' ℕ ) ( v - w ) ], by nlinarith [ Nat.div_add_mod m ( 2 ^ ( v - w ) ), Nat.mod_lt m ( pow_pos ( zero_lt_two' ℕ ) ( v - w ) ), pow_pos ( zero_lt_two' ℕ ) ( v - w ) ] ⟩
+            rw [Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow]
+            rw [Nat.div_eq_of_lt, Nat.div_eq_of_lt]
+            · exact hn.trans_le (Nat.pow_le_pow_right (by decide) (by omega))
+            · rw [Nat.div_lt_iff_lt_mul <| by positivity]
+              rw [← pow_add]
+              exact hm.trans_le (pow_le_pow_right₀ (by decide) (by omega))
+        exact ⟨ h_le, by nlinarith [Nat.div_mul_le_self m (2 ^ (v - w)), pow_pos (zero_lt_two' ℕ) (v - w)], by nlinarith [Nat.div_add_mod m (2 ^ (v - w)), Nat.mod_lt m (pow_pos (zero_lt_two' ℕ) (v - w)), pow_pos (zero_lt_two' ℕ) (v - w)] ⟩
       · -- Since $m$ lies in the dyadic interval corresponding to $n$, the binary representation of $m$ starts with the binary representation of $n$.
         have h_binary : ∀ i : Fin w, (m.testBit (v - 1 - i)) = (n.testBit (w - 1 - i)) := by
           intro i
           have h_div : m / 2 ^ (v - w) = n := by
-            exact Nat.le_antisymm ( Nat.le_of_lt_succ <| Nat.div_lt_of_lt_mul <| by linarith ) ( Nat.le_div_iff_mul_le ( by positivity ) |>.2 <| by linarith )
+            exact Nat.le_antisymm (Nat.le_of_lt_succ <| Nat.div_lt_of_lt_mul <| by linarith) (Nat.le_div_iff_mul_le (by positivity) |>.2 <| by linarith)
           -- 1. Replace n with the division form given in h_div
           rw [← h_div]
 
@@ -126,15 +126,15 @@ lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
           have hwv : w ≤ v := h_1.1
           omega
         unfold Kraft.natToBits
-        refine' ⟨ List.ofFn fun i : Fin ( v - w ) => m.testBit ( v - 1 - ( w + i ) ), _ ⟩
+        refine' ⟨ List.ofFn fun i : Fin (v - w) => m.testBit (v - 1 - (w + i)), _ ⟩
         refine' List.ext_get _ _
         · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le]
         · simp_all only [List.get_eq_getElem, List.getElem_append, List.getElem_ofFn]
           intro i hi
           split_ifs
-          · simp_all only [ List.length_append, List.length_ofFn, add_tsub_cancel_of_le, forall_const]
-            exact Eq.symm ( h_binary ⟨ i, by linarith ⟩ )
-          · simp_all only [ List.length_append, List.length_ofFn, add_tsub_cancel_of_le, not_lt, imp_self]
+          · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le, forall_const]
+            exact Eq.symm (h_binary ⟨ i, by linarith ⟩)
+          · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le, not_lt, imp_self]
 
 /-- The "address" function for constructing prefix-free codes.
 
@@ -156,13 +156,13 @@ lemma kraft_A_div_pow_eq_sum (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
         simp_all only [one_div, inv_pow, Finset.sum_range_succ]
         have h_sub : (Kraft.kraft_A l (Nat.succ ‹_›) : ℝ) = (Kraft.kraft_A l ‹_› + 1) * 2 ^ (l (Nat.succ ‹_›) - l ‹_›) := by
           norm_cast
-        rw [ ← ‹ ( Kraft.kraft_A l _ : ℝ ) / 2 ^ l _ = ∑ x ∈ Finset.range _, ( 2 ^ l x ) ⁻¹ ›, h_sub ]
-        rw [ show l ( _ + 1 ) = l _ + ( l ( _ + 1 ) - l _ ) by rw [ Nat.add_sub_of_le ( h_mono ( Nat.le_succ _ ) ) ] ]
+        rw [← ‹ (Kraft.kraft_A l _ : ℝ) / 2 ^ l _ = ∑ x ∈ Finset.range _, (2 ^ l x) ⁻¹ ›, h_sub]
+        rw [show l (_ + 1) = l _ + (l (_ + 1) - l _) by rw [Nat.add_sub_of_le (h_mono (Nat.le_succ _))]]
         ring_nf
         -- Combine like terms and simplify the expression.
         field_simp
         ring_nf
-        norm_num [ ← mul_pow ]
+        norm_num [← mul_pow]
 
 /-- Converse of Kraft's inequality for monotone length sequences indexed by ℕ.
 
@@ -192,7 +192,7 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
             lt_of_lt_of_le (lt_of_lt_of_le h_lt_succ h_le_tsum) h_sum
           rw [<-h_eq, div_lt_one (by positivity)] at h_lt_one
           exact_mod_cast h_lt_one
-        refine' ⟨ fun n => natToBits ( kraft_A l n ) ( l n ), _, _, _ ⟩
+        refine' ⟨ fun n => natToBits (kraft_A l n) (l n), _, _, _ ⟩
         · intro n m hnm
           -- Since $kraft_A n < 2^{l n}$ and $kraft_A m < 2^{l m}$, and $natToBits$ is injective, we have $kraft_A n = kraft_A m$.
           have h_kraft_A_eq : kraft_A l n = kraft_A l m := by
@@ -202,13 +202,13 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
               replace hnm := congr_arg List.length hnm
               simp_all only [one_div, inv_pow, List.length_ofFn]
             · have := congr_arg List.length hnm
-              norm_num [ Kraft.natToBits ] at this
+              norm_num [Kraft.natToBits] at this
               simp_all only [one_div, inv_pow]
           -- Since $kraft_A$ is strictly increasing, we have $n = m$.
           have h_kraft_A_inj : StrictMono (kraft_A l) := by
             refine' strictMono_nat_of_lt_succ _
             intro n
-            exact lt_of_lt_of_le ( by norm_num ) ( Nat.mul_le_mul_left _ ( Nat.one_le_pow _ _ ( by norm_num ) ) )
+            exact lt_of_lt_of_le (by norm_num) (Nat.mul_le_mul_left _ (Nat.one_le_pow _ _ (by norm_num)))
           exact h_kraft_A_inj.injective h_kraft_A_eq
         · rintro _ ⟨ n, rfl ⟩ _ ⟨ m, rfl ⟩ hnm
           by_cases hnm' : n = m
@@ -218,28 +218,28 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
             have h_sum_bounds : (∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k) ≤ (∑ k ∈ Finset.range m, (1 / 2 : ℝ) ^ l k) ∧ (∑ k ∈ Finset.range m, (1 / 2 : ℝ) ^ l k) < (∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k) + (1 / 2 : ℝ) ^ l n := by
               have h_sum_bounds : (kraft_A l n : ℝ) / 2 ^ l n ≤ (kraft_A l m : ℝ) / 2 ^ l m ∧ (kraft_A l m : ℝ) / 2 ^ l m < (kraft_A l n : ℝ) / 2 ^ l n + (1 / 2 : ℝ) ^ l n := by
                 field_simp
-                norm_num [ mul_assoc, ← mul_pow ]
+                norm_num [mul_assoc, ← mul_pow]
                 norm_cast
-                rw [ show 2 ^ l m = 2 ^ l n * 2 ^ ( l m - l n ) by rw [ ← pow_add, Nat.add_sub_of_le hnm.1 ] ]
-                constructor <;> nlinarith [ pow_pos ( zero_lt_two' ℕ ) ( l n ), pow_pos ( zero_lt_two' ℕ ) ( l m - l n ) ]
-              convert h_sum_bounds using 2 <;> norm_num [ kraft_A_div_pow_eq_sum ]
-              · rw [ kraft_A_div_pow_eq_sum ]
+                rw [show 2 ^ l m = 2 ^ l n * 2 ^ (l m - l n) by rw [← pow_add, Nat.add_sub_of_le hnm.1]]
+                constructor <;> nlinarith [pow_pos (zero_lt_two' ℕ) (l n), pow_pos (zero_lt_two' ℕ) (l m - l n)]
+              convert h_sum_bounds using 2 <;> norm_num [kraft_A_div_pow_eq_sum]
+              · rw [kraft_A_div_pow_eq_sum]
                 assumption
-              · rw [ kraft_A_div_pow_eq_sum ]
+              · rw [kraft_A_div_pow_eq_sum]
                 assumption
-              · rw [ kraft_A_div_pow_eq_sum ]
+              · rw [kraft_A_div_pow_eq_sum]
                 assumption
-              · rw [ kraft_A_div_pow_eq_sum ]
+              · rw [kraft_A_div_pow_eq_sum]
                 assumption
             cases lt_or_gt_of_ne hnm'
             · -- Since $n < m$, we have $\sum_{k=n}^{m-1} 2^{-l k} \geq 2^{-l n}$.
               have h_sum_ge : ∑ k ∈ Finset.Ico n m, (1 / 2 : ℝ) ^ l k ≥ (1 / 2 : ℝ) ^ l n := by
-                exact le_trans ( by norm_num ) ( Finset.single_le_sum ( fun x _ => by positivity ) ( Finset.left_mem_Ico.mpr (by assumption) ) )
+                exact le_trans (by norm_num) (Finset.single_le_sum (fun x _ => by positivity) (Finset.left_mem_Ico.mpr (by assumption)))
               simp_all only [Finset.sum_Ico_eq_sub _ (by linarith : n ≤ m)]
               linarith
             · -- Since $m < n$, we have $\sum_{k=m}^{n-1} 2^{-l k} \geq 2^{-l n}$.
               have h_sum_ge : ∑ k ∈ Finset.Ico m n, (1 / 2 : ℝ) ^ l k ≥ (1 / 2 : ℝ) ^ l n := by
-                exact le_trans ( by norm_num ) ( Finset.single_le_sum ( fun x _ => by positivity ) ( Finset.mem_Ico.mpr ⟨ le_rfl, by linarith ⟩ ) ) |> le_trans <| Finset.sum_le_sum fun x hx => pow_le_pow_of_le_one ( by norm_num ) ( by norm_num ) <| h_mono <| Finset.mem_Ico.mp hx |>.2.le
+                exact le_trans (by norm_num) (Finset.single_le_sum (fun x _ => by positivity) (Finset.mem_Ico.mpr ⟨ le_rfl, by linarith ⟩)) |> le_trans <| Finset.sum_le_sum fun x hx => pow_le_pow_of_le_one (by norm_num) (by norm_num) <| h_mono <| Finset.mem_Ico.mp hx |>.2.le
               simp_all only [Finset.sum_Ico_eq_sub _ (by linarith : m ≤ n)]
               linarith
         · unfold Kraft.natToBits
@@ -420,14 +420,14 @@ lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] (l : I →
         exact countable_iff_nonempty_embedding.mp h_countable
       have h_finite : ∀ k, {i : I | l i = k}.Finite := by
         intro k
-        refine' Set.Finite.subset ( h_summable.tendsto_cofinite_zero.eventually ( gt_mem_nhds <| show 0 < ( 1 / 2 : ℝ ) ^ k by positivity ) ) _
+        refine' Set.Finite.subset (h_summable.tendsto_cofinite_zero.eventually (gt_mem_nhds <| show 0 < (1 / 2 : ℝ) ^ k by positivity)) _
         intros x hx
         simp_all only [one_div, inv_pow, Set.mem_setOf_eq, Set.mem_compl_iff, lt_self_iff_false, not_false_eq_true]
       -- By definition of `kraftRank`, we know that `kraftRank` is a bijection between `I` and `ℕ`.
       have h_bij : Function.Bijective (kraftRank l e h_finite) := by
         exact ⟨ kraftRank_injective l e h_finite, kraftRank_surjective l e h_finite ⟩
       obtain ⟨e_iso, he_iso⟩ : ∃ e_iso : ℕ ≃ I, ∀ n, kraftRank l e h_finite (e_iso n) = n := by
-        exact ⟨ Equiv.symm ( Equiv.ofBijective _ h_bij ), fun n => Equiv.apply_symm_apply ( Equiv.ofBijective _ h_bij ) n ⟩
+        exact ⟨ Equiv.symm (Equiv.ofBijective _ h_bij), fun n => Equiv.apply_symm_apply (Equiv.ofBijective _ h_bij) n ⟩
       refine ⟨e_iso, fun n m hnm => ?_⟩
       contrapose! hnm
       have := kraftRank_lt_of_KraftOrder l e h_finite (KraftOrder_iff.mpr (Or.inl hnm))
@@ -453,7 +453,7 @@ lemma l_ext_monotone {k : ℕ} (l : Fin k → ℕ) (h_mono : Monotone l) (hk : k
       simp [Kraft.l_ext] at *
       split_ifs <;> try omega
       · exact h_mono hij
-      · exact le_add_of_le_of_nonneg ( h_mono ( Nat.le_pred_of_lt ‹_› ) ) ( Nat.zero_le _ )
+      · exact le_add_of_le_of_nonneg (h_mono (Nat.le_pred_of_lt ‹_›)) (Nat.zero_le _)
 
 /-- Converse of Kraft's inequality for monotone length sequences on `Fin k`.
 
@@ -466,28 +466,28 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
       ∀ i, (w i).length = l i := by
         -- For `i ≥ k`, `kraft_A L i / 2^{L i} = \sum_{j=0}^{i-1} 2^{-L j} = (\sum_{j=0}^{k-1} 2^{-L j}) + \sum_{j=k}^{i-1} 2^{-L j}`.
         have k_nonempty: ∀ (i : Fin k), k ≠ 0 := fun i => (Fin.pos i).ne'
-        have h_split_sum : ∀ i : Fin k, kraft_A (l_ext l (by linarith [ Fin.is_lt i ])) i < 2 ^ (l i) := by
+        have h_split_sum : ∀ i : Fin k, kraft_A (l_ext l (by linarith [Fin.is_lt i])) i < 2 ^ (l i) := by
           intro i
           let l' := l_ext l (k_nonempty i)
           have h_split_sum : kraft_A l' i / (2 : ℝ) ^ l' i
                            = ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ l' j := by
-            convert kraft_A_div_pow_eq_sum _ ( l_ext_monotone l h_mono _ ) i using 1
+            convert kraft_A_div_pow_eq_sum _ (l_ext_monotone l h_mono _) i using 1
           have h_split_sum_lt : ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ l' j < 1 := by
             have h_split_sum_le : ∑ j ∈ Finset.range k, (1 / 2 : ℝ) ^ l' j ≤ 1 := by
-              rw [ Finset.sum_range ]
+              rw [Finset.sum_range]
               unfold l' Kraft.l_ext
               simp_all only [one_div, inv_pow, Fin.is_lt, ↓reduceDIte, Fin.eta]
-            refine' lt_of_lt_of_le ( _ ) h_split_sum_le
-            rw [ ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ k from i.2.le ) ]
-            exact lt_add_of_pos_right _ ( Finset.sum_pos ( fun _ _ => by positivity ) ( by
+            refine' lt_of_lt_of_le (_) h_split_sum_le
+            rw [← Finset.sum_range_add_sum_Ico _ (show (i : ℕ) ≤ k from i.2.le)]
+            exact lt_add_of_pos_right _ (Finset.sum_pos (fun _ _ => by positivity) (by
               simp_all only [one_div, inv_pow, Finset.nonempty_Ico, Fin.is_lt]
-            ) )
-          rw [ div_eq_iff ] at h_split_sum  <;> norm_num at *
-          exact_mod_cast ( by nlinarith [ pow_pos ( zero_lt_two' ℝ ) ( l i ), show ( 2 : ℝ ) ^ Kraft.l_ext l _ i = 2 ^ l i from by rw [l_ext_eq l (Fin.pos i).ne' i] ] : ( Kraft.kraft_A ( Kraft.l_ext l _) i : ℝ ) < 2 ^ l i )
+           ))
+          rw [div_eq_iff] at h_split_sum  <;> norm_num at *
+          exact_mod_cast (by nlinarith [pow_pos (zero_lt_two' ℝ) (l i), show (2 : ℝ) ^ Kraft.l_ext l _ i = 2 ^ l i from by rw [l_ext_eq l (Fin.pos i).ne' i]] : (Kraft.kraft_A (Kraft.l_ext l _) i : ℝ) < 2 ^ l i)
         refine' ⟨ _, _, _, _ ⟩
         · intro i
           have k_nzero : k ≠ 0 := k_nonempty i
-          use natToBits ( Kraft.kraft_A ( l_ext l ( by tauto ) ) i ) ( l i )
+          use natToBits (Kraft.kraft_A (l_ext l (by tauto)) i) (l i)
         · intro i j hij
           let l' := l_ext l (k_nonempty i)
           -- Since `natToBits` is injective, we have `kraft_A L i = kraft_A L j`.
@@ -524,12 +524,12 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
                                     ∧ (Kraft.kraft_A l' i : ℝ) / 2 ^ (l i)
                                     = (∑ k ∈ Finset.range i, (1 / 2 : ℝ) ^ l' k) := by
                 apply And.intro
-                · convert kraft_A_div_pow_eq_sum _ ( l_ext_monotone l h_mono ( by tauto ) ) j using 1
+                · convert kraft_A_div_pow_eq_sum _ (l_ext_monotone l h_mono (by tauto)) j using 1
                   simp_all only [l', l_ext, Fin.is_lt, ↓reduceDIte, Fin.eta]
                 · convert kraft_A_div_pow_eq_sum _ _ _ using 1
                   · simp_all only [l', l_ext, Fin.is_lt, ↓reduceDIte, Fin.eta]
-                  · exact l_ext_monotone l h_mono ( by tauto )
-              rw [ h_contradiction.1, h_contradiction.2, ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ j from Nat.le_of_lt hij ) ]
+                  · exact l_ext_monotone l h_mono (by tauto)
+              rw [h_contradiction.1, h_contradiction.2, ← Finset.sum_range_add_sum_Ico _ (show (i : ℕ) ≤ j from Nat.le_of_lt hij)]
               set A := ∑ k_1 ∈ Finset.range (↑i), (1 / 2 : ℝ) ^ l'  k_1
               set B := ∑ k_1 ∈ Finset.Ico (↑i) (↑j), (1 / 2 : ℝ) ^ l'  k_1
               set C := (1 / 2 : ℝ) ^ l i
@@ -554,27 +554,27 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
               simp
               assumption
             contrapose! h_contradiction
-            rw [ div_add', div_lt_div_iff₀ ] <;> norm_cast <;> norm_num
-            norm_num [ ← mul_pow ]
+            rw [div_add', div_lt_div_iff₀] <;> norm_cast <;> norm_num
+            norm_num [← mul_pow]
             norm_cast
-            convert mul_lt_mul_of_pos_right hxy.2.2 ( pow_pos ( zero_lt_two' ℕ ) ( l i ) ) using 1
-            rw [ show l j = l i + ( l j - l i ) by rw [ Nat.add_sub_of_le hxy.1 ] ]
+            convert mul_lt_mul_of_pos_right hxy.2.2 (pow_pos (zero_lt_two' ℕ) (l i)) using 1
+            rw [show l j = l i + (l j - l i) by rw [Nat.add_sub_of_le hxy.1]]
             unfold l'
             ring_nf
             norm_num
-          · cases lt_or_eq_of_le (le_of_not_gt hij )
+          · cases lt_or_eq_of_le (le_of_not_gt hij)
             · -- Since `j < i`, we have `l j < l i`.
               simp_all only [not_lt]
               have h_lt : l j < l i := by
-                refine' lt_of_le_of_ne ( h_mono hij ) _
+                refine' lt_of_le_of_ne (h_mono hij) _
                 intro h
                 simp_all only [tsub_self]
                 -- Since `l` is monotone, `kraft_A` is strictly increasing.
                 have h_kraft_A_mono : StrictMono (Kraft.kraft_A l') := by
                   refine' strictMono_nat_of_lt_succ _
                   intro n
-                  exact Nat.lt_of_lt_of_le ( Nat.lt_succ_self _ ) ( Nat.le_mul_of_pos_right _ ( pow_pos ( by decide ) _ ) )
-                linarith [ h_kraft_A_mono ( show ( j : ℕ ) < i from by assumption ) ]
+                  exact Nat.lt_of_lt_of_le (Nat.lt_succ_self _) (Nat.le_mul_of_pos_right _ (pow_pos (by decide) _))
+                linarith [h_kraft_A_mono (show (j : ℕ) < i from by assumption)]
               linarith
             · -- 1. Convert the value equality (↑j = ↑i) to index equality (j = i)
               simp_all [Fin.ext_iff]
@@ -605,17 +605,17 @@ lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
                 · exact ⟨ fun x y => le_total _ _ ⟩
                 · exact ⟨ fun x y z hxy hyz => le_trans hxy hyz ⟩, by
                 exact List.length_insertionSort (fun x y ↦ l x ≤ l y) xs, by
-                exact List.Perm.nodup_iff ( List.perm_insertionSort _ _ ) |>.2 h_nodup, by
-                exact fun x hx => List.mem_insertionSort ( fun x y => l x ≤ l y ) |>.1 hx⟩
+                exact List.Perm.nodup_iff (List.perm_insertionSort _ _) |>.2 h_nodup, by
+                exact fun x hx => List.mem_insertionSort (fun x y => l x ≤ l y) |>.1 hx⟩
             assumption
-          simpa using h_insertion_sort ( Finset.nodup_toList Finset.univ )
+          simpa using h_insertion_sort (Finset.nodup_toList Finset.univ)
         have h_equiv : ∃ e : Fin (Fintype.card I) ≃ I, ∀ i, e i = sorted_list[i] := by
           have h_equiv : Function.Bijective (fun i : Fin (Fintype.card I) => sorted_list[i]) := by
             have h_equiv : Function.Injective (fun i : Fin (Fintype.card I) => sorted_list[i]) := by
               intro i j hij
               have := List.nodup_iff_injective_get.mp h_sorted.2.2.1
-              exact Fin.ext <| by simpa [ h_sorted.2.1 ] using this hij
-            have := Fintype.bijective_iff_injective_and_card ( fun i : Fin ( Fintype.card I ) => sorted_list[i] )
+              exact Fin.ext <| by simpa [h_sorted.2.1] using this hij
+            have := Fintype.bijective_iff_injective_and_card (fun i : Fin (Fintype.card I) => sorted_list[i])
             simp_all only [Fin.getElem_fin, Multiset.bijective_iff_map_univ_eq_univ, Fin.univ_val_map, Fintype.card_fin, and_self, iff_true]
           exact ⟨ Equiv.ofBijective _ h_equiv, fun i => rfl ⟩
         obtain ⟨ e, he ⟩ := h_equiv
@@ -623,7 +623,7 @@ lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
         have := List.pairwise_iff_get.mp h_sorted.1
         cases lt_or_eq_of_le hij
         · simp_all only []
-          exact this ⟨ i, by linarith [ Fin.is_lt i, Fin.is_lt j ] ⟩ ⟨ j, by linarith [ Fin.is_lt i, Fin.is_lt j ] ⟩ ‹_›
+          exact this ⟨ i, by linarith [Fin.is_lt i, Fin.is_lt j] ⟩ ⟨ j, by linarith [Fin.is_lt i, Fin.is_lt j] ⟩ ‹_›
         · simp_all only [Fin.getElem_fin, le_refl]
       exact ⟨ h_order_iso.choose, fun i j hij => h_order_iso.choose_spec i j hij ⟩
 
@@ -652,11 +652,11 @@ theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
     obtain ⟨w', hw'⟩ : ∃ w' : Fin (Fintype.card I) → List Bool, Function.Injective w' ∧ Kraft.PrefixFree (Set.range w') ∧ ∀ i, (w' i).length = l (e i) := by
       have h_sum_eq : ∑ i, (1 / 2 : ℝ) ^ (l (e i)) ≤ 1 := by
         convert h_sum using 1
-        rw [ tsum_fintype, ← Equiv.sum_comp e ]
+        rw [tsum_fintype, ← Equiv.sum_comp e]
       exact kraft_inequality_tight_finite_mono (fun i ↦ l (e i)) he h_sum_eq
     refine' ⟨ w' ∘ e.symm, _, _, _ ⟩
     · simp_all only [Function.Injective]
-      exact fun a₁ a₂ h => e.symm.injective ( hw'.1 h )
+      exact fun a₁ a₂ h => e.symm.injective (hw'.1 h)
     · simp_all only [Function.Injective, EquivLike.range_comp]
     · simp_all only [Function.comp_apply, Equiv.apply_symm_apply, implies_true]
   · have h_equiv : ∃ e : ℕ ≃ I, Monotone (l ∘ e) := by
@@ -666,12 +666,12 @@ theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
     have h_exists_w : ∃ w : ℕ → List Bool, Function.Injective w ∧ Kraft.PrefixFree (Set.range w) ∧ ∀ i, (w i).length = l (e i) := by
       have h_exists_w_1 : ∑' i : ℕ, (1 / 2 : ℝ) ^ l (e i) ≤ 1 := by
         convert h_sum using 1
-        conv_rhs => rw [ ← Equiv.tsum_eq e ]
+        conv_rhs => rw [← Equiv.tsum_eq e]
       have h_exists_w : Summable (fun i : ℕ => (1 / 2 : ℝ) ^ l (e i)) := by
         convert h_summable.comp_injective e.injective using 1
       exact kraft_inequality_tight_nat_mono (fun i ↦ l (e i)) he h_exists_w h_exists_w_1
     obtain ⟨ w, hw₁, hw₂, hw₃ ⟩ := h_exists_w
-    refine' ⟨ fun i => w ( e.symm i ), _, _, _ ⟩
+    refine' ⟨ fun i => w (e.symm i), _, _, _ ⟩
     · exact hw₁.comp e.symm.injective
     · intro x hx y hy hxy
       simp_all only [one_div, inv_pow, not_finite_iff_infinite, Set.mem_range]

@@ -27,7 +27,7 @@ lemma epsilon_not_mem_of_uniquely_decodable (h : UniquelyDecodable (S: Set (List
   have h_empty : ∀ x ∈ S, x ≠ [] := by
     intro x hx
     have := h
-    specialize this [ x ] [ x, x ]
+    specialize this [x] [x, x]
     simp_all only [List.mem_cons, List.not_mem_nil, or_false, SetLike.mem_coe,  or_self, List.flatten_cons, List.self_eq_append_left, List.ne_cons_self, imp_false, forall_const, ne_eq, not_false_eq_true]
   exact fun h => h_empty _ h rfl
 
@@ -70,14 +70,14 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
   set ℓ := (S.sup List.length) with hℓ_def
   -- By definition of $C$, we have $C^r = \sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$.
   have h_sum : (∑ w ∈ S, (1 / 2 : ℝ) ^ w.length) ^ r = ∑ w : Fin r → S, (1 / 2 : ℝ) ^ ((List.ofFn (fun i => (w i).val)).flatten.length) := by
-    rw [ show ( ∑ w ∈ S, ( 1 / 2 : ℝ ) ^ w.length ) ^ r = ∑ w : Fin r → S, ∏ i : Fin r, ( 1 / 2 : ℝ ) ^ ( w i |> Subtype.val |> List.length ) from ?_ ]
-    · norm_num [ List.length_flatten, Finset.prod_pow_eq_pow_sum ]
-      norm_num [ List.sum_ofFn ]
-    · rw [ ← Fin.prod_const, Finset.prod_sum ]
+    rw [show (∑ w ∈ S, (1 / 2 : ℝ) ^ w.length) ^ r = ∑ w : Fin r → S, ∏ i : Fin r, (1 / 2 : ℝ) ^ (w i |> Subtype.val |> List.length) from ?_]
+    · norm_num [List.length_flatten, Finset.prod_pow_eq_pow_sum]
+      norm_num [List.sum_ofFn]
+    · rw [← Fin.prod_const, Finset.prod_sum]
       refine' Finset.sum_bij _ _ _ _ _
-      · use fun a ha i => ⟨ a i ( Finset.mem_univ i ), Finset.mem_pi.mp ha i ( Finset.mem_univ i ) ⟩
+      · use fun a ha i => ⟨ a i (Finset.mem_univ i), Finset.mem_pi.mp ha i (Finset.mem_univ i) ⟩
       · simp
-      · simp [ funext_iff ]
+      · simp [funext_iff]
       · exact fun b _ => ⟨ fun i _ => b i |>.1, Finset.mem_pi.mpr fun i _ => b i |>.2, rfl ⟩
       · simp_all only [Finset.prod_attach_univ, implies_true]
   -- Since the map $(w_1,\dots,w_r) \mapsto w_1 \cdots w_r$ is injective, the sum $\sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$ is at most $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}$.
@@ -99,7 +99,7 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
         · rw [List.length_flatten, List.map_ofFn, List.sum_ofFn]
           exact le_trans (Finset.sum_le_sum fun i _ => Finset.le_sup (f := List.length) (a i).2) (by
             simp_all only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, smul_eq_mul, le_refl]
-          )
+         )
       -- Injectivity: follows from unique decodability
       · intro a₁ _ a₂ _ h_eq
         exact uniquely_decodable_extension_injective h r h_eq
@@ -110,14 +110,14 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
     · intro _ _ _ _ hxy
       exact Finset.disjoint_left.mpr fun z hz1 hz2 => hxy (by
         simp_all only [ne_eq, Finset.mem_filter]
-      )
+     )
   -- Since $\sum_{x \in \{0,1\}^s} 2^{-|x|} = 1$ for any $s$, we have $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|} = \sum_{s=r}^{r\ell} 1 = r\ell - r + 1 \le r\ell$.
   have h_sum_one : ∀ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / 2 : ℝ) ^ x.length ≤ 1 := by
     intros s hs
     have h_card : Finset.card (Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S)))) ≤ 2 ^ s := by
       have h_card : Finset.card (Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S)))) ≤ Finset.card (Finset.image (fun x : Fin s → Bool => List.ofFn x) (Finset.univ : Finset (Fin s → Bool))) := by
         refine Finset.card_le_card ?_
-        simp [ Finset.subset_iff ]
+        simp [Finset.subset_iff]
         intro a ha
         -- goal: ∃ a_1, List.ofFn a_1 = (List.ofFn fun i ↦ ↑(a i)).flatten
         -- here `a : Fin r → ↥S`
@@ -137,17 +137,17 @@ lemma kraft_mcmillan_inequality_aux (h : UniquelyDecodable (S: Set (List Bool)))
         -- prove List.ofFn f = x
         apply List.ext_get <;> (subst s; simp [x])
 
-      exact h_card.trans ( Finset.card_image_le.trans ( by norm_num [ Finset.card_univ ] ) )
-    refine' le_trans ( Finset.sum_le_sum fun x hx => _ ) _
-    · use fun x => ( 1 / 2 ) ^ s
+      exact h_card.trans (Finset.card_image_le.trans (by norm_num [Finset.card_univ]))
+    refine' le_trans (Finset.sum_le_sum fun x hx => _) _
+    · use fun x => (1 / 2) ^ s
     · simp only [Finset.mem_filter] at hx
       simp [hx.2]
     · norm_num at *
-      exact le_trans ( mul_le_mul_of_nonneg_right ( Nat.cast_le.mpr h_card ) ( by positivity ) ) ( by rw [ ← mul_comm ] ; norm_num [ ← mul_pow ] )
-  refine le_trans h_sum.le <| h_injective.trans <| le_trans ( Finset.sum_le_sum h_sum_one ) ?_
-  rcases r with ( _ | _ | r ) <;> rcases ℓ with ( _ | _ | ℓ ) <;> norm_num at *
+      exact le_trans (mul_le_mul_of_nonneg_right (Nat.cast_le.mpr h_card) (by positivity)) (by rw [← mul_comm] ; norm_num [← mul_pow])
+  refine le_trans h_sum.le <| h_injective.trans <| le_trans (Finset.sum_le_sum h_sum_one) ?_
+  rcases r with (_ | _ | r) <;> rcases ℓ with (_ | _ | ℓ) <;> norm_num at *
   · positivity
-  · rw [ Nat.cast_sub ] <;> push_cast <;> nlinarith only [ hℓ_def ]
+  · rw [Nat.cast_sub] <;> push_cast <;> nlinarith only [hℓ_def]
 
 /-- **Kraft-McMillan Inequality**: If `S` is a finite uniquely decodable code,
 then `Σ 2^{-|w|} ≤ 1`.
@@ -169,11 +169,11 @@ theorem kraft_mcmillan_inequality (h : UniquelyDecodable (S: Set (List Bool))) :
       suffices h_log : Filter.Tendsto (fun y : ℝ => y / Real.exp y) Filter.atTop (nhds 0) by
         have h_subst : Filter.Tendsto (fun r : ℕ => (r * Real.log (∑ w ∈ S, (1 / 2 : ℝ) ^ w.length)) / Real.exp (r * Real.log (∑ w ∈ S, (1 / 2 : ℝ) ^ w.length))) Filter.atTop (nhds 0) := by
           exact h_log.comp <| tendsto_natCast_atTop_atTop.atTop_mul_const <| Real.log_pos h_kraft
-        convert h_subst.div_const ( Real.log ( ∑ w ∈ S, ( 1 / 2 ) ^ w.length ) ) using 2 <;> norm_num [ Real.exp_nat_mul, Real.exp_log ( zero_lt_one.trans h_kraft ) ]
+        convert h_subst.div_const (Real.log (∑ w ∈ S, (1 / 2) ^ w.length)) using 2 <;> norm_num [Real.exp_nat_mul, Real.exp_log (zero_lt_one.trans h_kraft)]
         ring_nf
-        rw [ mul_assoc, mul_inv_cancel₀ ( ne_of_gt ( Real.log_pos h_kraft ) ), mul_one ]
-      simpa [ Real.exp_neg ] using Real.tendsto_pow_mul_exp_neg_atTop_nhds_zero 1
-    simpa [ mul_div_right_comm ] using hr_factor.mul_const _
+        rw [mul_assoc, mul_inv_cancel₀ (ne_of_gt (Real.log_pos h_kraft)), mul_one]
+      simpa [Real.exp_neg] using Real.tendsto_pow_mul_exp_neg_atTop_nhds_zero 1
+    simpa [mul_div_right_comm] using hr_factor.mul_const _
   obtain ⟨r, hr⟩ := Filter.eventually_atTop.mp (hr_exists.eventually (gt_mem_nhds zero_lt_one))
   refine ⟨r + 1, by linarith, ?_⟩
   have := hr (r + 1) (by linarith)

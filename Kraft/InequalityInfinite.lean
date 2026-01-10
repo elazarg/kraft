@@ -25,7 +25,7 @@ theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
   have h_finite_subset : ∀ (F : Finset (List Bool)), SetLike.coe F ⊆ S → (∑ w ∈ F, (1 / 2 : ℝ) ^ w.length) ≤ 1 := by
     -- Apply the finite Kraft inequality to the finite subset F.
     intro F hF
-    apply kraft_inequality F (fun x hx y hy hxy => h x ( hF hx ) y ( hF hy ) hxy)
+    apply kraft_inequality F (fun x hx y hy hxy => h x (hF hx) y (hF hy) hxy)
   refine' ⟨ _, _ ⟩
   · have h_summable : Summable (fun w : S => (1 / 2 : ℝ) ^ w.val.length) := by
       refine' summable_of_sum_le _ _
@@ -33,7 +33,7 @@ theorem kraft_inequality_infinite (S : Set (List Bool)) (h : PrefixFree S) :
       · intro _
         positivity
       · intro u
-        specialize h_finite_subset ( u.image Subtype.val )
+        specialize h_finite_subset (u.image Subtype.val)
         simp_all only [Finset.coe_image, Set.image_subset_iff, Subtype.coe_preimage_self, Set.subset_univ, Subtype.forall, Subtype.mk.injEq, implies_true, Set.injOn_of_eq_iff_eq, Finset.sum_image]
     exact h_summable.hasSum
   · contrapose! h_finite_subset
