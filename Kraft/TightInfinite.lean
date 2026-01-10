@@ -2,6 +2,7 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.Real.Basic
 import Mathlib.Data.Set.Basic
 import Mathlib.Data.Finset.Basic
+import Mathlib.Order.RelIso.Basic
 
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Algebra.BigOperators.Field
@@ -53,12 +54,10 @@ lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
 
         constructor
         · intro hn1
-          have hntrue : (n / 2 ^ i % 2 == 1) = true := (hn_iff).2 hn1
-          have hmtrue : (m / 2 ^ i % 2 == 1) = true := by simpa [hbool] using hntrue
+          have hmtrue : (m / 2 ^ i % 2 == 1) = true := by simpa [hbool] using (hn_iff).2 hn1
           exact (hm_iff).1 hmtrue
         · intro hm1
-          have hmtrue : (m / 2 ^ i % 2 == 1) = true := (hm_iff).2 hm1
-          have hntrue : (n / 2 ^ i % 2 == 1) = true := by simpa [hbool] using hmtrue
+          have hntrue : (n / 2 ^ i % 2 == 1) = true := by simpa [hbool] using (hm_iff).2 hm1
           exact (hn_iff).1 hntrue
 
       · rw [ Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow ]
@@ -245,24 +244,44 @@ theorem kraft_inequality_tight_nat_mono (l : ℕ → ℕ) (h_mono : Monotone l)
 
 This is used to enumerate elements in an order that makes the length function monotone. -/
 def KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ) (i j : I) : Prop :=
-  l i < l j ∨ (l i = l j ∧ e i < e j)
+  Prod.Lex (· < ·) (· < ·) (l i, e i) (l j, e j)
+
+/-- `KraftOrder` is equivalent to: `l i < l j` or (`l i = l j` and `e i < e j`). -/
+lemma KraftOrder_iff {I : Type _} {l : I → ℕ} {e : I ↪ ℕ} {i j : I} :
+    KraftOrder l e i j ↔ l i < l j ∨ (l i = l j ∧ e i < e j) :=
+  Prod.lex_iff
 
 /-- `KraftOrder` is a strict total order. -/
 lemma KraftOrder_isStrictTotalOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ) :
-    IsStrictTotalOrder I (KraftOrder l e) := by
-      have h_irrefl : Irreflexive (Kraft.KraftOrder l e) := by
-        intro i hi
-        cases hi <;> simp_all only [lt_self_iff_false]
-      refine' { .. }
-      · intro a b
-        rcases lt_trichotomy ( l a ) ( l b ) with h | h | h <;> rcases lt_trichotomy ( e a ) ( e b ) with h' | h' | h'
-        all_goals unfold Kraft.KraftOrder; simp_all
-      · exact h_irrefl
-      · rintro a b c ( h | h ) ( h' | h' )
-        · exact Or.inl ( lt_trans h h' )
-        · exact Or.inl ( by linarith )
-        · exact Or.inl ( by linarith )
-        · exact Or.inr ⟨ by linarith, by linarith ⟩
+    IsStrictTotalOrder I (KraftOrder l e) where
+  trichotomous a b := by
+    simp only [KraftOrder_iff]
+    rcases lt_trichotomy (l a) (l b) with h | h | h
+    · exact Or.inl (Or.inl h)
+    · rcases lt_trichotomy (e a) (e b) with h' | h' | h'
+      · left; right
+        exact ⟨h, h'⟩
+      · right; left
+        exact e.injective h'
+      · right; right; right
+        exact ⟨h.symm, h'⟩
+    · exact Or.inr (Or.inr (Or.inl h))
+  irrefl a h := by
+    simp only [KraftOrder_iff] at h
+    rcases h with h | ⟨_, h⟩ <;> exact lt_irrefl _ h
+  trans a b c hab hbc := by
+    simp only [KraftOrder_iff] at *
+    rcases hab with hab | ⟨hab, hab'⟩ <;> rcases hbc with hbc | ⟨hbc, hbc'⟩
+    · exact Or.inl (lt_trans hab hbc)
+    · left
+      rw [<-hbc] at *
+      exact hab
+    · left
+      rw [<-hab] at *
+      exact hbc
+    · right
+      rw [<-hab] at *
+      exact ⟨hbc, lt_trans hab' hbc'⟩
 
 /-- Initial segments of `KraftOrder` are finite when length fibers are finite.
 
@@ -271,25 +290,28 @@ indices smaller than any given index is finite. -/
 lemma KraftOrder_finite_initial_segment {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) (i : I) :
     {j | KraftOrder l e j i}.Finite := by
-      -- The set {j | l j < l i} is a subset of the union of {j | l j = k} for k < l i, which is finite by h_finite.
-      have h1 : {j | l j < l i} ⊆ ⋃ k < l i, {j | l j = k} := by
-        -- Take any $j$ such that $l j < l i$. Then $l j$ is some natural number less than $l i$, so $j$ is in the set $\{j | l j = l j\}$.
-        intro j hj
-        simp_all only [Set.mem_setOf_eq, Set.mem_iUnion, exists_prop, exists_eq_right']
-      -- The set {j | l j = l i ∧ e j < e i} is a subset of {j | l j = l i}, which is finite by h_finite.
-      have h2 : {j | l j = l i ∧ e j < e i} ⊆ {j | l j = l i} := by
-        simp_all only [Set.setOf_subset_setOf, implies_true]
-      exact Set.Finite.subset ( Set.Finite.union ( Set.Finite.biUnion ( Set.finite_lt_nat ( l i ) ) fun k hk => h_finite k ) ( h_finite _ ) ) ( by
-        rintro j
-        unfold Kraft.KraftOrder
-        intro a
-        simp_all only [Set.setOf_subset_setOf, implies_true, Set.mem_setOf_eq, Set.mem_union, Set.mem_iUnion, exists_prop, exists_eq_right']
-        cases a with
-        | inl h => simp_all only [Set.setOf_subset_setOf, implies_true, true_or]
-        | inr h_1 =>
-          simp_all only [Set.setOf_subset_setOf, implies_true, lt_self_iff_false, false_or]
-          rfl
-      )
+  have h_subset : {j | KraftOrder l e j i} ⊆ {j | l j < l i} ∪ {j | l j = l i} := by
+    intro j hj
+    simp only [KraftOrder_iff] at hj
+    rcases hj with h | ⟨h, _⟩ <;> simp [h]
+  refine Set.Finite.subset ?_ h_subset
+  apply Set.Finite.union
+  · -- Case 1: Strictly smaller lengths
+    -- We rewrite the set of elements with smaller length as a bounded Union of fibers
+    have h_decomp : {j | l j < l i} = ⋃ k ∈ Finset.range (l i), {j | l j = k} := by
+      ext x
+      simp only [Set.mem_setOf_eq, Set.mem_iUnion, Finset.mem_range]
+      constructor
+      · intro h
+        use (l x)
+      · intro ⟨k, hk_lt, hk_eq⟩; rw [hk_eq]; exact hk_lt
+    rw [h_decomp]
+    -- A finite union of finite sets is finite
+    apply Set.Finite.biUnion
+    · exact (Finset.range (l i)).finite_toSet
+    · simp_all
+  · -- Case 2: Equal length
+    exact h_finite (l i)
 
 /-- The rank of an element is the number of elements strictly smaller in `KraftOrder`.
 
@@ -302,115 +324,77 @@ noncomputable def kraftRank {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
 lemma kraftRank_lt_of_KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) {i j : I} (h : KraftOrder l e i j) :
     kraftRank l e h_finite i < kraftRank l e h_finite j := by
-      apply_rules [ Finset.card_lt_card ]
-      unfold Kraft.KraftOrder at *
-      simp_all [ Finset.ssubset_def, Finset.subset_iff ]
-      constructor
-      · -- 1. Transitivity: If x < i and i < j, then x < j
-        intro x hx
-        -- Break down the OR/AND structure of the order definition
-        rcases h with (h_lt | ⟨h_eq, h_elt⟩) <;> rcases hx with (hx_lt | ⟨hx_eq, hx_elt⟩)
-        · left; linarith  -- l x < l i < l j
-        · left; linarith  -- l x = l i < l j
-        · left; linarith  -- l x < l i = l j
-        · right; exact ⟨by linarith, lt_trans hx_elt h_elt⟩ -- l x = l j, e x < e i < e j
-      · -- 2. Strictness: i is in the set of j's predecessors, but not i's
-        use i
-        simp [h]
+  apply Finset.card_lt_card
+  rw [Finset.ssubset_iff_subset_ne]
+  constructor
+  · -- Subset: {x | x < i} ⊆ {x | x < j} by transitivity
+    intro x
+    simp only [Set.Finite.mem_toFinset, Set.mem_setOf_eq]
+    intro h
+    exact (KraftOrder_isStrictTotalOrder l e).trans x i j h (by assumption)
+  · -- Strictness: i ∈ {x | x < j} but i ∉ {x | x < i}
+    simp only [ne_eq, Finset.ext_iff, Set.Finite.mem_toFinset, Set.mem_setOf_eq, not_forall]
+    use i
+    intro hm
+    rw [<-hm] at h
+    unfold KraftOrder at h
+    simp_all only [KraftOrder, true_iff, Prod.lex_def]
+    omega
 
 /-- `kraftRank` is surjective onto ℕ when `I` is infinite. -/
 lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) :
     Function.Surjective (kraftRank l e h_finite) := by
-      -- First, we show the range is an initial segment.
-      have h_initial_segment : ∀ n, (∃ i, kraftRank l e h_finite i = n) → ∀ m < n, ∃ i, kraftRank l e h_finite i = m := by
-        intro n hn m hm
-        obtain ⟨i, hi⟩ := hn
-        have h_card : Finset.card (Finset.image (kraftRank l e h_finite) (Set.Finite.toFinset (KraftOrder_finite_initial_segment l e h_finite i))) = n := by
-          rw [ Finset.card_image_of_injOn, ← hi, kraftRank ]
-          intro x hx y hy hxy
-          have h_eq : ∀ x y, x ≠ y → KraftOrder l e x y ∨ KraftOrder l e y x := by
-            intros x y hxy
-            have h_total : ∀ x y : I, x ≠ y → l x < l y ∨ l y < l x ∨ (l x = l y ∧ e x < e y) ∨ (l y = l x ∧ e y < e x) := by
-              intro x y hxy
-              subst hi
-              cases lt_trichotomy ( l x ) ( l y ) <;> cases lt_trichotomy ( e x ) ( e y )
-              · simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq, and_true, true_or]
-              · simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq, true_or]
-              · rename_i h h_1
-                simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq, and_true]
-                cases h with
-                | inl h_2 => simp_all only [lt_self_iff_false, true_and, true_or, or_true]
-                | inr h_3 => simp_all only [true_or, or_true]
-              · rename_i h h_1
-                simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq, EmbeddingLike.apply_eq_iff_eq, false_or, and_true]
-                cases h with
-                | inl h_2 => simp_all only [lt_self_iff_false, true_and, or_true]
-                | inr h_3 => simp_all only [true_or, or_true]
-            specialize h_total x y hxy
-            unfold Kraft.KraftOrder
-            subst hi
-            simp_all only [Set.Finite.coe_toFinset, Set.mem_setOf_eq, ne_eq]
-            cases h_total with
-            | inl h => simp_all only [true_or]
-            | inr h_1 =>
-              cases h_1 with
-              | inl h => simp_all only [true_or, or_true]
-              | inr h_2 =>
-                cases h_2 with
-                | inl h => simp_all only [lt_self_iff_false, and_self, or_true, true_and, false_or, true_or]
-                | inr h_1 => simp_all only [lt_self_iff_false, true_and, false_or, and_self, or_true]
-          exact Classical.not_not.1 fun h => by cases h_eq x y h <;> linarith [ kraftRank_lt_of_KraftOrder l e h_finite ‹_› ]
-        have h_image : Finset.image (kraftRank l e h_finite) (Set.Finite.toFinset (KraftOrder_finite_initial_segment l e h_finite i)) = Finset.range n := by
-          refine' Finset.eq_of_subset_of_card_le ( Finset.image_subset_iff.2 fun x hx => Finset.mem_range.2 <| _ ) _
-          · exact hi ▸ kraftRank_lt_of_KraftOrder l e h_finite ( by
-              subst hi
-              simp_all only [Set.Finite.mem_toFinset, Set.mem_setOf_eq]
-            )
-          · subst hi
-            simp_all only [Finset.card_range, le_refl]
-        replace h_image := Finset.ext_iff.mp h_image m
-        subst hi
-        simp_all only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_setOf_eq, Finset.mem_range, iff_true]
-        obtain ⟨w, h⟩ := h_image
-        obtain ⟨left, right⟩ := h
-        subst right
-        simp_all only [exists_apply_eq_apply]
-      -- Since `I` is infinite and `kraftRank` is injective, the range is infinite.
-      have h_range_infinite : Set.Infinite (Set.range (Kraft.kraftRank l e h_finite)) := by
-        refine Set.infinite_range_of_injective ?_
-        -- By definition of `kraftRank`, if `kraftRank i = kraftRank j`, then `i` and `j` must be comparable under `KraftOrder`.
-        have h_comparable : ∀ i j, kraftRank l e h_finite i = kraftRank l e h_finite j → i = j := by
-          intro i j hij
-          have h_comparable : i = j ∨ KraftOrder l e i j ∨ KraftOrder l e j i := by
-            have := @KraftOrder_isStrictTotalOrder I l e
-            cases this.trichotomous i j <;> tauto
-          rcases h_comparable with ( rfl | h | h ) <;> simp_all
-          · exact absurd hij ( ne_of_lt ( kraftRank_lt_of_KraftOrder l e h_finite h ) )
-          · exact absurd hij ( ne_of_gt ( kraftRank_lt_of_KraftOrder _ _ _ h ) )
-        exact fun i j hij => h_comparable i j hij
-      rw [ Set.infinite_iff_exists_gt ] at h_range_infinite
-      intro n
-      specialize h_range_infinite n
-      simp_all only [forall_exists_index, forall_apply_eq_imp_iff, Set.mem_range, exists_exists_eq_and]
-      obtain ⟨w, h⟩ := h_range_infinite
-      apply h_initial_segment
-      · exact h
+  have hsto := KraftOrder_isStrictTotalOrder l e
+  -- kraftRank is injective (distinct elements have distinct ranks)
+  have h_inj : Function.Injective (kraftRank l e h_finite) := by
+    intro i j hij
+    rcases hsto.trichotomous i j with h | rfl | h
+    · exact absurd hij (ne_of_lt (kraftRank_lt_of_KraftOrder l e h_finite h))
+    · rfl
+    · exact absurd hij (ne_of_gt (kraftRank_lt_of_KraftOrder l e h_finite h))
+  -- The range is an initial segment: if n is in range, so is every m < n
+  have h_initial : ∀ n, (∃ i, kraftRank l e h_finite i = n) → ∀ m < n, ∃ i, kraftRank l e h_finite i = m := by
+    intro n ⟨i, hi⟩ m hm
+    -- The image of {j | j < i} under kraftRank is exactly {0, ..., n-1}
+    have h_image : Finset.image (kraftRank l e h_finite)
+        (KraftOrder_finite_initial_segment l e h_finite i).toFinset = Finset.range n := by
+      apply Finset.eq_of_subset_of_card_le
+      · intro x hx
+        simp only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_setOf_eq] at hx
+        obtain ⟨j, hj, rfl⟩ := hx
+        exact Finset.mem_range.mpr (hi ▸ kraftRank_lt_of_KraftOrder l e h_finite hj)
+      · rw [Finset.card_range, Finset.card_image_of_injective _ (fun _ _ => by
+          intro a
+          subst hi
+          apply h_inj
+          simp_all only)]
+        simp_all [kraftRank]
+    have hi := Finset.ext_iff.mp h_image m
+    simp only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_setOf_eq,
+               Finset.mem_range, hm, iff_true] at hi
+    obtain ⟨a, ⟨_, hl⟩⟩ := hi
+    use a
+  -- The range is infinite (since I is infinite and kraftRank is injective)
+  have h_infinite : Set.Infinite (Set.range (kraftRank l e h_finite)) :=
+    Set.infinite_range_of_injective h_inj
+  -- An infinite initial segment of ℕ is all of ℕ
+  rw [Set.infinite_iff_exists_gt] at h_infinite
+  intro n
+  obtain ⟨val_i, ⟨⟨witness_i, h_rank_eq⟩, h_n_lt_i⟩⟩ := h_infinite n
+  -- We found a value `val_i` (witnessed by `witness_i`) such that `n < val_i`.
+  -- Since the range is an initial segment, `n` must also be in the range.
+  exact h_initial val_i ⟨witness_i, h_rank_eq⟩ n h_n_lt_i
 
 /-- `kraftRank` is injective (distinct elements have distinct ranks). -/
 lemma kraftRank_injective {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) :
     Function.Injective (kraftRank l e h_finite) := by
-      -- Assume `i ≠ j`. By trichotomy of `KraftOrder`, either `KraftOrder i j` or `KraftOrder j i`.
-      intro i j hij
-      by_contra h_neq
-      have h_trichotomy : Kraft.KraftOrder l e i j ∨ Kraft.KraftOrder l e j i := by
-        have h_trichotomy : IsTrichotomous I (Kraft.KraftOrder l e) := by
-          have := @Kraft.KraftOrder_isStrictTotalOrder I l e
-          exact this.toIsTrichotomous
-        cases h_trichotomy.trichotomous i j <;> tauto
-      rcases h_trichotomy with ( H | H ) <;> [ exact hij.not_lt ( kraftRank_lt_of_KraftOrder _ _ _ H )
-                                             ; exact hij.not_gt ( kraftRank_lt_of_KraftOrder _ _ _ H ) ]
+  intro i j hij
+  rcases (KraftOrder_isStrictTotalOrder l e).trichotomous i j with h | rfl | h
+  · exact absurd hij (ne_of_lt (kraftRank_lt_of_KraftOrder l e h_finite h))
+  · rfl
+  · exact absurd hij (ne_of_gt (kraftRank_lt_of_KraftOrder l e h_finite h))
 
 /-- An infinite index type with summable Kraft sum can be reordered to make lengths monotone.
 
@@ -437,10 +421,10 @@ lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] (l : I →
         exact ⟨ kraftRank_injective l e h_finite, kraftRank_surjective l e h_finite ⟩
       obtain ⟨e_iso, he_iso⟩ : ∃ e_iso : ℕ ≃ I, ∀ n, kraftRank l e h_finite (e_iso n) = n := by
         exact ⟨ Equiv.symm ( Equiv.ofBijective _ h_bij ), fun n => Equiv.apply_symm_apply ( Equiv.ofBijective _ h_bij ) n ⟩
-      refine' ⟨ e_iso, fun n m hnm => _ ⟩
+      refine ⟨e_iso, fun n m hnm => ?_⟩
       contrapose! hnm
-      have := kraftRank_lt_of_KraftOrder l e h_finite ( show KraftOrder l e ( e_iso m ) ( e_iso n ) from Or.inl hnm )
-      simp_all only [one_div, inv_pow]
+      have := kraftRank_lt_of_KraftOrder l e h_finite (KraftOrder_iff.mpr (Or.inl hnm))
+      simp_all
 
 /-- Extends a length function on `Fin k` to all of `ℕ`, preserving monotonicity.
 
