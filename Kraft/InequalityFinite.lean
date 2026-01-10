@@ -119,22 +119,10 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree (S : Set (List
   -- Key algebra lemma: 2^(n-|w|)/2^n = (1/2)^{|w|}
   have rhs_eq (w : List Bool) (hw : w ∈ S) :
       (2 : ℝ)^(n - w.length) / (2 : ℝ)^n = (1/2 : ℝ)^w.length := by
-    have hwle : w.length ≤ n := by
-      -- n = sup lengths, so |w| ≤ n
-      simpa [n] using (Finset.le_sup (s := S) (f := List.length) hw)
-    have ha : (2 : ℝ)^(n - w.length) ≠ 0 := by positivity
-    calc
-      (2 : ℝ)^(n - w.length) / (2 : ℝ)^n
-          = (2 : ℝ)^(n - w.length) / (2 : ℝ)^((n - w.length) + w.length) := by simp [Nat.sub_add_cancel hwle]
-      _ = (2 : ℝ)^(n - w.length) / ((2 : ℝ)^(n - w.length) * (2 : ℝ)^(w.length)) := by simp [pow_add]
-      _ = 1 / (2 : ℝ)^(w.length) := by
-              -- x/(x*y) = (x/x)/y = 1/y
-              calc
-                (2 : ℝ)^(n - w.length) / ((2 : ℝ)^(n - w.length) * (2 : ℝ)^(w.length))
-                    = ((2 : ℝ)^(n - w.length) / (2 : ℝ)^(n - w.length)) / (2 : ℝ)^(w.length) := by simp [div_mul_eq_div_div]
-                _ = 1 / (2 : ℝ)^(w.length) := by simp [ha]
-      _ = (1 / (2 : ℝ))^(w.length) := by simp
-      _ = (1/2 : ℝ)^(w.length) := by simp
+    have hwle : w.length ≤ n := by simpa [n] using Finset.le_sup (s := S) (f := List.length) hw
+    rw [show (2 : ℝ)^n = (2 : ℝ)^(n - w.length) * (2 : ℝ)^w.length by
+          rw [← pow_add, Nat.sub_add_cancel hwle]]
+    simp [div_mul_eq_div_div, one_div, inv_pow]
 
   -- Cast the Nat inequality to ℝ in the exact form we need
   have h_sum_le_totalR :
