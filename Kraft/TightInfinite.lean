@@ -474,14 +474,14 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
       Kraft.PrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
         -- For `i ≥ k`, `kraft_A L i / 2^{L i} = \sum_{j=0}^{i-1} 2^{-L j} = (\sum_{j=0}^{k-1} 2^{-L j}) + \sum_{j=k}^{i-1} 2^{-L j}`.
+        have k_nonempty: ∀ (i : Fin k), k ≠ 0 := fun i => (Fin.pos i).ne'
         have h_split_sum : ∀ i : Fin k, kraft_A (l_ext l (by linarith [ Fin.is_lt i ])) i < 2 ^ (l i) := by
           intro i
-          generalize_proofs
-          have h_split_sum : kraft_A (l_ext l (by assumption)) i / (2 : ℝ) ^ (l_ext l (by assumption) i)
-                           = ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (by assumption) j) := by
-            convert kraft_A_div_pow_eq_sum _ ( l_ext_monotone l h_mono ‹_› ) i using 1
-          have h_split_sum_lt : ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (by assumption) j) < 1 := by
-            have h_split_sum_le : ∑ j ∈ Finset.range k, (1 / 2 : ℝ) ^ (l_ext l (by assumption) j) ≤ 1 := by
+          have h_split_sum : kraft_A (l_ext l (k_nonempty i)) i / (2 : ℝ) ^ (l_ext l (k_nonempty i) i)
+                           = ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (k_nonempty i) j) := by
+            convert kraft_A_div_pow_eq_sum _ ( l_ext_monotone l h_mono _ ) i using 1
+          have h_split_sum_lt : ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (k_nonempty i) j) < 1 := by
+            have h_split_sum_le : ∑ j ∈ Finset.range k, (1 / 2 : ℝ) ^ (l_ext l (k_nonempty i) j) ≤ 1 := by
               rw [ Finset.sum_range ]
               unfold Kraft.l_ext
               simp_all only [one_div, inv_pow, Fin.is_lt, ↓reduceDIte, Fin.eta]
@@ -491,25 +491,36 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
               simp_all only [one_div, inv_pow, Finset.nonempty_Ico, Fin.is_lt]
             ) )
           rw [ div_eq_iff ] at * <;> norm_num at *
-          exact_mod_cast ( by nlinarith [ pow_pos ( zero_lt_two' ℝ ) ( l i ), show ( 2 : ℝ ) ^ Kraft.l_ext l ‹_› i = 2 ^ l i from by erw [ Kraft.l_ext_eq ] ] : ( Kraft.kraft_A ( Kraft.l_ext l ‹_› ) i : ℝ ) < 2 ^ l i )
-        generalize_proofs at *
-        expose_names
+          exact_mod_cast ( by nlinarith [ pow_pos ( zero_lt_two' ℝ ) ( l i ), show ( 2 : ℝ ) ^ Kraft.l_ext l _ i = 2 ^ l i from by rw [l_ext_eq l (Fin.pos i).ne' i] ] : ( Kraft.kraft_A ( Kraft.l_ext l _) i : ℝ ) < 2 ^ l i )
         refine' ⟨ _, _, _, _ ⟩
         intro i
-        have k_nzero : k ≠ 0 := pf_1 i
+        have k_nzero : k ≠ 0 := k_nonempty i
         use natToBits ( Kraft.kraft_A ( l_ext l ( by tauto ) ) i ) ( l i )
         · intro i j hij
           -- Since `natToBits` is injective, we have `kraft_A L i = kraft_A L j`.
-          have h_kraft_A_eq : Kraft.kraft_A (l_ext l (by exact pf_1 i)) i
-                            = Kraft.kraft_A (l_ext l (by exact pf_1 i)) j := by
-            apply natToBits_inj
-            exact h_split_sum i
+          have h_kraft_A_eq : Kraft.kraft_A (l_ext l (k_nonempty i)) i
+                            = Kraft.kraft_A (l_ext l (k_nonempty i)) j := by
+            apply natToBits_inj <;> unfold Kraft.natToBits at *
+            · have h_split_sum : kraft_A (l_ext l (k_nonempty i)) i / (2 : ℝ) ^ (l_ext l (k_nonempty i) i)
+                              = ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (k_nonempty i) j) := by
+                convert kraft_A_div_pow_eq_sum _ ( l_ext_monotone l h_mono _ ) i using 1
+              have h_split_sum_lt : ∑ j ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (k_nonempty i) j) < 1 := by
+                have h_split_sum_le : ∑ j ∈ Finset.range k, (1 / 2 : ℝ) ^ (l_ext l (k_nonempty i) j) ≤ 1 := by
+                  rw [ Finset.sum_range ]
+                  unfold Kraft.l_ext
+                  simp_all only [one_div, inv_pow, Fin.is_lt, ↓reduceDIte, Fin.eta]
+                refine' lt_of_lt_of_le ( _ ) h_split_sum_le
+                rw [ ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ k from i.2.le ) ]
+                exact lt_add_of_pos_right _ ( Finset.sum_pos ( fun _ _ => by positivity ) ( by
+                  simp_all only [one_div, inv_pow, Finset.nonempty_Ico, Fin.is_lt]
+                ) )
+              rw [ div_eq_iff ] at h_split_sum <;> norm_num at *
+              exact_mod_cast ( by nlinarith [ pow_pos ( zero_lt_two' ℝ ) ( l i ), show ( 2 : ℝ ) ^ Kraft.l_ext l _ i = 2 ^ l i from by rw [l_ext_eq l (Fin.pos i).ne' i] ] : ( Kraft.kraft_A ( Kraft.l_ext l _ ) i : ℝ ) < 2 ^ l i )
             · replace hij := congr_arg List.length hij
-              simp_all [ Kraft.natToBits ]
+              simp_all [ ]
             · convert hij using 1
               replace hij := congr_arg List.length hij
-              simp_all [ Kraft.natToBits ]
-          generalize_proofs at *
+              simp_all [ ]
           -- Since `kraft_A` is strictly monotone, we have `i = j`.
           have h_kraft_A_mono : StrictMono (Kraft.kraft_A (l_ext l (by tauto))) := by
             refine' strictMono_nat_of_lt_succ _
@@ -522,13 +533,12 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
           simp_all [ natToBits_prefix_iff ]
           -- If `i < j`, then `S_j \ge S_i + 2^{-l i}`, contradiction.
           by_cases hij : i < j
-          · have h_contradiction : (Kraft.kraft_A (l_ext l (by exact pf_1 i)) j : ℝ) / 2 ^ (l j)
-                                 ≥ (Kraft.kraft_A (l_ext l (by exact pf_1 i)) i : ℝ) / 2 ^ (l i) + (1 / 2 : ℝ) ^ (l i) := by
-              generalize_proofs k_nzero
-              have h_contradiction : (Kraft.kraft_A (l_ext l (by assumption)) j : ℝ) / 2 ^ (l j)
-                                    = (∑ k ∈ Finset.range j, (1 / 2 : ℝ) ^ (l_ext l (by assumption) k))
-                                    ∧ (Kraft.kraft_A (l_ext l (by assumption)) i : ℝ) / 2 ^ (l i)
-                                    = (∑ k ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (by assumption) k)) := by
+          · have h_contradiction : (Kraft.kraft_A (l_ext l (k_nonempty i)) j : ℝ) / 2 ^ (l j)
+                                 ≥ (Kraft.kraft_A (l_ext l (k_nonempty i)) i : ℝ) / 2 ^ (l i) + (1 / 2 : ℝ) ^ (l i) := by
+              have h_contradiction : (Kraft.kraft_A (l_ext l (k_nonempty i)) j : ℝ) / 2 ^ (l j)
+                                    = (∑ k ∈ Finset.range j, (1 / 2 : ℝ) ^ (l_ext l (k_nonempty i) k))
+                                    ∧ (Kraft.kraft_A (l_ext l (k_nonempty i)) i : ℝ) / 2 ^ (l i)
+                                    = (∑ k ∈ Finset.range i, (1 / 2 : ℝ) ^ (l_ext l (k_nonempty i) k)) := by
                 apply And.intro
                 · convert kraft_A_div_pow_eq_sum _ ( l_ext_monotone l h_mono ( by tauto ) ) j using 1
                   unfold Kraft.l_ext
@@ -537,20 +547,19 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
                   · unfold Kraft.l_ext
                     simp_all only [Fin.is_lt, ↓reduceDIte, Fin.eta]
                   · exact l_ext_monotone l h_mono ( by tauto )
-              generalize_proofs at *
               rw [ h_contradiction.1, h_contradiction.2, ← Finset.sum_range_add_sum_Ico _ ( show ( i : ℕ ) ≤ j from Nat.le_of_lt hij ) ]
-              set A := ∑ k_1 ∈ Finset.range (↑i), (1 / 2 : ℝ) ^ l_ext l (by assumption) k_1
-              set B := ∑ k_1 ∈ Finset.Ico (↑i) (↑j), (1 / 2 : ℝ) ^ l_ext l (by assumption) k_1
+              set A := ∑ k_1 ∈ Finset.range (↑i), (1 / 2 : ℝ) ^ l_ext l (k_nonempty i) k_1
+              set B := ∑ k_1 ∈ Finset.Ico (↑i) (↑j), (1 / 2 : ℝ) ^ l_ext l (k_nonempty i) k_1
               set C := (1 / 2 : ℝ) ^ l i
               have hiIco : (↑i) ∈ Finset.Ico (↑i) (↑j) := by
                 exact Finset.left_mem_Ico.2 (show (↑i) < (↑j) from hij)
               have hC_le_B :
                   (1 / 2 : ℝ) ^ l i ≤
-                    ∑ k_1 ∈ Finset.Ico (↑i) (↑j), (1 / 2 : ℝ) ^ l_ext l (by assumption) k_1 := by
+                    ∑ k_1 ∈ Finset.Ico (↑i) (↑j), (1 / 2 : ℝ) ^ l_ext l (k_nonempty i) k_1 := by
                 -- single term ≤ sum over Ico
                 have h :=
                   (Finset.single_le_sum (s := Finset.Ico (↑i) (↑j))
-                    (f := fun k_1 => (1 / 2 : ℝ) ^ l_ext l (by assumption) k_1)
+                    (f := fun k_1 => (1 / 2 : ℝ) ^ l_ext l (k_nonempty i) k_1)
                     (by intro _ _; positivity)
                     (by exact Finset.left_mem_Ico.mpr hij))
                 -- h : (1/2)^(l_ext ... ↑i) ≤ ∑ ...
@@ -563,8 +572,6 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
               unfold C
               simp
               assumption
-
-            generalize_proofs at *
             contrapose! h_contradiction
             rw [ div_add', div_lt_div_iff₀ ] <;> norm_cast <;> norm_num
             norm_num [ ← mul_pow ]
@@ -580,11 +587,10 @@ lemma kraft_inequality_tight_finite_mono {k : ℕ} (l : Fin k → ℕ) (h_mono :
                 intro h
                 simp_all
                 -- Since `l` is monotone, `kraft_A` is strictly increasing.
-                have h_kraft_A_mono : StrictMono (Kraft.kraft_A (Kraft.l_ext l (by exact pf_1 i))) := by
+                have h_kraft_A_mono : StrictMono (Kraft.kraft_A (Kraft.l_ext l (k_nonempty i))) := by
                   refine' strictMono_nat_of_lt_succ _
                   intro n
                   exact Nat.lt_of_lt_of_le ( Nat.lt_succ_self _ ) ( Nat.le_mul_of_pos_right _ ( pow_pos ( by decide ) _ ) )
-                generalize_proofs at *
                 linarith [ h_kraft_A_mono ( show ( j : ℕ ) < i from by assumption ) ]
               linarith
             · -- 1. Convert the value equality (↑j = ↑i) to index equality (j = i)
