@@ -262,11 +262,12 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
 
 /-- If the Kraft sum over a finite index set is ≥ 1, there exists a subset with sum exactly 1.
 
-This lemma is used in the recursive construction: when the total sum exceeds 1/D, we can
-partition the indices into two parts each with sum exactly 1/D, enabling the inductive step. -/
+This lemma is used in the recursive construction: when the total sum exceeds 1, we can
+find a subset with sum exactly 1, enabling the partitioning step. -/
 lemma exists_subset_sum_eq_one (l : I → ℕ)
-    (h_sum : 1 ≤ ∑ i, (1 / 2 : ℝ) ^ l i) :
-    ∃ S : Finset I, ∑ i ∈ S, (1 / 2 : ℝ) ^ l i = 1 := by
+    (h_sum : 1 ≤ ∑ i, (1 / Fintype.card α : ℝ) ^ l i) :
+    ∃ S : Finset I, ∑ i ∈ S, (1 / Fintype.card α : ℝ) ^ l i = 1 := by
+  let D := (Fintype.card α : ℝ)
   -- Let $n = |I|$ and let $\ell'_1,\dots,\ell'_n$ consist of $(\ell(i))_{i \in I}$ arranged in nonincreasing order.
   set n := Fintype.card I
   obtain ⟨ℓ', hℓ'⟩ : ∃ ℓ' : Fin n → ℕ, Multiset.ofList (List.ofFn ℓ') = Multiset.map l Finset.univ.val := by
@@ -281,29 +282,30 @@ lemma exists_subset_sum_eq_one (l : I → ℕ)
     refine' List.ext_get h_len _
     simp_all only [List.get_eq_getElem, Fin.coe_cast, List.getElem_ofFn, implies_true]
   -- Apply `exists_prefix_sum_eq_one_of_sorted` to the sorted list.
-  obtain ⟨l'', hl''⟩ : ∃ l'' : List ℕ, l''.Perm (List.ofFn ℓ') ∧ List.Pairwise (· ≤ ·) l'' ∧ (l''.map (fun x => (1 / 2 : ℝ) ^ x)).sum ≥ 1 := by
+  obtain ⟨l'', hl''⟩ : ∃ l'' : List ℕ, l''.Perm (List.ofFn ℓ') ∧ List.Pairwise (· ≤ ·) l'' ∧ (l''.map (fun x => (1 / D) ^ x)).sum ≥ 1 := by
     refine' ⟨ List.ofFn ℓ' |> List.insertionSort (· ≤ ·), _, _, _ ⟩
     · exact List.perm_insertionSort (fun x1 x2 ↦ x1 ≤ x2) (List.ofFn ℓ')
     · exact List.pairwise_insertionSort _ _
-    · have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum = ∑ i, (1 / 2 : ℝ) ^ (l i) := by
-        have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum = Multiset.sum (Multiset.map (fun x => (1 / 2 : ℝ) ^ x) (Multiset.ofList (List.ofFn ℓ'))) := by
+    · have h_sum_eq : (List.map (fun x => (1 / D) ^ x) (List.ofFn ℓ')).sum = ∑ i, (1 / D) ^ (l i) := by
+        have h_sum_eq : (List.map (fun x => (1 / D) ^ x) (List.ofFn ℓ')).sum = Multiset.sum (Multiset.map (fun x => (1 / D) ^ x) (Multiset.ofList (List.ofFn ℓ'))) := by
           rfl
         simp_all only [Multiset.map_map, Function.comp_apply, Finset.sum_map_val]
-      have h_sum_eq : (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.insertionSort (· ≤ ·) (List.ofFn ℓ'))).sum = (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.ofFn ℓ')).sum := by
+      have h_sum_eq : (List.map (fun x => (1 / D) ^ x) (List.insertionSort (· ≤ ·) (List.ofFn ℓ'))).sum = (List.map (fun x => (1 / D) ^ x) (List.ofFn ℓ')).sum := by
         have h_sum_eq : List.Perm (List.insertionSort (· ≤ ·) (List.ofFn ℓ')) (List.ofFn ℓ') := by
           exact List.perm_insertionSort (fun x1 x2 ↦ x1 ≤ x2) (List.ofFn ℓ')
         exact List.Perm.sum_eq (h_sum_eq.map _)
       linarith
   -- Apply `exists_prefix_sum_eq_one_of_sorted` to the sorted list `l''`.
-  obtain ⟨l''', hl'''⟩ : ∃ l''' : List ℕ, l''' <+: l'' ∧ (l'''.map (fun x => (1 / 2 : ℝ) ^ x)).sum = 1 := by
-    exact exists_prefix_sum_eq_one_of_sorted (α := Bool) hl''.2.1 hl''.2.2
+  obtain ⟨l''', hl'''⟩ : ∃ l''' : List ℕ, l''' <+: l'' ∧ (l'''.map (fun x => (1 / D) ^ x)).sum = 1 := by
+    have : (l''.map (fun x => (1 / Fintype.card α : ℝ) ^ x)).sum ≥ 1 := hl''.2.2
+    exact exists_prefix_sum_eq_one_of_sorted hl''.2.1 this
   -- The elements of this prefix correspond to a subset $S$ of $I$.
   obtain ⟨S, hS⟩ : ∃ S : Finset I, Multiset.map l S.val = Multiset.ofList l''' := by
     apply_rules [exists_subset_of_multiset_le_map]
     have h_subset : Multiset.ofList l''' ≤ Multiset.ofList l'' := by
       exact hl'''.1.sublist.subperm
     exact h_subset.trans (by rw [← hℓ'] ; exact Multiset.le_iff_exists_add.mpr ⟨ ∅, by simp [hl''.1.symm] ⟩)
-  replace hS := congr_arg (fun m => Multiset.sum (m.map fun x => (1 / 2 : ℝ) ^ x)) hS
+  replace hS := congr_arg (fun m => Multiset.sum (m.map fun x => (1 / D) ^ x)) hS
   simp_all only [Multiset.map_map, Multiset.map_coe, Multiset.sum_coe]
   apply Exists.intro
   exact hS
@@ -409,10 +411,11 @@ theorem kraft_inequality_tight (l : I → ℕ)
         · -- Otherwise, we can find a subset $S \subseteq I$ such that $\sum_{i \in S} 2^{-\ell(i)} = \frac{1}{2}$.
           obtain ⟨S, hS⟩ : ∃ S : Finset I, (∑ i ∈ S, (1 / 2 : ℝ) ^ (l i)) = 1 / 2 := by
             have h_subset : ∃ S : Finset I, (∑ i ∈ S, (1 / 2 : ℝ) ^ (l i - 1)) = 1 := by
-              apply exists_subset_sum_eq_one
+              apply exists_subset_sum_eq_one (α := Bool)
               have h_subset : ∑ i, (1 / 2 : ℝ) ^ (l i - 1) = 2 * ∑ i, (1 / 2 : ℝ) ^ (l i) := by
                 rw [Finset.mul_sum _ _ _]
                 exact Finset.sum_congr rfl fun i _ => by rw [show (1 / 2 : ℝ) ^ (l i - 1) = 2 * (1 / 2 : ℝ) ^ l i by rw [show (1 / 2 : ℝ) ^ l i = (1 / 2 : ℝ) ^ (l i - 1) * (1 / 2 : ℝ) by rw [← pow_succ, Nat.sub_add_cancel (Nat.pos_of_ne_zero fun hi => h_exists_zero ⟨ i, hi ⟩)]] ; ring]
+              simp only [Fintype.card_bool]
               linarith
             obtain ⟨ S, hS ⟩ := h_subset
             use S
