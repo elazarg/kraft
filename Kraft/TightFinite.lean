@@ -3,6 +3,7 @@ import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Fintype.Card
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 
+import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.IntervalCases
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.Ring
@@ -89,20 +90,59 @@ lemma pairwise_monotone
   have := hget ⟨i, hi⟩ ⟨j, hj⟩ (by simpa using hij)
   simp_all only [List.get_eq_getElem, getElem!_pos]
 
+lemma sum_range_eq_sum_take (l : List ℕ) (k : ℕ) (hk : k ≤ l.length) (f : ℕ → ℝ) :
+    (∑ i ∈ Finset.range k, f (l[i]!)) = ((l.take k).map f).sum := by
+  induction k with
+  | zero =>
+      simp
+  | succ k ih =>
+      have hk' : k ≤ l.length := Nat.le_of_succ_le hk
+      have hklt : k < l.length := Nat.lt_of_succ_le hk
+      simp_all only [List.getElem!_eq_getElem?_getD, List.map_take, Finset.sum_range_succ, getElem?_pos, Option.getD_some, List.length_map, List.sum_take_succ, List.getElem_map]
+
+variable {α : Type _} [Fintype α] [Nonempty α]
+
 /-- If a sorted list of lengths has Kraft sum ≥ 1, some prefix has Kraft sum exactly 1.
 
 This is the key combinatorial lemma for the converse of Kraft's inequality: by sorting lengths
-in non-decreasing order and taking partial sums, we can find a subset with sum exactly 1/2
+in non-decreasing order and taking partial sums, we can find a subset with sum exactly 1/D
 (after appropriate scaling). The integrality of dyadic rationals makes the sum hit 1 exactly. -/
 lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (· ≤ ·))
-    (h_sum : (l.map (fun x => (1 / 2 : ℝ) ^ x)).sum ≥ 1) :
-    ∃ l', l' <+: l ∧ (l'.map (fun x => (1 / 2 : ℝ) ^ x)).sum = 1 := by
+    (h_sum : (l.map (fun x => (1 / (Fintype.card α) : ℝ) ^ x)).sum ≥ 1) :
+    ∃ l', l' <+: l ∧ (l'.map (fun x => (1 / (Fintype.card α) : ℝ) ^ x)).sum = 1 := by
+  let Dnat := Fintype.card α
+  let D := (Dnat: ℝ)
+  have dcard_pos : 0 < Dnat := Fintype.card_pos
+  have dpos : (0 : ℝ) < (Dnat : ℝ) := by exact_mod_cast dcard_pos
+  have d0 : (Dnat : ℝ) ≠ 0 := ne_of_gt dpos
+  have dnat1 : 1 ≤ Dnat := Nat.succ_le_iff.mp dcard_pos
+
+  have h_sum_range :
+      ∑ x ∈ Finset.range l.length, (D ^ l[x]?.getD 0)⁻¹ ≥ 1 := by
+    have h_sum' : 1 ≤ (l.map (fun x => (D ^ x)⁻¹)).sum := by
+      -- (1/D)^x = (D^x)⁻¹
+      simpa [one_div, inv_pow] using h_sum
+
+    -- Key bridge: range-sum equals list-sum (in the *getD* normal form)
+    have eq_sum :
+        (∑ x ∈ Finset.range l.length, (D ^ l[x]?.getD 0)⁻¹)
+          = (l.map (fun x => (D ^ x)⁻¹)).sum := by
+      simpa [sum_range_eq_sum_take
+                (l := l) (k := l.length) (hk := le_rfl)
+                (f := fun x => (D ^ x)⁻¹),
+            List.take_length,
+            List.getElem!_eq_getElem?_getD] using
+        (sum_range_eq_sum_take
+          (l := l) (k := l.length) (hk := le_rfl) (f := fun x => (D ^ x)⁻¹))
+    simpa [eq_sum] using h_sum'
+
   -- Let $k$ be the smallest index such that $s_k \geq 1$.
-  obtain ⟨k, hk⟩ : ∃ k : ℕ, k ≤ l.length ∧ (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) ≥ 1 ∧ ∀ j < k, (∑ i ∈ Finset.range j, (1 / 2 : ℝ) ^ l[i]!) < 1 := by
-    have h_exists_k : ∃ k : ℕ, k ≤ l.length ∧ (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) ≥ 1 := by
-      use l.length
-      convert h_sum.le using 1
-      norm_num [Finset.sum_range]
+  obtain ⟨k, hk⟩ : ∃ k : ℕ, k ≤ l.length ∧ (∑ i ∈ Finset.range k, (1 / D) ^ l[i]!) ≥ 1 ∧ ∀ j < k, (∑ i ∈ Finset.range j, (1 / D) ^ l[i]!) < 1 := by
+    have h_exists_k : ∃ k, k ≤ l.length ∧ (∑ i ∈ Finset.range k, (1 / D) ^ l[i]!) ≥ 1 := by
+      refine ⟨l.length, le_rfl, ?_⟩
+      simp
+      exact h_sum_range
+
     -- Take the smallest such k
     use Nat.find h_exists_k
     obtain ⟨hk_len, hk_ge⟩ := Nat.find_spec h_exists_k
@@ -111,84 +151,119 @@ lemma exists_prefix_sum_eq_one_of_sorted {l : List ℕ} (h_sorted : l.Pairwise (
     by_contra h_not_lt
     push_neg at h_not_lt
     exact Nat.find_min h_exists_k hj ⟨Nat.le_trans (Nat.le_of_lt hj) hk_len, h_not_lt⟩
-  -- Let $M$ be the integer such that $s_{k-1} = M / 2^{l_k}$.
-  obtain ⟨M, hM⟩ : ∃ M : ℕ, (∑ i ∈ Finset.range (k - 1), (1 / 2 : ℝ) ^ l[i]!) = M / 2 ^ l[k - 1]! := by
-    -- Since $l$ is sorted non-decreasingly, we have $l[i] \leq l[k-1]$ for all $i < k-1$.
-    have h_le : ∀ i < k - 1, l[i]! ≤ l[k - 1]! := by
-      intro i hi
-      have hkpos' : k.sub 0 ≠ 0 := by
-        -- i < k-1 forces k ≠ 0
-        intro hk0
-        have : k - 1 = 0 := by simp_all only [one_div, inv_pow, ge_iff_le, List.getElem!_eq_getElem?_getD, Nat.default_eq_zero, Nat.sub_eq, tsub_zero, zero_tsub]
-        omega
-      have hk1 : k - 1 < l.length := by
-        obtain ⟨hklen, _⟩ := hk
-        exact lt_of_lt_of_le (Nat.pred_lt hkpos') hklen
-      have := List.pairwise_iff_get.mp h_sorted
-      exact pairwise_monotone (l := l) h_sorted hi hk1
-    -- Since $l[i] \leq l[k-1]$ for all $i < k-1$, we can write each term $(1 / 2)^{l[i]!}$ as $(1 / 2)^{l[k-1]!} \cdot 2^{l[k-1]! - l[i]!}$.
-    have h_term : ∀ i < k - 1, (1 / 2 : ℝ) ^ l[i]! = (1 / 2 : ℝ) ^ l[k - 1]! * 2 ^ (l[k - 1]! - l[i]!) := by
-      intro i hi
-      rw [show (1 / 2 : ℝ) = (2⁻¹ : ℝ) by norm_num, inv_pow]
-      rw [← Nat.add_sub_of_le (h_le i hi)]
-      ring_nf
-      norm_num [mul_assoc, ← mul_pow]
+  -- Let $M$ be the integer such that $s_{k-1} = M / D^{l_k}$.
+  -- Since $l$ is sorted non-decreasingly, we have $l[i] \leq l[k-1]$ for all $i < k-1$.
+  have h_le : ∀ i < k - 1, l[i]! ≤ l[k - 1]! := by
+    intro i hi
+    have hkpos' : k.sub 0 ≠ 0 := by
+      -- i < k-1 forces k ≠ 0
+      intro hk0
+      have : k - 1 = 0 := by simp_all only [one_div, inv_pow, ge_iff_le, List.getElem!_eq_getElem?_getD, Nat.default_eq_zero, Nat.sub_eq, tsub_zero, zero_tsub]
+      omega
+    have hk1 : k - 1 < l.length := by
+      obtain ⟨hklen, _⟩ := hk
+      exact lt_of_lt_of_le (Nat.pred_lt hkpos') hklen
+    have := List.pairwise_iff_get.mp h_sorted
+    exact pairwise_monotone (l := l) h_sorted hi hk1
+  -- Define M as a natural number: the sum of D^{l[k-1]! - l[i]!} for i < k-1
+  let M : ℕ := ∑ i ∈ Finset.range (k - 1), Dnat ^ (l[k - 1]! - l[i]!)
+  -- Since $l[i] \leq l[k-1]$ for all $i < k-1$, we can write each term $(1 / D)^{l[i]!}$ as $(1 / D)^{l[k-1]!} \cdot D^{l[k-1]! - l[i]!}$.
+  have h_term :
+      ∀ i < k - 1,
+        (1 / D : ℝ) ^ l[i]! =
+          (1 / D : ℝ) ^ l[k - 1]! * D ^ (l[k - 1]! - l[i]!) := by
+    intro i hi
+    have hle : l[i]! ≤ l[k - 1]! := h_le i hi
+    have hD0 : D ≠ 0 := d0
+    -- First: rewrite everything into the `(D^n)⁻¹` normal form.
+    -- Goal becomes: (D^a)⁻¹ = (D^b)⁻¹ * D^(b-a).
+    have : (D ^ l[i]!)⁻¹ =  (D ^ l[k - 1]!)⁻¹ * D ^ (l[k - 1]! - l[i]!) := by
+      have hDa : (D ^ l[i]!) ≠ 0 := pow_ne_zero _ hD0
+      have hDb : (D ^ l[k - 1]!) ≠ 0 := pow_ne_zero _ hD0
+      have hEq :
+          l[k - 1]! = l[i]! + (l[k - 1]! - l[i]!) :=
+        (Nat.add_sub_of_le hle).symm
+      field_simp [hDa, hDb]
+      rw [hEq, pow_add]
+      simp
+    simpa [one_div, inv_pow, mul_assoc] using this
+  have hM : (∑ i ∈ Finset.range (k - 1), (1 / D) ^ l[i]!) = M / D ^ l[k - 1]! := by
     rw [Finset.sum_congr rfl fun i hi => h_term i (Finset.mem_range.mp hi)]
-    norm_num [← Finset.mul_sum _ _ _, div_eq_mul_inv]
-    exact ⟨ ∑ i ∈ Finset.range (k - 1), 2 ^ (l[k - 1]?.getD 0 - l[i]?.getD 0), by simp [div_eq_mul_inv, mul_comm] ⟩
-  -- Since $s_{k-1} < 1$, we have $M < 2^{l_k}$, so $M \leq 2^{l_k} - 1$.
-  have hM_le : M ≤ 2 ^ l[k - 1]! - 1 := by
-    have := hk.2.2 (k - 1)
-    rcases k with (_ | k) <;> norm_num at *
-    exact Nat.le_sub_one_of_lt (by rw [← @Nat.cast_lt ℝ] ; push_cast; rw [hM, div_lt_one (by positivity)] at this; linarith)
-  -- Now consider $s_k = s_{k-1} + (1/2)^{l_k} = (M + 1) / 2^{l_k}$.
-  have hsk : (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) = (M + 1) / 2 ^ l[k - 1]! := by
+    -- The constant (1/D)^{l[k-1]!} is on the left, so commute then factor
+    rw [Finset.sum_congr rfl fun i _ => mul_comm _ _]
+    rw [← Finset.sum_mul]
+    -- Rewrite (1/D)^n * sum = sum / D^n
+    rw [one_div, inv_pow, mul_comm, eq_div_iff (pow_ne_zero _ d0), mul_comm]
+    -- Goal: D^n * ((D^n)⁻¹ * sum) = M
+    -- First unfold D to ↑Dnat, then reassociate and cancel
+    simp only [D]
+    rw [mul_inv_cancel_left₀ (pow_ne_zero _ d0)]
+    -- Now just need sum of D^{...} = M
+    simp only [M, Nat.cast_sum, Nat.cast_pow]
+  -- Since $s_{k-1} < 1$, we have $M < D^{l_k}$, so $M \leq D^{l_k} - 1$.
+  have hM_le : M ≤ Dnat ^ l[k - 1]! - 1 := by
+    rcases k with (_ | k)
+    · -- k = 0: M is an empty sum, so M = 0, and we need 0 ≤ D^{...} - 1
+      simp only [M, Nat.zero_sub, Finset.range_zero, Finset.sum_empty]
+      exact Nat.zero_le _
+    · -- k = succ k: use that s_k < 1 implies M < D^{l[k]!}
+      have hsk_lt : (∑ i ∈ Finset.range k, (1 / D) ^ l[i]!) < 1 := hk.2.2 k (Nat.lt_succ_self k)
+      -- Simplify k + 1 - 1 = k in M and hM
+      simp only [add_tsub_cancel_right] at hM ⊢
+      rw [hM] at hsk_lt
+      -- From M / D^{l[k]!} < 1, we get M < D^{l[k]!}
+      have hDpow_pos : (0 : ℝ) < D ^ l[k]! := by positivity
+      rw [div_lt_one hDpow_pos] at hsk_lt
+      -- M is a ℕ, so M < D^{l[k]!} implies M ≤ D^{l[k]!} - 1
+      have hM_lt_nat : M < Dnat ^ l[k]! := by
+        have : (M : ℝ) < (Dnat : ℝ) ^ l[k]! := hsk_lt
+        exact_mod_cast this
+      omega
+  -- Now consider $s_k = s_{k-1} + (1/D)^{l_k} = (M + 1) / D^{l_k}$.
+  have hsk : (∑ i ∈ Finset.range k, (1 / D : ℝ) ^ l[i]!) = (M + 1) / D ^ l[k - 1]! := by
     rcases k
     · simp_all only [zero_le, Finset.range_zero, Finset.sum_empty, not_lt_zero, IsEmpty.forall_iff]
       linarith
     · simp_all only [one_div, inv_pow, Finset.sum_range_succ, add_tsub_cancel_right]
       ring
 
-  -- Since $s_k \geq 1$, we have $M + 1 \geq 2^{l_k}$.
-  have hM_ge : M + 1 ≥ 2 ^ l[k - 1]! := by
-    exact_mod_cast (by rw [hsk] at hk; rw [ge_iff_le] at hk; rw [le_div_iff₀ (by positivity)] at hk; linarith : (2 : ℝ) ^ l[k - 1]! ≤ M + 1)
-  -- Combining $M \leq 2^{l_k} - 1$ and $M + 1 \geq 2^{l_k}$, we get $M = 2^{l_k} - 1$.
-  have hM_eq : M = 2 ^ l[k - 1]! - 1 := by
-    exact eq_tsub_of_add_eq (by linarith [Nat.sub_add_cancel (Nat.one_le_pow (l[k - 1]!) 2 zero_lt_two)])
-  -- Thus $s_k = (2^{l_k} - 1 + 1) / 2^{l_k} = 1$.
-  have hsk_eq_one : (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) = 1 := by
-    rw [hsk, hM_eq, Nat.cast_sub <| Nat.one_le_pow _ _ zero_lt_two]
-    norm_num
+  -- Since $s_k \geq 1$, we have $M + 1 \geq D^{l_k}$.
+  have hM_ge : M + 1 ≥ Dnat ^ l[k - 1]! := by
+    have hDpow_pos : (0 : ℝ) < D ^ l[k - 1]! := by positivity
+    have hsk_ge : (∑ i ∈ Finset.range k, (1 / D) ^ l[i]!) ≥ 1 := hk.2.1
+    rw [hsk] at hsk_ge
+    rw [ge_iff_le, le_div_iff₀ hDpow_pos] at hsk_ge
+    have : (Dnat : ℝ) ^ l[k - 1]! ≤ (M : ℝ) + 1 := by linarith
+    exact_mod_cast this
+  -- Combining $M \leq D^{l_k} - 1$ and $M + 1 \geq D^{l_k}$, we get $M = D^{l_k} - 1$.
+  have hM_eq : M = Dnat ^ l[k - 1]! - 1 := by
+    have h1 : M + 1 ≤ Dnat ^ l[k - 1]! := Nat.succ_le_of_lt (Nat.lt_of_le_pred (Nat.one_le_pow _ _ dcard_pos) hM_le)
+    omega
+  -- Thus $s_k = (D^{l_k} - 1 + 1) / D^{l_k} = 1$.
+  have hsk_eq_one : (∑ i ∈ Finset.range k, (1 / D : ℝ) ^ l[i]!) = 1 := by
+    rw [hsk]
+    have hDpow_pos : (0 : ℝ) < D ^ l[k - 1]! := by positivity
+    have hDpow_ne : (D : ℝ) ^ l[k - 1]! ≠ 0 := ne_of_gt hDpow_pos
+    rw [hM_eq]
+    -- (Dnat ^ n - 1 + 1) / D ^ n = D ^ n / D ^ n = 1
+    have h_sub_add : Dnat ^ l[k - 1]! - 1 + 1 = Dnat ^ l[k - 1]! :=
+      Nat.sub_add_cancel (Nat.one_le_pow _ _ dcard_pos)
+    simp only [Nat.cast_sub (Nat.one_le_pow _ _ dcard_pos), Nat.cast_one, Nat.cast_pow]
+    rw [sub_add_cancel]
+    exact div_self hDpow_ne
   refine' ⟨ l.take k, _, _ ⟩
   · exact List.take_prefix _ _
-  · convert hsk_eq_one using 1
-    have h_sum_eq : ∀ (l : List ℕ) (k : ℕ), k ≤ l.length → (∑ i ∈ Finset.range k, (1 / 2 : ℝ) ^ l[i]!) = (List.map (fun x => (1 / 2 : ℝ) ^ x) (List.take k l)).sum := by
-      intros l k hk
-      induction k with
-      | zero => simp
-      | succ k ih =>
-        -- 1. Split the sum on the left (0 to k -> 0 to k-1 + k)
-        rw [Finset.sum_range_succ]
-        -- 2. Split the list on the right (take (k+1) -> take k ++ [l[k]])
-        have h_take : l.take (k + 1) = l.take k ++ [l.get ⟨k, Nat.lt_of_succ_le hk⟩] := by
-          simp_all only [one_div, inv_pow, ge_iff_le, List.getElem!_eq_getElem?_getD, Nat.default_eq_zero, Nat.ofNat_pos,
-            pow_pos, Nat.cast_pred, Nat.cast_pow, Nat.cast_ofNat, le_refl, sub_add_cancel, ne_eq, pow_eq_zero_iff',
-            OfNat.ofNat_ne_zero, false_and, not_false_eq_true, div_self, List.map_take, List.get_eq_getElem,
-            List.take_append_getElem]
-        rw [h_take, List.map_append, List.sum_append]
-        -- 3. Use IH for the prefix
-        rw [ih (Nat.le_of_succ_le hk)]
-        -- 4. Prove the last terms are equal
-        simp_all only [lt_of_lt_of_le (Nat.lt_succ_self k) hk, Nat.ofNat_pos,
-                      pow_pos, Nat.cast_pred, le_refl, sub_add_cancel,  List.get_eq_getElem,
-                      List.take_append_getElem, getElem!_pos, List.map_cons, List.map_nil,
-                      List.sum_cons, List.sum_nil, add_zero]
-    rw [h_sum_eq l k hk.1]
+  · -- Need: (l.take k).map (fun x => (1/Fintype.card α)^x)).sum = 1
+    -- Use sum_range_eq_sum_take to convert list sum to finset sum
+    have h_eq : (List.map (fun x => (1 / (Fintype.card α) : ℝ) ^ x) (List.take k l)).sum =
+                ∑ i ∈ Finset.range k, (1 / D : ℝ) ^ l[i]! := by
+      rw [sum_range_eq_sum_take l k hk.1 (fun x => (1 / D : ℝ) ^ x)]
+    rw [h_eq, hsk_eq_one]
 
 /-- If the Kraft sum over a finite index set is ≥ 1, there exists a subset with sum exactly 1.
 
-This lemma is used in the recursive construction: when the total sum exceeds 1/2, we can
-partition the indices into two parts each with sum exactly 1/2, enabling the inductive step. -/
+This lemma is used in the recursive construction: when the total sum exceeds 1/D, we can
+partition the indices into two parts each with sum exactly 1/D, enabling the inductive step. -/
 lemma exists_subset_sum_eq_one (l : I → ℕ)
     (h_sum : 1 ≤ ∑ i, (1 / 2 : ℝ) ^ l i) :
     ∃ S : Finset I, ∑ i ∈ S, (1 / 2 : ℝ) ^ l i = 1 := by
@@ -221,7 +296,7 @@ lemma exists_subset_sum_eq_one (l : I → ℕ)
       linarith
   -- Apply `exists_prefix_sum_eq_one_of_sorted` to the sorted list `l''`.
   obtain ⟨l''', hl'''⟩ : ∃ l''' : List ℕ, l''' <+: l'' ∧ (l'''.map (fun x => (1 / 2 : ℝ) ^ x)).sum = 1 := by
-    apply exists_prefix_sum_eq_one_of_sorted hl''.2.1 hl''.2.2
+    exact exists_prefix_sum_eq_one_of_sorted (α := Bool) hl''.2.1 hl''.2.2
   -- The elements of this prefix correspond to a subset $S$ of $I$.
   obtain ⟨S, hS⟩ : ∃ S : Finset I, Multiset.map l S.val = Multiset.ofList l''' := by
     apply_rules [exists_subset_of_multiset_le_map]
