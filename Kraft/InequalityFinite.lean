@@ -12,25 +12,30 @@ import Kraft.Basic
 namespace Kraft
 open scoped BigOperators Real
 
-/-- **Kraft's Inequality (Finite)**:
-    If S is a finite prefix-free code, the sum of 2^(-length) is ≤ 1. -/
 
-theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree (S : Set (List Bool))) :
-    ∑ w ∈ S, (1 / 2 : ℝ) ^ w.length ≤ 1 := by
+variable {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
+
+/-- **Kraft's Inequality (Finite)**:
+    If S is a finite prefix-free code, the sum of D^(-length) is ≤ 1. -/
+
+theorem kraft_inequality (S : Finset (List α)) (h : PrefixFree (S : Set (List α))) :
+    ∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length ≤ 1 := by
+
+  let D := (Fintype.card α)
 
   -- Let $n$ be the maximum length of a word in $S$.
   let n := Finset.sup S List.length
 
-  -- The set of all boolean strings of length k
-  let all_words (k : ℕ) : Finset (List Bool) :=
-    (Finset.univ : Finset (Fin k → Bool)).image List.ofFn
+  -- The set of all αean strings of length k
+  let all_words (k : ℕ) : Finset (List α) :=
+    (Finset.univ : Finset (Fin k → α)).image List.ofFn
 
   -- The "cylinder" of w (all extensions of w to length n)
-  let cylinder (w : List Bool) : Finset (List Bool) :=
+  let cylinder (w : List α) : Finset (List α) :=
     (all_words (n - w.length)).image (w ++ ·)
 
   -- 1. A list is in 'all_words k' iff its length is k
-  have mem_all_words_iff (k : ℕ) (l : List Bool) : l ∈ all_words k ↔ l.length = k := by
+  have mem_all_words_iff (k : ℕ) (l : List α) : l ∈ all_words k ↔ l.length = k := by
     rw [Finset.mem_image]
     constructor
     · rintro ⟨f, _, rfl⟩
@@ -57,25 +62,25 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree (S : Set (List
     · exact hne (h w1 hw1 _ hw2 ⟨m, rfl⟩)
 
   -- card of all_words
-  have all_words_card (k : ℕ) : (all_words k).card = 2^k := by
+  have all_words_card (k : ℕ) : (all_words k).card = D^k := by
     -- all_words k = image List.ofFn univ, and List.ofFn is injective
-    have hinj : Function.Injective (List.ofFn : (Fin k → Bool) → List Bool) := by
+    have hinj : Function.Injective (List.ofFn : (Fin k → α) → List α) := by
       intro f g hfg
       -- this lemma exists in Lean4/Mathlib
       exact List.ofFn_injective hfg
-    -- card(image) = card(univ) = 2^k
-    simp [all_words, Finset.card_image_of_injective, hinj]
+    -- card(image) = card(univ) = D^k
+    simp [D, all_words, Finset.card_image_of_injective, hinj]
 
   -- card of each cylinder
-  have cylinder_card (w : List Bool) : (cylinder w).card = 2^(n - w.length) := by
-    have hinj : Function.Injective (fun z : List Bool => w ++ z) := by
+  have cylinder_card (w : List α) : (cylinder w).card = D^(n - w.length) := by
+    have hinj : Function.Injective (fun z : List α => w ++ z) := by
       intro a b hab
       simp_all only [ne_eq, List.append_cancel_left_eq]
     -- cylinder w = image (w++·) (all_words (n - |w|))
     simp [cylinder, Finset.card_image_of_injective, hinj, all_words_card]
 
   -- cylinders land inside the length-n universe
-  have cylinder_subset_all_words_n (w : List Bool) (hw : w ∈ S) :
+  have cylinder_subset_all_words_n (w : List α) (hw : w ∈ S) :
       cylinder w ⊆ all_words n := by
     intro x hx
     rcases Finset.mem_image.mp hx with ⟨s, hs, rfl⟩
@@ -90,8 +95,8 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree (S : Set (List
     exact (mem_all_words_iff n (w ++ s)).2 hlen
 
   -- now the main inequality
-  have h_sum_le_total : ∑ w ∈ S, 2^(n - w.length) ≤ 2^n := by
-    let U : Finset (List Bool) := S.biUnion cylinder
+  have h_sum_le_total : ∑ w ∈ S, D^(n - w.length) ≤ D^n := by
+    let U : Finset (List α) := S.biUnion cylinder
     have hU_card :
         U.card = ∑ w ∈ S, (cylinder w).card := by
       -- disjoint union → sum of cards
@@ -108,42 +113,43 @@ theorem kraft_inequality (S : Finset (List Bool)) (h : PrefixFree (S : Set (List
       Finset.card_le_card hU_sub
     -- rewrite sums into cards, then bound by all_words n
     calc
-      ∑ w ∈ S, 2^(n - w.length)
+      ∑ w ∈ S, D^(n - w.length)
           = ∑ w ∈ S, (cylinder w).card := by
               refine Finset.sum_congr rfl (fun w hw => ?_)
               simp [cylinder_card]
       _ = U.card := by simp [hU_card]
       _ ≤ (all_words n).card := hU_le
-      _ = 2^n := by simp [all_words_card]
+      _ = D^n := by simp [all_words_card]
 
-  -- Key algebra lemma: 2^(n-|w|)/2^n = (1/2)^{|w|}
-  have rhs_eq (w : List Bool) (hw : w ∈ S) :
-      (2 : ℝ)^(n - w.length) / (2 : ℝ)^n = (1/2 : ℝ)^w.length := by
+  -- Key algebra lemma: D^(n-|w|)/D^n = (1/D)^{|w|}
+  have rhs_eq (w : List α) (hw : w ∈ S) :
+      (D : ℝ)^(n - w.length) / (D : ℝ)^n = (1/D : ℝ)^w.length := by
     have hwle : w.length ≤ n := by simpa [n] using Finset.le_sup (s := S) (f := List.length) hw
-    rw [show (2 : ℝ)^n = (2 : ℝ)^(n - w.length) * (2 : ℝ)^w.length by
+    rw [show (D : ℝ)^n = (D : ℝ)^(n - w.length) * (D : ℝ)^w.length by
           rw [← pow_add, Nat.sub_add_cancel hwle]]
+    subst D
     simp [div_mul_eq_div_div, one_div, inv_pow]
 
   -- Cast the Nat inequality to ℝ in the exact form we need
   have h_sum_le_totalR :
-      (∑ w ∈ S, (2 : ℝ)^(n - w.length)) ≤ (2 : ℝ)^n := by
+      (∑ w ∈ S, (D : ℝ)^(n - w.length)) ≤ (D : ℝ)^n := by
     have h_cast :
-        ((∑ w ∈ S, 2^(n - w.length)) : ℝ) ≤ (2^n : ℕ) := by
+        ((∑ w ∈ S, D^(n - w.length)) : ℝ) ≤ (D^n : ℕ) := by
       exact_mod_cast h_sum_le_total
     simpa [Nat.cast_sum, Nat.cast_pow, Nat.cast_two] using h_cast
 
   -- Final
   calc
-    ∑ w ∈ S, (1/2 : ℝ)^w.length
-        = ∑ w ∈ S, (2 : ℝ)^(n - w.length) / (2 : ℝ)^n := by
+    ∑ w ∈ S, (1/D : ℝ)^w.length
+        = ∑ w ∈ S, (D : ℝ)^(n - w.length) / (D : ℝ)^n := by
             refine Finset.sum_congr rfl (fun w hw => ?_)
             simpa using (rhs_eq w hw).symm
-    _ = (∑ w ∈ S, (2 : ℝ)^(n - w.length)) / (2 : ℝ)^n := by
+    _ = (∑ w ∈ S, (D : ℝ)^(n - w.length)) / (D : ℝ)^n := by
             simpa using
               (S.sum_div
-                (f := fun w => (2 : ℝ)^(n - w.length))
-                (a := (2 : ℝ)^n)).symm
-    _ ≤ (2 : ℝ)^n / (2 : ℝ)^n := by
+                (f := fun w => (D : ℝ)^(n - w.length))
+                (a := (D : ℝ)^n)).symm
+    _ ≤ (D : ℝ)^n / (D : ℝ)^n := by
             exact div_le_div_of_nonneg_right h_sum_le_totalR (by positivity)
     _ = 1 := by simp
 
