@@ -277,11 +277,28 @@ lemma natToDigitsBE_prefix_iff_div
     -- now finish: B = (take w B) ++ (drop w B) = A ++ tail
     simpa [ht_take] using (List.take_append_drop w (natToDigitsBE b m v))
 
+def natToDigitsBEFin (D n width : ℕ) (ne: 0 < D): List (Fin D) :=
+  List.ofFn (fun i : Fin width =>
+    ⟨ n / D^(width - 1 - (i:ℕ)) % D, Nat.mod_lt _ ne⟩ )
+
+variable {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
+
+noncomputable def natToWord (n width : ℕ) : List α :=
+  (natToDigitsBEFin (Fintype.card α) n width Fintype.card_pos).map ((Fintype.equivFin α).symm)
+
+def digit2ToBool (d : ℕ) : Bool := decide (d % 2 = 1)
+
+def Nat.testDigit (b n i d : ℕ) : Prop :=
+  (n / b^i) % b = d
+
 /-- Converts a natural number `n` to a big-endian list of bits of length `width`.
 
 For example, `natToBits 5 4 = [false, true, false, true]` representing 0101₂ = 5. -/
 def natToBits (n width : ℕ) : List Bool :=
   List.ofFn (fun i : Fin width => n.testBit (width - 1 - i))
+
+def natToBits' (n w : ℕ) : List Bool :=
+  (natToDigitsBEFin 2 n w (by decide)).map (fun d : Fin 2 => decide (d = 1))
 
 /-- `natToBits` is injective for numbers less than `2^width`. -/
 lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
@@ -425,6 +442,42 @@ lemma kraft_A_div_pow_eq_sum (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
         field_simp
         ring_nf
         norm_num [← mul_pow]
+
+/-- Generalized "address" function for constructing prefix-free codes over alphabet of size D.
+
+For a monotone length sequence `l`, `kraft_A_gen D l n` is chosen so that
+`kraft_A_gen D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} D^{-l k}`. -/
+def kraft_A_gen (D : ℕ) (l : ℕ → ℕ) : ℕ → ℕ
+  | 0 => 0
+  | n + 1 => (kraft_A_gen D l n + 1) * D ^ (l (n + 1) - l n)
+
+/-- `kraft_A` is `kraft_A_gen` specialized to base 2. -/
+lemma kraft_A_eq_kraft_A_gen_two (l : ℕ → ℕ) : kraft_A l = kraft_A_gen 2 l := by
+  ext n
+  induction n with
+  | zero => rfl
+  | succ n ih => simp only [kraft_A, kraft_A_gen, ih]
+
+/-- `kraft_A_gen D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} (1/D)^{l k}`.
+
+This is the key invariant that ensures non-overlapping D-adic intervals. -/
+lemma kraft_A_gen_div_pow_eq_sum (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
+    (kraft_A_gen D l n : ℝ) / D ^ l n = ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k := by
+  have hD_pos : (0 : ℝ) < D := by exact_mod_cast Nat.zero_lt_of_lt hD
+  have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos
+  induction n with
+  | zero => simp only [kraft_A_gen, CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
+  | succ n ih =>
+    simp only [one_div, inv_pow, Finset.sum_range_succ]
+    have h_sub : (kraft_A_gen D l (n + 1) : ℝ) = (kraft_A_gen D l n + 1) * D ^ (l (n + 1) - l n) := by
+      simp only [kraft_A_gen, Nat.cast_mul, Nat.cast_add, Nat.cast_one, Nat.cast_pow]
+    rw [h_sub]
+    simp_all only [one_div, inv_pow]
+    rw [← ih]
+    rw [show l (n + 1) = l n + (l (n + 1) - l n) by rw [Nat.add_sub_of_le (h_mono (Nat.le_succ n))]]
+    rw [pow_add]
+    field_simp
+    simp only [add_tsub_cancel_left]
 
 /-- Converse of Kraft's inequality for monotone length sequences indexed by ℕ.
 
