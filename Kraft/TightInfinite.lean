@@ -3,6 +3,7 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Data.Set.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Order.RelIso.Basic
+import Mathlib.Data.Fintype.Sort
 
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Algebra.BigOperators.Field
@@ -20,15 +21,6 @@ namespace Kraft
 
 open scoped BigOperators Real
 open Nat
-
-/-- Prefix-freeness transfers through injective maps. -/
-lemma PrefixFree.map_injective {α β : Type _} {f : α → β} (hf : Function.Injective f)
-    {S : Set (List α)} (hS : Kraft.PrefixFree S) :
-    Kraft.PrefixFree ((List.map f) '' S) := by
-  intro a ⟨x, hxS, q⟩ b ⟨y, hyS, q⟩ hpre
-  subst a b
-  rw [List.IsPrefix.map_iff hf] at hpre
-  exact congrArg (List.map f) (hS x hxS y hyS hpre)
 
 /-- The "address" function for constructing prefix-free codes.
 
@@ -682,28 +674,6 @@ theorem kraft_inequality_tight_nat_mono_alpha {α : Type _} [DecidableEq α] [Fi
     intro i
     simp [w, h_len_fin]
 
-/-- Extends a length function on `Fin k` to all of `ℕ`, preserving monotonicity.
-
-For `i < k`, returns `l i`. For `i ≥ k`, returns `l(k-1) + (i - k + 1)`. -/
-def l_ext {k : ℕ} (l : Fin k → ℕ) (hk : k ≠ 0) (i : ℕ) : ℕ :=
-  if h : i < k then l ⟨i, h⟩ else l ⟨k - 1, by omega⟩ + (i - k + 1)
-
-/-- `l_ext` agrees with `l` on `Fin k`. -/
-lemma l_ext_eq {k : ℕ} (l : Fin k → ℕ) (hk : k ≠ 0) (i : Fin k) :
-    l_ext l hk i = l i := by
-      unfold Kraft.l_ext
-      simp_all only [Fin.is_lt, ↓reduceDIte, Fin.eta]
-
-/-- `l_ext` is monotone when `l` is monotone. -/
-lemma l_ext_monotone {k : ℕ} (l : Fin k → ℕ) (h_mono : Monotone l) (hk : k ≠ 0) :
-    Monotone (l_ext l hk) := by
-      -- Let's prove the monotonicity of `l_ext` by considering different cases.
-      intro i j hij
-      simp [Kraft.l_ext] at *
-      split_ifs <;> try omega
-      · exact h_mono hij
-      · exact le_add_of_le_of_nonneg (h_mono (Nat.le_pred_of_lt ‹_›)) (Nat.zero_le _)
-
 lemma kraft_inequality_tight_finite_mono_alpha
     {α : Type _} [Fintype α] [Nontrivial α]
     {k : ℕ} (l : Fin k → ℕ) (h_mono : Monotone l)
@@ -1032,13 +1002,24 @@ theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
   · haveI := Fintype.ofFinite I
     -- By `exists_equiv_fin_monotone`, there exists an equivalence `e : Fin (card I) ≃ I` such that `l ∘ e` is monotone.
     obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) := by
-      exact exists_equiv_fin_monotone l
+      --  monoEquivOfFin I?
+      exact monoEquivOfFin l
     -- By `kraft_inequality_tight_finite_mono`, there exists `w' : Fin (card I) → List Bool` satisfying the conditions for `l ∘ e`.
     obtain ⟨w', hw'⟩ : ∃ w' : Fin (Fintype.card I) → List Bool, Function.Injective w' ∧ Kraft.PrefixFree (Set.range w') ∧ ∀ i, (w' i).length = l (e i) := by
       have h_sum_eq : ∑ i, (1 / 2 : ℝ) ^ (l (e i)) ≤ 1 := by
         convert h_sum using 1
         rw [tsum_fintype, ← Equiv.sum_comp e]
-      exact kraft_inequality_tight_finite_mono (fun i ↦ l (e i)) he h_sum_eq
+      have : Fintype.card Bool = 2 := by
+          simp_all
+      -- Application type mismatch: The argument
+      --   h_sum_eq
+      -- has type
+      --   ∑ i, (1 / 2) ^ l (e i) ≤ 1
+      -- but is expected to have type
+      --   ∑ i, (1 / ↑(Fintype.card Bool)) ^ l (e i) < 1
+      -- in the application
+      --   kraft_inequality_tight_finite_mono_alpha (fun i ↦ l (e i)) he h_sum_eq
+      exact kraft_inequality_tight_finite_mono_alpha (fun i ↦ l (e i)) he h_sum_eq
     refine' ⟨ w' ∘ e.symm, _, _, _ ⟩
     · simp_all only [Function.Injective]
       exact fun a₁ a₂ h => e.symm.injective (hw'.1 h)
@@ -1080,7 +1061,7 @@ injective prefix-free code `w : I → List α` with the prescribed lengths.
 
 Requires `Nontrivial α` (i.e., `|α| ≥ 2`) since prefix-free codes need at least 2 symbols. -/
 theorem kraft_inequality_tight_infinite_alpha
-    {I : Type _} (l : I → ℕ)
+    {I : Type _} [LinearOrder I] (l : I → ℕ)
     (h_summable : Summable (fun i ↦ (1 / Fintype.card α : ℝ) ^ l i))
     (h_sum : ∑' i, (1 / Fintype.card α : ℝ) ^ l i ≤ 1) :
     ∃ w : I → List α,
@@ -1091,11 +1072,15 @@ theorem kraft_inequality_tight_infinite_alpha
   by_cases h_finite : Finite I
   · haveI := Fintype.ofFinite I
     -- By `exists_equiv_fin_monotone`, there exists an equivalence `e : Fin (card I) ≃ I` such that `l ∘ e` is monotone.
-    obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) :=
-      exists_equiv_fin_monotone l
+    obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) := by
+      use (monoEquivOfFin I (rfl))
+      sorry
     -- By `kraft_inequality_tight_finite_mono_alpha`, there exists `w' : Fin (card I) → List α`
     obtain ⟨w', hw'_inj, hw'_pf, hw'_len⟩ := kraft_inequality_tight_finite_mono_alpha
-      (fun i ↦ l (e i)) he (by convert h_sum using 1; rw [tsum_fintype, ← Equiv.sum_comp e])
+      (fun i ↦ l (e i)) he (by
+        convert h_sum using 1
+        rw [tsum_fintype, ← Equiv.sum_comp e]
+      )
     refine ⟨w' ∘ e.symm, ?_, ?_, ?_⟩
     · exact hw'_inj.comp e.symm.injective
     · simp only [EquivLike.range_comp]
