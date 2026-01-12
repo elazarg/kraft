@@ -1112,7 +1112,7 @@ theorem kraft_inequality_tight_nat_mono_alpha {α : Type _} [DecidableEq α] [Fi
     intro i
     simp [w, h_len_fin]
 
-lemma kraft_inequality_tight_finite_mono_alpha
+lemma kraft_inequality_tight_finite_mono_alpha_lt
     {α : Type _} [Fintype α] [Nontrivial α]
     {k : ℕ} (l : Fin k → ℕ) (h_mono : Monotone l)
     (h_sum : ∑ i, (1 / Fintype.card α : ℝ) ^ l i < 1) :
@@ -1551,7 +1551,7 @@ theorem kraft_inequality_tight_infinite_alpha
     obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) :=
       exists_equiv_fin_monotone l
     -- By `kraft_inequality_tight_finite_mono_alpha`, there exists `w' : Fin (card I) → List α`
-    obtain ⟨w', hw'_inj, hw'_pf, hw'_len⟩ := kraft_inequality_tight_finite_mono_alpha
+    obtain ⟨w', hw'_inj, hw'_pf, hw'_len⟩ := kraft_inequality_tight_finite_mono_alpha_le
       (fun i ↦ l (e i)) he (by
         convert h_sum using 1
         rw [tsum_fintype, ← Equiv.sum_comp e]
@@ -1582,16 +1582,61 @@ theorem kraft_inequality_tight_infinite_alpha
     · intro i
       simp [hw_len]
 
+
+/-- **Converse of Kraft's Inequality** (General Arity).
+
+For any index set `I` (finite or infinite), any arity `D > 1`, and any embedding `ι` of `Fin D` into `α`,
+if `∑ D^{-l i} ≤ 1`, then there exists an injective prefix-free code `w : I → List α`. -/
 theorem kraft_tight_of_arity
   (D : ℕ) (hD : 1 < D)
-  {α : Type _} [DecidableEq α]
-  (ι : Fin D ↪ α)                     -- an embedding of D symbols into α
+  {α : Type _} (ι : Fin D ↪ α)
   {I : Type _} (l : I → ℕ)
   (h_summable : Summable (fun i => (1 / D : ℝ) ^ l i))
   (h_sum : ∑' i, (1 / D : ℝ) ^ l i ≤ 1) :
   ∃ w : I → List α,
     Function.Injective w ∧
     PrefixFree (Set.range w) ∧
-    ∀ i, (w i).length = l i := sorry
+    ∀ i, (w i).length = l i := by
+
+  -- We construct a code w_D over Fin D first
+  obtain ⟨w_D, hw_inj, hw_pf, hw_len⟩ : ∃ w : I → List (Fin D), Function.Injective w ∧ PrefixFree (Set.range w) ∧ ∀ i, (w i).length = l i := by
+    by_cases h_finite : Finite I
+    · -- Case 1: Finite I
+      haveI := Fintype.ofFinite I
+      obtain ⟨e, he_mono⟩ := exists_equiv_fin_monotone l
+      have h_sum_fin : ∑ i : Fin (Fintype.card I), (1 / D : ℝ) ^ l (e i) ≤ 1 := by
+        convert h_sum using 1
+        rw [tsum_fintype, ← Equiv.sum_comp e]
+      obtain ⟨w_fin, h1, h2, h3⟩ := kraft_inequality_tight_fin_le D hD (l ∘ e) he_mono h_sum_fin
+      refine ⟨fun i => w_fin (e.symm i), ?_, ?_, ?_⟩
+      · intro x y h; apply e.symm.injective; apply h1; assumption
+      · intro a ha b hb; simp only [Set.mem_range] at ha hb
+        obtain ⟨x, rfl⟩ := ha; obtain ⟨y, rfl⟩ := hb; apply h2; simp; simp
+      · intro i; simp [h3]
+
+    · -- Case 2: Infinite I
+      haveI : Infinite I := not_finite_iff_infinite.mp h_finite
+      obtain ⟨e, he_mono⟩ := exists_equiv_nat_monotone_of_infinite_gen D hD l h_summable
+      have h_sum_nat : ∑' i : ℕ, (1 / D : ℝ) ^ l (e i) ≤ 1 := by
+         convert h_sum
+         rw [<-Equiv.tsum_eq e]
+      obtain ⟨w_fin, h1, h2, h3⟩ := kraft_inequality_tight_nat_mono_fin D hD (l ∘ e) he_mono (h_summable.comp_injective e.injective) h_sum_nat
+      refine ⟨fun i => w_fin (e.symm i), ?_, ?_, ?_⟩
+      · intro x y h; apply e.symm.injective; apply h1; assumption
+      · intro a ha b hb; simp only [Set.mem_range] at ha hb
+        obtain ⟨x, rfl⟩ := ha
+        obtain ⟨y, rfl⟩ := hb
+        apply h2 <;> simp
+      · intro i
+        simp [h3]
+
+  -- Embed List (Fin D) into List α
+  refine ⟨fun i => (w_D i).map ι, ?_, ?_, ?_⟩
+  · intro x y h; apply hw_inj; apply List.map_injective_iff.mpr ι.injective h
+  · intro a ha b hb hpre
+    obtain ⟨x, rfl⟩ := ha; obtain ⟨y, rfl⟩ := hb
+    rw [List.IsPrefix.map_iff ι.injective] at hpre
+    exact congrArg (List.map ι) (hw_pf (w_D x) ⟨x, rfl⟩ (w_D y) ⟨y, rfl⟩ hpre)
+  · intro i; simp [hw_len]
 
 end Kraft
