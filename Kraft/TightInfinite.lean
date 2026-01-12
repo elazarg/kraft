@@ -96,7 +96,7 @@ theorem kraft_inequality_tight_nat_mono_gen (D : ℕ) (hD : 1 < D) (l : ℕ → 
     (h_sum : ∑' i, (1 / D : ℝ) ^ l i ≤ 1) :
     ∃ w : ℕ → List ℕ,
       Function.Injective w ∧
-      Kraft.PrefixFree (Set.range w) ∧
+      PrefixFree (Set.range w) ∧
       (∀ i, (w i).length = l i) ∧
       (∀ i, ∀ d ∈ w i, d < D) := by
   have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
@@ -298,7 +298,7 @@ theorem kraft_inequality_tight_nat_mono_fin
     (h_sum : ∑' i, (1 / D : ℝ) ^ l i ≤ 1) :
     ∃ w : ℕ → List (Fin D),
       Function.Injective w ∧
-      Kraft.PrefixFree (Set.range w) ∧
+      PrefixFree (Set.range w) ∧
       (∀ i, (w i).length = l i) := by
   -- 1) get the nat-valued code with digit bounds
   obtain ⟨wNat, hwNat_inj, hwNat_pf, hwNat_len, hwNat_bound⟩ :=
@@ -535,7 +535,7 @@ lemma kraft_inequality_tight_fin_lt
     (h_sum : (∑ i, (1 / D : ℝ) ^ l i) < 1) :
     ∃ w : Fin k → List (Fin D),
       Function.Injective w ∧
-      Kraft.PrefixFree (Set.range w) ∧
+      PrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
   by_cases hk : k = 0
   · subst hk
@@ -636,6 +636,444 @@ lemma kraft_inequality_tight_fin_lt
     -- lNat agrees with l on i < k
     simp [w, hwNat_len, lNat, ext_shift_eq]
 
+
+/-- Helper: for `0 < r`, the partial sum over a proper prefix is strictly increasing. -/
+lemma sum_range_succ_lt {r : ℝ} (hr : 0 < r) (lNat : ℕ → ℕ) (n : ℕ) :
+    (∑ t ∈ Finset.range n, r ^ lNat t)
+      < (∑ t ∈ Finset.range (n+1), r ^ lNat t) := by
+  -- `sum_range_succ` gives `S(n+1) = S(n) + r^(lNat n)`, and the added term is positive.
+  simp [Finset.sum_range_succ]
+  have : 0 < r ^ lNat n := by
+    exact pow_pos hr _
+  linarith
+
+/-- Helper: if a nonnegative series of length `k` sums to `≤ 1`,
+then every proper prefix sum is `< 1`. -/
+lemma sum_range_lt_one_of_sum_range_le_one
+    {r : ℝ} (hr : 0 < r) {k n : ℕ} (hnk : n < k)
+    (lNat : ℕ → ℕ)
+    (h_le : (∑ t ∈ Finset.range k, r ^ lNat t) ≤ 1) :
+    (∑ t ∈ Finset.range n, r ^ lNat t) < 1 := by
+  -- `S(n) < S(n+1) ≤ S(k) ≤ 1`
+  have hlt_succ : (∑ t ∈ Finset.range n, r ^ lNat t)
+      < (∑ t ∈ Finset.range (n+1), r ^ lNat t) :=
+    sum_range_succ_lt (r := r) hr lNat n
+  have h_le_succ_k :
+      (∑ t ∈ Finset.range (n+1), r ^ lNat t)
+        ≤ (∑ t ∈ Finset.range k, r ^ lNat t) := by
+    have hsub : Finset.range (n+1) ⊆ Finset.range k :=
+      Finset.range_mono (Nat.succ_le_of_lt hnk)
+    refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
+    intro _ _ _
+    exact le_of_lt (pow_pos hr _)
+
+  have : (∑ t ∈ Finset.range n, r ^ lNat t)
+      < (∑ t ∈ Finset.range k, r ^ lNat t) := by
+    exact lt_of_lt_of_le hlt_succ (le_trans h_le_succ_k (le_rfl))
+  exact lt_of_lt_of_le this h_le
+
+/-- Helper: turn the invariant + `< 1` into the numeric bound `A n < D^(lNat n)`. -/
+lemma kraft_A_gen_lt_pow_of_sum_range_lt_one
+    (D : ℕ) (hD : 1 < D) (lNat : ℕ → ℕ) (hmono : Monotone lNat)
+    {n : ℕ}
+    (h_sum_lt1 : (∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t) < 1) :
+    kraft_A_gen D lNat n < D ^ lNat n := by
+  have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
+  have hD_pos_real : (0 : ℝ) < D := by exact_mod_cast hD_pos
+  have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos_real
+
+  have h_eq :
+      (kraft_A_gen D lNat n : ℝ) / (D : ℝ) ^ lNat n
+        = ∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t :=
+    kraft_A_gen_div_pow_eq_sum (D := D) hD lNat hmono n
+
+  have hden : 0 < (D : ℝ) ^ lNat n := by positivity
+  have hdivlt : (kraft_A_gen D lNat n : ℝ) / (D : ℝ) ^ lNat n < 1 := by
+    simpa [h_eq] using h_sum_lt1
+
+  have hlt_real : (kraft_A_gen D lNat n : ℝ) < (D : ℝ) ^ lNat n := by
+    -- `a/b < 1` with `0<b` gives `a < b`
+    exact (div_lt_one hden).1 hdivlt
+
+  -- cast back to `ℕ`
+  exact_mod_cast hlt_real
+
+/-- Sufficient separation condition for prefix-freeness via the `div` characterization. -/
+lemma prefixFree_range_natToDigitsBEFin_of_div_separated
+    {D : ℕ} (hD : 1 < D) {k : ℕ}
+    (l : Fin k → ℕ)
+    (A : ℕ → ℕ)
+    (hA_lt : ∀ i : Fin k, A i.val < D ^ l i)
+    (hSep :
+      ∀ {i j : Fin k}, i ≠ j → ¬
+        (l i ≤ l j ∧ A j.val / D ^ (l j - l i) = A i.val)) :
+    Kraft.PrefixFree (Set.range (fun i : Fin k => Digits.natToDigitsBEFin  D (A i.val) (l i) (by omega))) := by
+  intro a ha b hb hpre
+  rcases ha with ⟨i, rfl⟩
+  rcases hb with ⟨j, rfl⟩
+  by_cases hij : i = j
+  · subst hij; rfl
+  · -- use the prefix ↔ division lemma
+    have hpre' :
+        (l i ≤ l j ∧ A j.val / D ^ (l j - l i) = A i.val) := by
+      have := (Digits.natToDigitsBEFin_prefix_iff_div
+                (Nat.zero_lt_of_lt hD)
+                (hA_lt i)
+                (hA_lt j)).1 hpre
+      exact this
+    exact (hSep (i := i) (j := j) hij hpre').elim
+
+
+/-- Closed form for `kraft_A_gen` as a Nat sum of scaled powers. -/
+lemma kraft_A_gen_eq_sum_pow_range
+    (D : ℕ) (l : ℕ → ℕ) (hmono : Monotone l) :
+    ∀ n, kraft_A_gen D l n = ∑ t ∈ Finset.range n, D ^ (l n - l t) := by
+  intro n
+  induction n with
+  | zero =>
+      simp [kraft_A_gen]
+  | succ n ih =>
+      -- Notation
+      have hln : l n ≤ l (n+1) := hmono (Nat.le_succ n)
+      set a : ℕ := l (n+1) - l n
+
+      -- Start from the RHS for `n+1`
+      -- split off last term, then factor out `D^a` from the prefix sum
+      simp [Finset.sum_range_succ, kraft_A_gen, ih]
+
+      -- Goal after simp is essentially:
+      --   (∑ t∈range n, D^(l(n+1)-l t)) + D^(l(n+1)-l n)
+      -- = ( (∑ t∈range n, D^(l n - l t)) + 1 ) * D^(l(n+1)-l n)
+
+      -- Turn the prefix sum into a factored form
+      have hfac :
+          (∑ t ∈ Finset.range n, D ^ (l (n+1) - l t))
+            = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
+        -- rewrite each term using exponent arithmetic:
+        -- (l(n+1)-l t) = (l(n+1)-l n) + (l n - l t)
+        -- then use `pow_add` and pull out `D^a`
+        calc
+          (∑ t ∈ Finset.range n, D ^ (l (n+1) - l t))
+              = ∑ t ∈ Finset.range n, (D ^ a) * (D ^ (l n - l t)) := by
+                  refine Finset.sum_congr rfl ?_
+                  intro t ht
+                  have ht' : t < n := Finset.mem_range.mp ht
+                  have hlt : l t ≤ l n := hmono (Nat.le_of_lt_succ (Nat.lt_succ_of_lt ht'))
+                  have hlt' : l t ≤ l (n+1) := le_trans hlt hln
+                  -- exponent identity
+                  have hexp : (l (n+1) - l t) = a + (l n - l t) := by
+                    -- `a = l(n+1)-l n`
+                    dsimp [a]
+                    omega
+                  -- finish
+                  simp [hexp, pow_add, mul_comm]
+          _   = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
+                  -- pull out constant
+                  simp [Finset.mul_sum]
+
+      -- Now finish the `succ` step by rewriting with `hfac`
+      -- and using `l(n+1)-l n = a`
+      -- also: the last term is exactly `D^a`
+      have hlast : D ^ (l (n+1) - l n) = D ^ a := by simp [a]
+      -- substitute and algebra
+      simp [hfac, hlast, Nat.mul_add, Nat.mul_comm]
+
+/--
+Separation property for `A = kraft_A_gen D l`:
+if `i < j` then you cannot have `A j / D^(l j - l i) = A i` (even assuming `l i ≤ l j`).
+-/
+lemma kraft_A_gen_div_separated_of_lt
+    (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ)
+    (hmono : Monotone l) :
+    ∀ {i j : ℕ}, i < j →
+      ¬ (l i ≤ l j ∧ kraft_A_gen D l j / D ^ (l j - l i) = kraft_A_gen D l i) := by
+  intro i j hij
+  rintro ⟨hij_len, hdiv⟩
+
+  have hDpos : 0 < D := Nat.zero_lt_of_lt hD
+  set A : ℕ → ℕ := kraft_A_gen D l
+  set d : ℕ := D ^ (l j - l i)
+  have hdpos : 0 < d := by
+    dsimp [d]
+    exact Nat.pow_pos hDpos
+
+  -- Closed forms for A i and A j
+  have hAi : A i = ∑ t ∈  Finset.range i, D ^ (l i - l t) := by
+    simpa [A] using (kraft_A_gen_eq_sum_pow_range D l hmono i)
+  have hAj : A j = ∑ t ∈ Finset.range j, D ^ (l j - l t) := by
+    simpa [A] using (kraft_A_gen_eq_sum_pow_range D l hmono j)
+
+  -- The partial sum up to `i+1` sits inside the sum up to `j`
+  have hsub : Finset.range (i+1) ⊆ Finset.range j := by
+    -- i+1 ≤ j since i< j
+    exact Finset.range_mono (Nat.succ_le_of_lt hij)
+
+  have hle_part :
+      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+        ≤ (∑ t ∈  Finset.range j, D ^ (l j - l t)) := by
+    refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
+    intro x hx _hx'
+    exact Nat.zero_le _
+
+  have hle_part' :
+      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t)) ≤ A j := by
+    simpa [hAj] using hle_part
+
+  -- Rewrite the `range (i+1)` sum as (range i) + last
+  have hsplit :
+      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+        = (∑ t ∈  Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
+    simp [Finset.sum_range_succ]
+
+  -- Show the prefix sum is a multiple of `d` with coefficient `A i`
+  have hmul_prefix :
+      (∑ t ∈  Finset.range i, D ^ (l j - l t))
+        = d * (∑ t ∈  Finset.range i, D ^ (l i - l t)) := by
+    -- each term: D^(l j - l t) = D^(l j - l i) * D^(l i - l t)
+    -- because l t ≤ l i ≤ l j
+    calc
+      (∑ t ∈  Finset.range i, D ^ (l j - l t))
+          = ∑ t ∈  Finset.range i, d * (D ^ (l i - l t)) := by
+              refine Finset.sum_congr rfl ?_
+              intro t ht
+              have ht' : t < i := Finset.mem_range.mp ht
+              have hti : l t ≤ l i := hmono (Nat.le_of_lt ht')
+              have htj : l t ≤ l j := le_trans hti hij_len
+              have hexp : (l j - l t) = (l j - l i) + (l i - l t) := by
+                -- needs l t ≤ l i ≤ l j
+                omega
+              -- unfold d and finish
+              simp [d, hexp, pow_add, mul_comm]
+      _   = d * (∑ t ∈  Finset.range i, D ^ (l i - l t)) := by
+              simp [Finset.mul_sum]
+
+  -- Now assemble: sum_{t≤i} = d*(A i + 1)
+  have hlower :
+      d * (A i + 1) ≤ A j := by
+    -- start from hle_part' and rewrite LHS
+    -- LHS = (prefix over range i) + d
+    -- prefix = d * (sum range i ...)
+    -- sum range i ... = A i
+    have : (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+              = d * (A i + 1) := by
+      -- rewrite using hsplit, hmul_prefix, hAi
+      calc
+        (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+            = (∑ t ∈  Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
+                exact hsplit
+        _   = d * (∑ t ∈ Finset.range i, D ^ (l i - l t)) + d := by
+                simp [hmul_prefix, d]
+        _   = d * (A i) + d := by
+                simp [hAi]
+        _   = d * (A i + 1) := by
+                simp [Nat.mul_add]
+    -- apply ≤ using hle_part'
+    simpa [this] using hle_part'
+  rw [mul_comm] at hlower
+  -- Divide both sides by `d`: (A i + 1) ≤ A j / d
+  have hquot_ge : A i + 1 ≤ A j / d := by
+    exact (Nat.le_div_iff_mul_le hdpos).2 hlower
+
+  -- But we assumed A j / d = A i
+  have : A i + 1 ≤ A i := by simp [hdiv, A, d] at hquot_ge
+  exact Nat.not_succ_le_self _ this
+
+/-- Finite-index converse with `≤ 1`. -/
+lemma kraft_inequality_tight_fin_le
+    (D : ℕ) (hD : 1 < D) {k : ℕ}
+    (l : Fin k → ℕ) (h_mono : Monotone l)
+    (h_sum : (∑ i, (1 / D : ℝ) ^ l i) ≤ 1) :
+    ∃ w : Fin k → List (Fin D),
+      Function.Injective w ∧
+      PrefixFree (Set.range w) ∧
+      ∀ i, (w i).length = l i := by
+  by_cases hk : k = 0
+  · subst hk
+    refine ⟨fun i => Fin.elim0 i, ?_, ?_, ?_⟩
+    · intro i
+      exact Fin.elim0 i
+    · intro a ha b hb hpre
+      rcases ha with ⟨i, rfl⟩
+      exact Fin.elim0 i
+    · intro i
+      exact Fin.elim0 i
+
+  -- extend lengths to ℕ (only matters on `< k`)
+  let Llast : ℕ := l ⟨k-1, by omega⟩
+  let lNat : ℕ → ℕ := ext_shift Llast 0 l
+  have hmonoNat : Monotone lNat := ext_shift_monotone k l h_mono hk 0
+
+  let A : ℕ → ℕ := kraft_A_gen D lNat
+
+  -- define codewords
+  let w : Fin k → List (Fin D) := fun i =>
+    Digits.natToDigitsBEFin D (A i.val) (l i) (by omega)
+
+  -- show address bound `A i < D^(l i)` for each `i : Fin k`
+  have hA_lt : ∀ i : Fin k, A i.val < D ^ l i := by
+    intro i
+    have h_sum_range :
+        (∑ t ∈ Finset.range k, (1 / (D : ℝ)) ^ lNat t) ≤ 1 := by
+      -- start from the given h_sum as a Fin-sum
+      have h_sum_fin : (∑ i : Fin k, (1 / (D : ℝ)) ^ l i) ≤ 1 := by
+        simpa using h_sum
+
+      -- rewrite that Fin-sum into the range-sum over lNat
+      -- (1) replace l i by lNat i.val
+      have h1 :
+          (∑ i : Fin k, (1 / (D : ℝ)) ^ l i)
+            = (∑ i : Fin k, (1 / (D : ℝ)) ^ lNat i.val) := by
+        refine Finset.sum_congr rfl ?_
+        intro i hi
+        -- hi : i ∈ Finset.univ, ignore it
+        -- unfold lNat = ext_shift ... and take the < k branch using i.isLt
+        simp [lNat, ext_shift, i.isLt, Llast]
+      have h2 :
+          (∑ i : Fin k, (1 / (D : ℝ)) ^ lNat (i : ℕ))
+            = (∑ t ∈ Finset.range k, (1 / (D : ℝ)) ^ lNat t) := by
+        -- this is exactly the Nat-function version
+        simpa using
+          (Fin.sum_univ_eq_sum_range (n := k)
+            (f := fun t : ℕ => (1 / (D : ℝ)) ^ lNat t))
+
+      simp_all only [one_div]
+
+    -- for `n = i.val`, we need the strict prefix bound `< 1`
+    have hrpos : 0 < (1 / D : ℝ) := by
+      exact one_div_pos.mpr (by exact_mod_cast (Nat.zero_lt_of_lt hD))
+    have h_pref_lt1 :
+        (∑ t ∈ Finset.range i.val, (1 / D : ℝ) ^ lNat t) < 1 := by
+      exact sum_range_lt_one_of_sum_range_le_one
+        (r := (1 / D : ℝ)) hrpos (k := k) (n := i.val) i.isLt lNat h_sum_range
+
+    -- now convert invariant + `<1` into the Nat bound
+    have : kraft_A_gen D lNat i.val < D ^ lNat i.val :=
+      kraft_A_gen_lt_pow_of_sum_range_lt_one (D := D) hD lNat hmonoNat h_pref_lt1
+
+    -- rewrite `lNat i.val = l i` and finish
+    simpa [A, lNat, ext_shift_eq (l := l) (Llast := Llast) (s := 0) i] using this
+
+  refine ⟨w, ?_, ?_, ?_⟩
+
+  · -- Injective
+    intro i j hij
+    apply Fin.ext
+    -- first get `A i.val = A j.val` via `natToDigitsBEFin_inj`,
+    -- then strictMono injectivity for `A = kraft_A_gen ...`.
+    have hDpos : 0 < D := Nat.zero_lt_of_lt hD
+    have hA_eq : A i.val = A j.val := by
+      -- (exactly the pattern you used in the ℕ theorem’s injectivity proof)
+      apply Digits.natToDigitsBEFin_inj hDpos
+      · exact hA_lt i
+      · -- get equality of widths from `hij` via lengths of `w i` and `w j`
+        have hlij : l i = l j := by
+          simpa [w] using (congrArg List.length hij)
+        -- now rewrite the bound for `j` along `hlij`
+        simpa [hlij] using (hA_lt j)
+      · -- need the bound for `j` too
+        have := congrArg List.length hij
+        -- the `inj` lemma typically wants both bounds; provide it
+        -- (you can usually discharge it by rewriting lengths and using `hA_lt j`)
+        have hlij : l i = l j := by
+          -- lengths of `w i` and `w j` are the widths `l i` and `l j`
+          have hwi : (w i).length = l i := by simp [w, Digits.natToDigitsBEFin]
+          have hwj : (w j).length = l j := by simp [w, Digits.natToDigitsBEFin]
+          -- `this : (w i).length = (w j).length`
+          exact by simpa [hwi, hwj] using this
+
+        -- map values to get an equality in `List ℕ`
+        have hij_val :
+            (w i).map (fun x : Fin D => x.val)
+              = (w j).map (fun x : Fin D => x.val) :=
+          congrArg (List.map (fun x : Fin D => x.val)) hij
+
+        simp_all only [w]
+
+    -- strict monotonicity of `kraft_A_gen` (you already proved this in the ℕ proof)
+    have hA_strict : StrictMono A := by
+      -- reuse the lemma you had: `StrictMono (kraft_A_gen D lNat)`
+      -- (its proof doesn’t use summability, only `0 < D`)
+      refine strictMono_nat_of_lt_succ ?_
+      intro n
+
+      simp_all
+      exact lt_of_lt_of_le (Nat.lt_add_one _) (Nat.le_mul_of_pos_right _ (Nat.pow_pos (by omega)))
+
+    have : i.val = j.val := hA_strict.injective hA_eq
+    exact this
+
+  · -- PrefixFree
+    -- package the heavy argument once
+    simpa [w] using
+      (prefixFree_range_natToDigitsBEFin_of_div_separated
+        (hD := hD) (l := l) (A := A) hA_lt (by
+          intro i j hij
+          -- reduce to Nat indices
+          -- (1) decide which one is smaller
+          rcases lt_trichotomy i.val j.val with hlt | heq | hgt
+          · -- i.val < j.val
+            -- Here you use the Nat lemma for the generator `A = kraft_A_gen D lNat`
+            -- specialized to i.val < j.val, then rewrite lNat = l on < k.
+            -- This is the only “real” content.
+            have : ¬ (lNat i.val ≤ lNat j.val ∧ A j.val / D ^ (lNat j.val - lNat i.val) = A i.val) := by
+              -- main invariant of kraft_A_gen (Nat-indexed separation)
+              exact kraft_A_gen_div_separated_of_lt
+                (D := D) (l := lNat) (hmono := hmonoNat) hD hlt
+            -- now rewrite lNat at i.val and j.val into l i and l j
+            -- because i.val < k and j.val < k
+            simpa [lNat, ext_shift, i.isLt, j.isLt] using this
+          · exact (hij (Fin.ext (by simpa using heq))).elim
+          · -- i.val > j.val
+            -- If l i ≤ l j holds, then (since l is monotone) impossible when i>j
+            -- or you can just reduce to the lt-case by symmetry.
+            -- simplest: swap roles and use the lt-case lemma, then contradict.
+            have hlt' : j.val < i.val := hgt
+            have : ¬ (lNat j.val ≤ lNat i.val ∧ A i.val / D ^ (lNat i.val - lNat j.val) = A j.val) := by
+              exact kraft_A_gen_div_separated_of_lt
+                (D := D) (l := lNat) (hmono := hmonoNat) hD hlt'
+            -- From the negated swapped statement, get the desired negation by
+            -- noticing your target antecedent is “l i ≤ l j ∧ ... = ...”.
+            -- This last step is just “not_and_or” reshuffling; do it via `intro h; ...`.
+            intro h
+            -- h : l i ≤ l j ∧ A j.val / ... = A i.val
+            -- turn it into the swapped form using arithmetic + monotonicity;
+            -- easiest is to just mark this as a tiny helper.
+            apply this
+
+            have hji : j ≤ i :=
+              Fin.le_iff_val_le_val.2 (Nat.le_of_lt hgt)
+
+            have h_lj_le_li : l j ≤ l i :=
+              h_mono hji
+
+            -- from h.1 : l i ≤ l j and monotonicity : l j ≤ l i
+            have h_len_eq : l i = l j :=
+              le_antisymm h.1 h_lj_le_li
+
+            -- turn h.2 into A j = A i (because exponent becomes 0)
+            have h_Aj_eq_Ai : A (↑j) = A (↑i) := by
+              -- h.2 : A ↑j / D^(l j - l i) = A ↑i
+              have : l j - l i = 0 := by simp [h_len_eq]
+              simpa [this] using h.2
+
+            have h_Ai_eq_Aj : A (↑i) = A (↑j) := h_Aj_eq_Ai.symm
+
+            constructor
+            · -- lNat ↑j ≤ lNat ↑i
+              -- for indices < k, lNat agrees with l
+              simpa [lNat, ext_shift, j.isLt, i.isLt] using h_lj_le_li
+            · -- A ↑i / D^(lNat ↑i - lNat ↑j) = A ↑j
+              have : lNat (↑i) - lNat (↑j) = 0 := by
+                -- again, for < k this reduces to l i - l j, then uses h_len_eq
+                simp [lNat, ext_shift, j.isLt, i.isLt, h_len_eq]
+              -- now division by D^0 = 1
+              simp [this, h_Ai_eq_Aj]-- goal:
+        ))
+  · -- Length preservation
+    intro i
+    simp [w]
+
+
 /-- Converse of Kraft's inequality for monotone length sequences, for any finite alphabet.
 
 Given a monotone `l : ℕ → ℕ` with summable Kraft sum ≤ 1 over an alphabet of size `|α| ≥ 2`,
@@ -648,7 +1086,7 @@ theorem kraft_inequality_tight_nat_mono_alpha {α : Type _} [DecidableEq α] [Fi
     (h_sum : ∑' i, (1 / Fintype.card α : ℝ) ^ l i ≤ 1) :
     ∃ w : ℕ → List α,
       Function.Injective w ∧
-      Kraft.PrefixFree (Set.range w) ∧
+      PrefixFree (Set.range w) ∧
       (∀ i, (w i).length = l i) := by
   have hcard : 1 < Fintype.card α := Fintype.one_lt_card
   -- Get the Fin D version
@@ -680,7 +1118,7 @@ lemma kraft_inequality_tight_finite_mono_alpha
     (h_sum : ∑ i, (1 / Fintype.card α : ℝ) ^ l i < 1) :
     ∃ w : Fin k → List α,
       Function.Injective w ∧
-      Kraft.PrefixFree (Set.range w) ∧
+      PrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
   let D : ℕ := Fintype.card α
   have hD' : 1 < D := by
@@ -714,6 +1152,53 @@ lemma kraft_inequality_tight_finite_mono_alpha
     have hpre' : wD i <+: wD j := by
       -- hpre : map e (wD i) <+: map e (wD j)
       -- use injectivity of e to pull it back
+      simpa [w] using (List.IsPrefix.map_iff e.injective).1 hpre
+    have : wD i = wD j :=
+      hwD_pf (wD i) ⟨i, rfl⟩ (wD j) ⟨j, rfl⟩ hpre'
+    have : i = j := hwD_inj this
+    subst this
+    rfl
+
+  · -- lengths
+    intro i
+    simp [w, hwD_len i]
+
+/-- Finite-index converse for arbitrary alphabet with non-strict inequality ≤ 1. -/
+lemma kraft_inequality_tight_finite_mono_alpha_le
+    {α : Type _} [Fintype α] [Nontrivial α]
+    {k : ℕ} (l : Fin k → ℕ) (h_mono : Monotone l)
+    (h_sum : ∑ i, (1 / Fintype.card α : ℝ) ^ l i ≤ 1) :
+    ∃ w : Fin k → List α,
+      Function.Injective w ∧
+      PrefixFree (Set.range w) ∧
+      ∀ i, (w i).length = l i := by
+  let D : ℕ := Fintype.card α
+  have hD' : 1 < D := by
+    simpa [D] using (Fintype.one_lt_card_iff_nontrivial.mpr ‹Nontrivial α›)
+
+  -- code over Fin D using the ≤ 1 version
+  obtain ⟨wD, hwD_inj, hwD_pf, hwD_len⟩ :=
+    kraft_inequality_tight_fin_le
+      (D := D) (hD := hD') (l := l) h_mono (by simpa [D] using h_sum)
+
+  -- transport alphabet Fin D -> α
+  let e : Fin D ≃ α := (Fintype.equivFin α).symm
+  let w : Fin k → List α := fun i => (wD i).map e
+
+  refine ⟨w, ?_, ?_, ?_⟩
+
+  · -- injective
+    intro i j hij
+    apply hwD_inj
+    have hij' : List.map e.symm (w i) = List.map e.symm (w j) :=
+      congrArg (List.map e.symm) hij
+    simpa [w, List.map_map, Function.comp] using hij'
+
+  · -- prefixfree
+    intro a ha b hb hpre
+    rcases ha with ⟨i, rfl⟩
+    rcases hb with ⟨j, rfl⟩
+    have hpre' : wD i <+: wD j := by
       simpa [w] using (List.IsPrefix.map_iff e.injective).1 hpre
     have : wD i = wD j :=
       hwD_pf (wD i) ⟨i, rfl⟩ (wD j) ⟨j, rfl⟩ hpre'
@@ -1001,25 +1486,16 @@ theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
   by_cases h_finite : Finite I
   · haveI := Fintype.ofFinite I
     -- By `exists_equiv_fin_monotone`, there exists an equivalence `e : Fin (card I) ≃ I` such that `l ∘ e` is monotone.
-    obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) := by
-      --  monoEquivOfFin I?
-      exact monoEquivOfFin l
+    obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) :=
+      exists_equiv_fin_monotone l
     -- By `kraft_inequality_tight_finite_mono`, there exists `w' : Fin (card I) → List Bool` satisfying the conditions for `l ∘ e`.
-    obtain ⟨w', hw'⟩ : ∃ w' : Fin (Fintype.card I) → List Bool, Function.Injective w' ∧ Kraft.PrefixFree (Set.range w') ∧ ∀ i, (w' i).length = l (e i) := by
-      have h_sum_eq : ∑ i, (1 / 2 : ℝ) ^ (l (e i)) ≤ 1 := by
+    obtain ⟨w', hw'⟩ : ∃ w' : Fin (Fintype.card I) → List Bool, Function.Injective w' ∧ PrefixFree (Set.range w') ∧ ∀ i, (w' i).length = l (e i) := by
+      have h_sum_eq : ∑ i, (1 / Fintype.card Bool : ℝ) ^ (l (e i)) ≤ 1 := by
+        simp only [Fintype.card_bool]
         convert h_sum using 1
         rw [tsum_fintype, ← Equiv.sum_comp e]
-      have : Fintype.card Bool = 2 := by
-          simp_all
-      -- Application type mismatch: The argument
-      --   h_sum_eq
-      -- has type
-      --   ∑ i, (1 / 2) ^ l (e i) ≤ 1
-      -- but is expected to have type
-      --   ∑ i, (1 / ↑(Fintype.card Bool)) ^ l (e i) < 1
-      -- in the application
-      --   kraft_inequality_tight_finite_mono_alpha (fun i ↦ l (e i)) he h_sum_eq
-      exact kraft_inequality_tight_finite_mono_alpha (fun i ↦ l (e i)) he h_sum_eq
+        sorry
+      exact kraft_inequality_tight_finite_mono_alpha_le (fun i ↦ l (e i)) he h_sum_eq
     refine' ⟨ w' ∘ e.symm, _, _, _ ⟩
     · simp_all only [Function.Injective]
       exact fun a₁ a₂ h => e.symm.injective (hw'.1 h)
@@ -1029,7 +1505,7 @@ theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
       convert exists_equiv_nat_monotone_of_infinite l h_summable using 1
       simpa using h_finite
     obtain ⟨ e, he ⟩ := h_equiv
-    have h_exists_w : ∃ w : ℕ → List Bool, Function.Injective w ∧ Kraft.PrefixFree (Set.range w) ∧ ∀ i, (w i).length = l (e i) := by
+    have h_exists_w : ∃ w : ℕ → List Bool, Function.Injective w ∧ PrefixFree (Set.range w) ∧ ∀ i, (w i).length = l (e i) := by
       have h_exists_w_1 : ∑' i : ℕ, (1 / 2 : ℝ) ^ l (e i) ≤ 1 := by
         convert h_sum using 1
         conv_rhs => rw [← Equiv.tsum_eq e]
@@ -1072,9 +1548,8 @@ theorem kraft_inequality_tight_infinite_alpha
   by_cases h_finite : Finite I
   · haveI := Fintype.ofFinite I
     -- By `exists_equiv_fin_monotone`, there exists an equivalence `e : Fin (card I) ≃ I` such that `l ∘ e` is monotone.
-    obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) := by
-      use (monoEquivOfFin I (rfl))
-      sorry
+    obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) :=
+      exists_equiv_fin_monotone l
     -- By `kraft_inequality_tight_finite_mono_alpha`, there exists `w' : Fin (card I) → List α`
     obtain ⟨w', hw'_inj, hw'_pf, hw'_len⟩ := kraft_inequality_tight_finite_mono_alpha
       (fun i ↦ l (e i)) he (by

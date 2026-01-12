@@ -9,6 +9,8 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 import Mathlib.Tactic.NormNum.Basic
 
+import Kraft.Helpers
+
 namespace Digits
 
 open Nat
@@ -297,6 +299,42 @@ noncomputable def natToWord (n width : ℕ) : List α :=
 @[simp] lemma natToWord_length {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
     (n w : ℕ) : (natToWord n w : List α).length = w := by
   simp [natToWord]
+
+lemma natToDigitsBEFin_prefix_iff_div
+  {D n m w v : ℕ} (hD : 0 < D)
+  (hn : n < D^w) (hm : m < D^v) :
+  natToDigitsBEFin D n w hD <+: natToDigitsBEFin D m v hD
+    ↔ w ≤ v ∧ m / D^(v - w) = n := by
+  -- proof: map (·.val), rewrite with natToDigitsBEFin_eq_map,
+  -- then apply natToDigitsBE_prefix_iff_div, then pull back.
+  -- 1. Transform the prefix relation on Fin lists to a prefix relation on Nat lists
+  --    using the injectivity of the mapping function (Fin.val).
+  rw [← List.IsPrefix.map_iff Fin.val_injective]
+
+  -- 2. Rewrite the mapped lists using the equivalence lemma `natToDigitsBEFin_eq_map`.
+  --    This turns `(natToDigitsBEFin ...).map val` into `natToDigitsBE ...`.
+  simp only [natToDigitsBEFin_eq_map]
+
+  -- 3. Apply the previously proved lemma for `natToDigitsBE`.
+  exact natToDigitsBE_prefix_iff_div hD hn hm
+
+lemma natToDigitsBEFin_inj
+  {D n m w : ℕ} (hD : 0 < D)
+  (hn : n < D^w) (hm : m < D^w)
+  (h : natToDigitsBEFin D n w hD = natToDigitsBEFin D m w hD) :
+  n = m := by
+  -- proof: congrArg (List.map (·.val)) h, rewrite with natToDigitsBEFin_eq_map,
+  -- then use natToDigitsBE_inj.
+  -- 1. Apply `map (·.val)` to both sides of the equality `h`.
+  have h_map := congrArg (List.map (·.val)) h
+
+  -- 2. Rewrite the mapped lists to their Nat equivalents.
+  simp only [natToDigitsBEFin_eq_map] at h_map
+
+  -- 3. Apply the injectivity lemma for `natToDigitsBE`.
+  --    Note: We need `D ≠ 0`, which follows from `0 < D`.
+  exact natToDigitsBE_inj (Nat.ne_of_gt hD) hn hm h_map
+
 
 def digit2ToBool (d : ℕ) : Bool := decide (d % 2 = 1)
 
