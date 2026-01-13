@@ -4,6 +4,8 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under MIT license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
+import Mathlib.Data.Finset.Card
+
 import Kraft.Basic
 
 namespace Kraft

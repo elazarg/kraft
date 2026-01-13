@@ -6,7 +6,6 @@ Authors: Elazar Gershuni
 import Mathlib.Data.List.Basic
 import Mathlib.Data.Set.Basic
 import Mathlib.Data.Finset.Basic
-import Mathlib.Algebra.BigOperators.Fin
 
 namespace Kraft
 
@@ -16,6 +15,9 @@ variable {α : Type _}
 def PrefixFree (S : Set (List α)) : Prop :=
   ∀ x ∈ S, ∀ y ∈ S, x <+: y → x = y
 
+/-- If a prefix-free set contains the empty string, it must be the singleton `{[]}`.
+
+The empty string is a prefix of every string, so prefix-freeness forces all elements to equal `[]`. -/
 lemma epsilon_prefix_singleton {S : Set (List α)} (hS : PrefixFree S) :
     [] ∈ S → S = {[]} := by
   intro h_nil

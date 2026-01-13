@@ -23,6 +23,9 @@ namespace Kraft
 
 variable {α : Type _}
 
+/-- For uniquely decodable codes, the concatenation map is injective.
+
+This is the key property: distinct tuples of codewords produce distinct concatenations. -/
 lemma uniquelyDecodable_concatFn_injective
   {S : Set (List α)} (h : UniquelyDecodable S) (r : ℕ) :
   Function.Injective (concatFn (α := α) (S := S) (r := r)) := by
@@ -95,6 +98,9 @@ lemma sum_pow_len_filter_le_one_of_card_le
     _ = 1 := by simp [hD0]
 
 
+/-- The `r`-th power of the Kraft sum equals the sum over all `r`-tuples of codewords.
+
+This expansion is the key algebraic identity in the Kraft-McMillan proof. -/
 lemma kraft_sum_pow_eq_sum_concatFn
     {S : Finset (List α)} [DecidableEq α]
     (D : ℕ) (r : ℕ) :
@@ -161,6 +167,7 @@ lemma kraft_sum_pow_eq_sum_concatFn
     _ = ∑ w : Fin r → S, (1 / (D : ℝ)) ^ (concatFn (α := α) (S := (S : Set (List α))) (r := r) w).length := by
         grind
 
+/-- The number of strings of length `s` in any set is at most `D^s` (the total number of such strings). -/
 lemma card_filter_length_eq_le
   {α : Type _} [Fintype α] [DecidableEq α]
   (T : Finset (List α)) (s : ℕ) :
@@ -312,6 +319,10 @@ theorem kraft_mcmillan_inequality {S : Finset (List α)} [DecidableEq α] [Finty
 
 variable {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
 
+/-- **Kraft's Inequality**: If `S` is a finite prefix-free code over an alphabet of size `D`,
+then `∑_{w ∈ S} D^{-|w|} ≤ 1`.
+
+This follows from the Kraft-McMillan inequality since prefix-free codes are uniquely decodable. -/
 theorem kraft_inequality (S : Finset (List α)) (hpf : PrefixFree (S : Set (List α))) :
     ∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length ≤ 1 := by
   by_cases he : [] ∈ S

@@ -7,6 +7,7 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Fin.Basic
 
+/-- Mapping an injective function over lists is injective. -/
 lemma List.map_injective' {α β} {f : α → β} (hf : Function.Injective f) :
     Function.Injective (List.map f) := by
   intro a b hab
