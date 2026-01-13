@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Elazar Gershuni. All rights reserved.
+Released under MIT license as described in the file LICENSE.
+Authors: Elazar Gershuni
+-/
 import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Real.Basic
@@ -5,127 +10,87 @@ import Mathlib.Data.Real.Basic
 import Mathlib.Order.Filter.Tendsto
 import Mathlib.Order.Filter.AtTopBot.Archimedean
 import Mathlib.Algebra.BigOperators.Pi
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
-import Mathlib.Analysis.SpecialFunctions.Exp
-import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
+import Mathlib.Analysis.SpecificLimits.Normed
 
 import Mathlib.Tactic.NormNum
-import Mathlib.Tactic.Ring
 import Mathlib.Tactic.Linarith
 
 import Kraft.Basic
 
 namespace Kraft
 
+section concatFn
+
 variable {α : Type _}
 
-lemma uniquelyDecodable_flatten_injective
-  {S : Set (List α)} (h : UniquelyDecodable S) (r : ℕ) :
-  Function.Injective (fun (w : Fin r → S) =>
-    (List.ofFn (fun i => (w i).val)).flatten) := by
-  intro w1 w2 hflat
-  -- Turn the tuples into lists of codewords
-  let f1 : Fin r → List α := fun i => (w1 i).val
-  let f2 : Fin r → List α := fun i => (w2 i).val
-  let L1 : List (List α) := List.ofFn f1
-  let L2 : List (List α) := List.ofFn f2
+def concatFn {S : Set (List α)} {r : ℕ} (w : Fin r → S) : List α :=
+  (List.ofFn (fun i : Fin r => (w i).val)).flatten
 
-  have hL : L1 = L2 := by
-    apply h L1 L2
-    · intro x hx
-      rcases List.mem_ofFn.mp hx with ⟨i, rfl⟩
-      exact (w1 i).property
-    · intro x hx
-      rcases List.mem_ofFn.mp hx with ⟨i, rfl⟩
-      exact (w2 i).property
-    · simpa [L1, L2, f1, f2] using hflat
+@[simp]
+lemma concatFn_def {S : Set (List α)} {r : ℕ} (w : Fin r → S):
+  concatFn w = (List.ofFn (fun i : Fin r => (w i).val)).flatten :=
+  rfl
 
-  -- From list equality, recover pointwise equality, hence function equality
-  funext i
-  apply Subtype.ext
-  rcases i with ⟨n, hn⟩
+def concatImage [DecidableEq α] {S : Finset (List α)} {r : ℕ} : Finset (List α) :=
+  (Finset.univ : Finset (Fin r → (S : Set (List α)))).image concatFn
 
-  -- equality of nth entries
-  have hn1 : n < L1.length := by simpa [L1] using hn
-  have hn2 : n < L2.length := by simpa [L2] using hn
-  have hget : L1.get ⟨n, hn1⟩ = L2.get ⟨n, hn2⟩ := by simp [hL]
-  simpa [L1, L2, f1, f2] using hget
+lemma concatFn_length {S : Set (List α)} {r : ℕ} (w : Fin r → S):
+  (concatFn w).length = ∑ i : Fin r, (w i).val.length := by
+  simp [concatFn, List.length_flatten, List.sum_ofFn]
 
-lemma flatten_length_le_mul_sup  {S : Finset (List α)} (r : ℕ) (w : Fin r → S):
-    (List.ofFn (fun i : Fin r => (w i).val)).flatten.length
-      ≤ r * (S.sup List.length) := by
-  -- Rewrite the LHS as a finite sum of lengths.
-  have hlen :
-      (List.ofFn (fun i : Fin r => (w i).val)).flatten.length
-        = ∑ i : Fin r, (w i).val.length := by
-    -- `length(flatten L) = sum (map length L)`, then for `ofFn` turn list-sum into `∑ i`
-    simp [List.length_flatten, Function.comp, List.sum_ofFn]
-
-  -- Each codeword length is ≤ the supremum.
-  have h_each : ∀ i : Fin r, (w i).val.length ≤ S.sup List.length := by
+lemma concatFn_length_le_mul_sup {Sf : Finset (List α)} {r : ℕ}
+    (ws : Fin r → (Sf : Set (List α))) :
+  (concatFn ws).length ≤ r * (Sf.sup List.length) := by
+  have h_each : ∀ i : Fin r, (ws i).val.length ≤ Sf.sup List.length := by
     intro i
-    -- `w i` is an element of `S`, so its length is ≤ sup of lengths in `S`
-    exact Finset.le_sup (f := List.length) (w i).property
+    -- (w i).property : (w i).val ∈ (S : Set _)
+    exact Finset.le_sup (f := List.length) (by simp)
 
-  -- Sum the pointwise bound.
+  have hsum :
+      (∑ i : Fin r, (ws i).val.length) ≤ ∑ i : Fin r, Sf.sup List.length := by
+    -- `Fintype.sum` is definitionaly `Finset.univ.sum`
+    simpa using
+      (Finset.sum_le_sum (s := (Finset.univ : Finset (Fin r)))
+        (fun i _ => h_each i))
+
   calc
-    (List.ofFn (fun i : Fin r => (w i).val)).flatten.length
-        = ∑ i : Fin r, (w i).val.length := hlen
-    _ ≤ ∑ i : Fin r, S.sup List.length := by
-        -- monotonicity of summation over `Fin r`
-        -- (internally this is over `Finset.univ`)
-        simpa using (Finset.sum_le_sum (s := (Finset.univ : Finset (Fin r)))
-          (fun i _ => h_each i))
-    _ = r * (S.sup List.length) := by
-        -- sum of a constant over `Fin r` is `r * const`
-        simp [Finset.sum_const, Fintype.card_fin]
+    (concatFn ws).length
+        = ∑ i : Fin r, (ws i).val.length := concatFn_length (w := ws)
+    _ ≤ ∑ i : Fin r, Sf.sup List.length := hsum
+    _ = r * (Sf.sup List.length) := by
+      -- sum of a constant over `Fin r`
+      simp [Fintype.card_fin]
 
-lemma r_le_flatten_length_of_no_empty
-    {S : Set (List α)}
-    (hε : ([] : List α) ∉ S) (r : ℕ) (w : Fin r → S) :
-    r ≤ (List.ofFn (fun i : Fin r => (w i).val)).flatten.length := by
-  -- Rewrite the length of the concatenation as a sum of lengths.
-  have hlen :
-      (List.ofFn (fun i : Fin r => (w i).val)).flatten.length
-        = ∑ i : Fin r, (w i).val.length := by
-    simp [List.length_flatten, Function.comp, List.sum_ofFn]
-
-  -- Each codeword is nonempty, hence has length ≥ 1.
-  have h_each : ∀ i : Fin r, 1 ≤ (w i).val.length := by
+lemma le_concatFn_length_of_no_empty {S : Set (List α)} {r : ℕ} (w : Fin r → S) (hε : ([] : List α) ∉ S):
+  r ≤ (concatFn w).length := by
+  have h_each : ∀ i : Fin r, (1 : ℕ) ≤ (w i).val.length := by
     intro i
-    have hiS : (w i).val ∈ S := (w i).property
     have hne : (w i).val ≠ ([] : List α) := by
       intro h0
       apply hε
-      simpa [h0] using hiS
-    -- `length_pos` gives 0 < length, turn it into 1 ≤ length for naturals
-    exact Nat.succ_le_iff.mp (Nat.succ_le_iff.mpr (List.length_pos_iff.mpr hne))
-    -- If the above line is annoying in your version, replace it by:
-    -- exact Nat.succ_le_iff.mpr (List.length_pos_iff.mpr hne)
+      simpa [h0] using (w i).property
+    -- `0 < length` -> `1 ≤ length`
+    have : 0 < (w i).val.length := List.length_pos_iff.2 hne
+    simpa using (Nat.succ_le_iff.2 this)  -- succ 0 = 1
 
-  -- Sum of the lower bounds: ∑ 1 ≤ ∑ length
-  have hsum : (∑ i : Fin r, (1 : ℕ)) ≤ ∑ i : Fin r, (w i).val.length := by
-    simpa using (Finset.sum_le_sum (s := (Finset.univ : Finset (Fin r)))
-      (fun i _ => h_each i))
+  have hsum :
+      (∑ i : Fin r, (1 : ℕ)) ≤ ∑ i : Fin r, (w i).val.length := by
+    simpa using
+      (Finset.sum_le_sum (s := (Finset.univ : Finset (Fin r)))
+        (fun i _ => h_each i))
 
-  -- Convert `∑ i : Fin r, 1` to `r`.
+  -- rewrite `∑ i : Fin r, 1` as `r`
   have hone : (∑ i : Fin r, (1 : ℕ)) = r := by
-    simp [Finset.sum_const, Fintype.card_fin]
+    simp [Fintype.card_fin]
 
-  -- Finish.
-  -- From hsum and hlen: r ≤ flatten.length
   calc
     r = ∑ i : Fin r, (1 : ℕ) := by simp [hone]
     _ ≤ ∑ i : Fin r, (w i).val.length := hsum
-    _ = (List.ofFn (fun i : Fin r => (w i).val)).flatten.length := by simp [hlen]
+    _ = (concatFn w).length := by simpa using (concatFn_length (w := w)).symm
 
-lemma disjoint_filter_length {S : Finset (List α)} {s t : ℕ} (hst : s ≠ t) :
-  Disjoint (S.filter (fun x => x.length = s)) (S.filter (fun x => x.length = t)) := by
-  refine Finset.disjoint_left.2 ?_
-  intro x hs hx
-  have hslen : x.length = s := (Finset.mem_filter.1 hs).2
-  have htlen : x.length = t := (Finset.mem_filter.1 hx).2
-  exact hst (hslen.symm.trans htlen)
+end concatFn
+
+variable {α : Type _}
 
 /-- If a code is uniquely decodable, it does not contain the empty string.
 
@@ -133,7 +98,7 @@ The empty string ε can be "decoded" as either zero or two copies of itself,
 violating unique decodability. -/
 lemma epsilon_not_mem_of_uniquely_decodable
     {S : Set (List α)}
-    (h : UniquelyDecodable (S: Set (List α))) :
+    (h : UniquelyDecodable S) :
     [] ∉ S := by
   intro h_in
   -- UniquelyDecodable implies [] cannot be decomposed in two ways.
@@ -142,102 +107,267 @@ lemma epsilon_not_mem_of_uniquely_decodable
   specialize h (L1 := [[]]) (L2 := [[], []]) (by simp [h_in]) (by simp [h_in]) (by simp)
   simp at h
 
+lemma UniquelyDecodable.flatten_injective
+  {S : Set (List α)} (h : UniquelyDecodable S) :
+  Function.Injective (fun (L : {L : List (List α) // ∀ x ∈ L, x ∈ S}) => L.1.flatten) :=
+by
+  intro L1 L2 hflat
+  -- Reduce to UD on the underlying lists; use Subtype.ext
+  apply Subtype.ext
+  exact h L1.1 L2.1 L1.2 L2.2 hflat
+
+lemma uniquelyDecodable_concatFn_injective
+  {S : Set (List α)} (h : UniquelyDecodable S) (r : ℕ) :
+  Function.Injective (concatFn (α := α) (S := S) (r := r)) := by
+  intro w1 w2 hflat
+
+  -- package tuples as subtype-lists
+  let pack : (Fin r → S) → {L : List (List α) // ∀ x ∈ L, x ∈ S} :=
+    fun w =>
+      ⟨List.ofFn (fun i : Fin r => (w i).val),
+       by
+         intro x hx
+         rcases List.mem_ofFn.mp hx with ⟨i, rfl⟩
+         exact (w i).property⟩
+
+  have hpack : pack w1 = pack w2 := by
+    apply (UniquelyDecodable.flatten_injective h)
+    simpa [pack, concatFn] using hflat
+
+  have hOf :
+      List.ofFn (fun j : Fin r => (w1 j).val)
+        = List.ofFn (fun j : Fin r => (w2 j).val) :=
+    congrArg Subtype.val hpack
+
+  have hf :
+      (fun j : Fin r => (w1 j).val) = (fun j : Fin r => (w2 j).val) :=
+    List.ofFn_injective hOf
+
+  funext i
+  apply Subtype.ext
+  simpa using congrArg (fun f => f i) hf
+
+lemma disjoint_filter_eq_of_ne
+  {β γ: Type _} [DecidableEq γ] {S : Finset β}
+  (f : β → γ) {a b : γ} (hab : a ≠ b) :
+  Disjoint (S.filter (fun x => f x = a)) (S.filter (fun x => f x = b)) :=
+by
+  refine Finset.disjoint_left.2 ?_
+  intro x hx hx'
+  have hlen1: f x = a := (Finset.mem_filter.1 hx).2
+  have hlen2: f x = b := (Finset.mem_filter.1 hx').2
+  exact hab (hlen1.symm.trans hlen2)
+
+lemma sum_pow_len_filter_le_one_of_card_le
+  {α : Type _} [Fintype α] [DecidableEq α] [Nonempty α]
+  (T : Finset (List α)) (s : ℕ)
+  (h_card : (T.filter (fun x => x.length = s)).card ≤ (Fintype.card α) ^ s) :
+  (∑ x ∈ T.filter (fun x => x.length = s),
+      (1 / (Fintype.card α : ℕ) : ℝ) ^ x.length) ≤ 1 := by
+  let D : ℕ := Fintype.card α
+  have hD0 : (D : ℝ) ≠ 0 := by
+    exact_mod_cast (Nat.ne_of_gt (Fintype.card_pos : 0 < D))
+
+  -- rewrite exponents x.length = s on the filter
+  have : (∑ x ∈ T.filter (fun x => x.length = s), (1 / (D : ℝ)) ^ x.length)
+       = (∑ x ∈ T.filter (fun x => x.length = s), (1 / (D : ℝ)) ^ s) := by
+    refine Finset.sum_congr rfl ?_
+    intro x hx
+    have hxlen : x.length = s := (Finset.mem_filter.1 hx).2
+    simp [hxlen]
+
+  -- now it is card * (1/D)^s, use card bound
+  calc
+    (∑ x ∈ T.filter (fun x => x.length = s), (1 / (D : ℝ)) ^ x.length)
+        = (T.filter (fun x => x.length = s)).card * (1 / (D : ℝ)) ^ s := by
+            -- use the previous rewrite then sum_const
+            simp_all only [Finset.sum_const, nsmul_eq_mul]
+    _ ≤ (D ^ s : ℝ) * (1 / (D : ℝ)) ^ s := by
+            refine mul_le_mul_of_nonneg_right ?_ (by positivity)
+            exact_mod_cast h_card
+    _ = 1 := by simp [hD0]
+
+
+lemma kraft_sum_pow_eq_sum_concatFn
+    {S : Finset (List α)} [DecidableEq α]
+    (D : ℕ) (r : ℕ) :
+    (∑ c ∈ S, (1 / (D : ℝ)) ^ c.length) ^ r
+      =
+    ∑ w : Fin r → S, (1 / (D : ℝ)) ^ (concatFn w).length := by
+  -- 1) Expand the r-th power as a sum over tuples, with a product of terms
+  have h_expand :
+      (∑ w ∈ S, (1 / (D : ℝ)) ^ w.length) ^ r
+      = ∑ w : Fin r → S, ∏ i : Fin r, (1 / (D : ℝ)) ^ (w i).val.length := by
+    -- turn pow into product of a constant, then distribute product over sums
+    rw [show (∑ w ∈ S, (1 / (D : ℝ)) ^ w.length) ^ r
+          = ∏ _i : Fin r, (∑ w ∈ S, (1 / (D : ℝ)) ^ w.length) from by simp]
+    -- distribute product over sums (over `Finset.univ`)
+    rw [Finset.prod_sum]
+    -- now reindex the resulting `Finset.pi` as actual functions `Fin r → S`
+    refine Finset.sum_bij
+      (fun a ha i =>
+        ⟨a i (Finset.mem_univ i), (Finset.mem_pi.mp ha i (Finset.mem_univ i))⟩)
+      (by intro a ha; simp) -- show the summands match after reindexing
+      (by
+        intro a₁ ha₁ a₂ ha₂ hfun
+        -- this is the robust way; avoids the get?/Option mess
+        simpa [funext_iff] using hfun)
+      (by
+        intro b hb
+        -- build an element of the `pi` finset from a function `Fin r → S`
+        refine ⟨(fun i _ => (b i).1),
+          ?_, ?_⟩
+        · -- membership in the pi finset
+          refine Finset.mem_pi.mpr ?_
+          intro i hi
+          simp
+        · rfl -- and it maps back to b
+      )
+      (by simp) -- side condition: mapped elements land in the right place
+
+  -- Rewrite the product of powers as a single power using concat length
+  have h_term :
+      ∀ w : Fin r → S,
+        (∏ i : Fin r, (1 / (D : ℝ)) ^ (w i).val.length)
+          =
+        (1 / (D : ℝ)) ^ (concatFn w).length := by
+    intro w
+    -- prod -> pow(sum) over Finset.univ
+    have hprod :
+        (∏ i : Fin r, (1 / (D : ℝ)) ^ (w i).val.length)
+          =
+        (1 / (D : ℝ)) ^ (∑ i : Fin r, (w i).val.length) := by
+      simpa using
+        (Finset.prod_pow_eq_pow_sum
+          (s := (Finset.univ : Finset (Fin r)))
+          (a := (1 / (D : ℝ)))
+          (f := fun i : Fin r => (w i).val.length))
+    have hsum :
+        (∑ i : Fin r, (w i).val.length) = (concatFn w).length := by
+      simpa using (concatFn_length (w := w)).symm
+
+    simpa [hsum] using hprod
+
+  calc
+    (∑ w ∈ S, (1 / (D : ℝ)) ^ w.length) ^ r
+        = ∑ w : Fin r → S, ∏ i : Fin r, (1 / (D : ℝ)) ^ (w i).val.length := h_expand
+    _ = ∑ w : Fin r → S, (1 / (D : ℝ)) ^ (concatFn (α := α) (S := (S : Set (List α))) (r := r) w).length := by
+        grind
+
+lemma card_filter_length_eq_le
+  {α : Type _} [Fintype α] [DecidableEq α]
+  (T : Finset (List α)) (s : ℕ) :
+  (T.filter (fun x => x.length = s)).card ≤ (Fintype.card α) ^ s := by
+  let D : ℕ := Fintype.card α
+  let all_words : Finset (List α) :=
+    (Finset.univ : Finset (Fin s → α)).image List.ofFn
+
+  have hsub : T.filter (fun x => x.length = s) ⊆ all_words := by
+    intro a ha
+    have halen : a.length = s := (Finset.mem_filter.1 ha).2
+    refine Finset.mem_image.mpr ?_
+    refine ⟨(fun j : Fin s => a.get ⟨j.1, by simp [halen]⟩), ?_, ?_⟩
+    · exact Finset.mem_univ _
+    · -- `List.ofFn` reconstructs `a` from its `get`s
+      apply List.ext_get
+      · simp [List.length_ofFn, halen]
+      · simp
+
+  have hcard_all : all_words.card = D ^ s := by
+    -- `List.ofFn` is injective, so the image has the same cardinality as the domain.
+    simpa [all_words, D] using
+      (Finset.card_image_of_injective
+        (s := (Finset.univ : Finset (Fin s → α)))
+        (f := (List.ofFn : (Fin s → α) → List α))
+        List.ofFn_injective)
+
+  calc
+    (T.filter (fun x => x.length = s)).card
+        ≤ all_words.card := Finset.card_le_card hsub
+    _ = D ^ s := hcard_all
+    _ = (Fintype.card α) ^ s := by rfl
+
 /-- If `S` is uniquely decodable, then `(Σ 2^{-|w|})^r ≤ r·ℓ` where `ℓ` is the maximum codeword length.
 
 This auxiliary bound is the heart of the Kraft-McMillan proof. The r-th power of the Kraft sum
 counts concatenations of r codewords, which by unique decodability are distinct. Since these
 concatenations have lengths between r and r·ℓ, we get at most r·ℓ - r + 1 ≤ r·ℓ terms. -/
-lemma kraft_mcmillan_inequality_aux {S : Finset (List α)} [DecidableEq α] [Fintype α] [Nonempty α] (h : UniquelyDecodable (S: Set (List α))) (r : ℕ) (hr : r ≥ 1) :
+lemma kraft_mcmillan_inequality_aux {S : Finset (List α)} [DecidableEq α] [Fintype α] [Nonempty α]
+  (h : UniquelyDecodable (S: Set (List α))) (r : ℕ) (hr : r ≥ 1) :
     (∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length) ^ r ≤ r * (Finset.sup S List.length) := by
   -- Let $\ell = \max_{w \in S} |w|$.
   set ℓ := (S.sup List.length) with hℓ_def
   let D := Fintype.card α
+
   -- By definition of $C$, we have $C^r = \sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$.
-  have h_sum : (∑ w ∈ S, (1 / D : ℝ) ^ w.length) ^ r = ∑ w : Fin r → S, (1 / D : ℝ) ^ ((List.ofFn (fun i => (w i).val)).flatten.length) := by
-    rw [show (∑ w ∈ S, (1 / D : ℝ) ^ w.length) ^ r = ∑ w : Fin r → S, ∏ i : Fin r, (1 / D : ℝ) ^ (w i |> Subtype.val |> List.length) from ?_]
-    · norm_num [List.length_flatten, Finset.prod_pow_eq_pow_sum]
-      norm_num [List.sum_ofFn]
-    · rw [← Fin.prod_const, Finset.prod_sum]
-      refine' Finset.sum_bij _ _ _ _ _
-      · use fun a ha i => ⟨ a i (Finset.mem_univ i), Finset.mem_pi.mp ha i (Finset.mem_univ i) ⟩
-      · simp
-      · simp [funext_iff]
-      · exact fun b _ => ⟨ fun i _ => b i |>.1, Finset.mem_pi.mpr fun i _ => b i |>.2, rfl ⟩
-      · simp_all only [Finset.prod_attach_univ, implies_true]
+  have h_sum :
+    (∑ w ∈ S, (1 / D : ℝ) ^ w.length) ^ r
+      = ∑ w : Fin r → S, (1 / D : ℝ) ^ (concatFn w).length := by
+    simpa using (kraft_sum_pow_eq_sum_concatFn (α := α) (S := S) D r)
 
   -- Since the map $(w_1,\dots,w_r) \mapsto w_1 \cdots w_r$ is injective, the sum $\sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$ is at most $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}$.
   have hε : ([] : List α) ∉ S := epsilon_not_mem_of_uniquely_decodable h
 
-  let T : Finset (List α) :=
-    Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten)
-      (Finset.univ : Finset (Fin r → S))
+  let T : Finset (List α) := Finset.image concatFn (Finset.univ : Finset (Fin r → S))
 
   have h_injective :
-    ∑ w : Fin r → S, (1 / D : ℝ) ^ ((List.ofFn (fun i => (w i).val)).flatten.length)
+    ∑ w : Fin r → S, (1 / D : ℝ) ^ ((concatFn w).length)
       ≤ ∑ s ∈ Finset.Icc r (r * ℓ),
           ∑ x ∈ T.filter (fun x => x.length = s), (1 / D : ℝ) ^ x.length := by
     rw [← Finset.sum_biUnion]
     · refine le_of_eq ?_
-      refine Finset.sum_bij
-        (fun w _ => (List.ofFn (fun i : Fin r => (w i).val)).flatten) ?_ ?_ (by simp [T]) (by simp)
+      refine Finset.sum_bij (fun w _ => concatFn w) ?_ ?_ (by simp [T]) (by simp)
       · intro a _
-        simp only [T, Finset.mem_biUnion, Finset.mem_Icc, Finset.mem_filter,
-          Finset.mem_image, Finset.mem_univ, true_and]
-        refine ⟨(List.ofFn (fun i : Fin r => (a i).val)).flatten.length, ?_⟩
+        simp only [T, Finset.mem_biUnion, Finset.mem_Icc, Finset.mem_filter, Finset.mem_image, Finset.mem_univ, true_and]
+        refine ⟨(concatFn a).length, ?_⟩
         refine ⟨⟨?_, ?_⟩, ⟨a, rfl⟩, rfl⟩
-        · simpa using (r_le_flatten_length_of_no_empty hε r a)
-        · simpa [ℓ] using (flatten_length_le_mul_sup r a)
+        · simpa using (le_concatFn_length_of_no_empty (w := a) hε)
+        · simpa [ℓ] using (concatFn_length_le_mul_sup (ws := a))
       · intro a₁ _ a₂ _ h_eq
-        exact uniquelyDecodable_flatten_injective h r h_eq
-    · intro s hs t ht hst
-      exact disjoint_filter_length hst
+        exact uniquelyDecodable_concatFn_injective h r h_eq
+    · intro _ _ _ _ hst
+      exact disjoint_filter_eq_of_ne _ hst
 
   -- Since $\sum_{x \in \{0,1\}^s} 2^{-|x|} = 1$ for any $s$, we have $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|} = \sum_{s=r}^{r\ell} 1 = r\ell - r + 1 \le r\ell$.
   have h_sum_one :
       ∀ s ∈ Finset.Icc r (r * ℓ),
         ∑ x ∈ T.filter (fun x => x.length = s), (1 / D : ℝ) ^ x.length ≤ 1 := by
-    intros s hs
-    have h_card : Finset.card (Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S)))) ≤ D ^ s := by
-      have h_card : Finset.card (Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S)))) ≤ Finset.card (Finset.image (fun x : Fin s → α => List.ofFn x) (Finset.univ : Finset (Fin s → α))) := by
-        refine Finset.card_le_card ?_
-        simp [Finset.subset_iff]
-        intro a ha
-        -- goal: ∃ a_1, List.ofFn a_1 = (List.ofFn fun i ↦ ↑(a i)).flatten
-        -- here `a : Fin r → ↥S`
+    intro s _
+    simpa [D] using
+      (sum_pow_len_filter_le_one_of_card_le (T := T) (s := s)
+        (by simpa [D] using (card_filter_length_eq_le (T := T) (s := s))))
 
-        -- let x be the flattened concatenation
-        let x : List α := (List.ofFn (fun i : Fin r => ((a i : List α)))).flatten
-
-        have hxlen : x.length = s := by
-          -- `List.length_flatten` turns length(flatten) into a sum of lengths
-          -- and `List.map_ofFn` rewrites that sum to `ha`
-          -- (`ha` is exactly the length-sum constraint coming from the filter)
-          simpa [x, List.length_flatten, List.map_ofFn, Function.comp] using ha
-
-        -- build the function f : Fin s → α by indexing into x
-        refine ⟨(fun j : Fin s => x.get ⟨j.1, by simp [hxlen]⟩), ?_⟩
-
-        -- prove List.ofFn f = x
-        apply List.ext_get <;> (subst s; simp [x])
-      unfold D at *
-      exact h_card.trans (Finset.card_image_le.trans (by norm_num [Finset.card_univ]))
-    refine' le_trans (Finset.sum_le_sum fun x hx => _) _
-    · use fun x => (1 / D) ^ s
-    · simp only [Finset.mem_filter] at hx
-      simp [hx.2]
-    ·
-      -- We need D^s * (1/D)^s ≤ 1.
-      simp only [Finset.sum_const, nsmul_eq_mul]
-      -- Use monotonicity to multiply the bounds: card ≤ D^s AND (1/D)^s is nonneg
-      refine le_trans (mul_le_mul_of_nonneg_right (Nat.cast_le.mpr h_card) (by positivity)) ?_
-
-      -- Handle the algebra manually
-      rw [one_div]
-      simp
   refine le_trans h_sum.le <| h_injective.trans <| le_trans (Finset.sum_le_sum h_sum_one) ?_
   rcases r with (_ | _ | r) <;> rcases ℓ with (_ | _ | ℓ) <;> norm_num at *
   · positivity
   · rw [Nat.cast_sub] <;> push_cast <;> nlinarith only [hℓ_def]
+
+section McMillan
+
+open Filter
+
+lemma tendsto_nat_div_pow_atTop_nhds_0 {K : ℝ} (hK : 1 < K) :
+  Tendsto (fun r : ℕ => (r : ℝ) / K ^ r) atTop (nhds 0) := by
+  have hK0 : 0 < K := lt_trans (by norm_num) hK
+
+  have hAbs : |(1 : ℝ) / K| < (1 : ℝ) := by
+    calc
+      |(1 : ℝ) / K| = (1 : ℝ) / K := abs_of_pos (by positivity)
+      _ < 1 := (div_lt_one hK0).2 hK
+
+  -- main limit: r * (1/K)^r → 0
+  have hmain :
+      Tendsto (fun r : ℕ => (r : ℝ) * ((1 : ℝ) / K) ^ r) atTop (nhds 0) := by
+    simpa using (tendsto_self_mul_const_pow_of_abs_lt_one (r := (1 : ℝ) / K) hAbs)
+
+  -- rewrite your expression to that form (using `one_div_pow`, not `inv_pow`)
+  -- r / K^r = r * (1/K)^r
+  simpa [div_eq_mul_inv, one_div, one_div_pow, mul_assoc] using hmain
+
+lemma tendsto_mul_const_nat_div_pow_atTop_nhds_0 {K c : ℝ} (hK : 1 < K) :
+  Filter.Tendsto (fun r : ℕ => (c * r) / K ^ r) Filter.atTop (nhds 0) := by
+  simpa [mul_assoc, mul_div_assoc] using
+    (tendsto_nat_div_pow_atTop_nhds_0 (K := K) hK).const_mul c
 
 /-- **Kraft-McMillan Inequality**: If `S` is a finite uniquely decodable code,
 then `Σ D^{-|w|} ≤ 1`. -/
@@ -255,38 +385,21 @@ theorem kraft_mcmillan_inequality {S : Finset (List α)} [DecidableEq α] [Finty
   have hK1 : 1 < K := by
     simpa [K, D, one_div] using h_kraft
 
-  have h_K_pos : 0 < K := zero_lt_one.trans hK1
-  have h_log_pos : 0 < Real.log K := Real.log_pos hK1
-  have hr_exists : Filter.Tendsto (fun r : ℕ => (r * (Finset.sup S List.length) : ℝ) / K ^ r) Filter.atTop (nhds 0) := by
-    have hr_factor : Filter.Tendsto (fun r : ℕ => (r : ℝ) / K ^ r) Filter.atTop (nhds 0) := by
-      -- Substitute y = r * log K. Since log K > 0, r -> infty implies y -> infty.
-      let y (r : ℕ) := r * Real.log K
-      have h_lim_y : Filter.Tendsto y Filter.atTop Filter.atTop :=
-        tendsto_natCast_atTop_atTop.atTop_mul_const h_log_pos
+  have hr_exists : Filter.Tendsto (fun r : ℕ =>
+        (r * (Finset.sup S List.length) : ℝ) / K ^ r) Filter.atTop (nhds 0) := by
+    let ℓNat : ℕ := S.sup List.length
+    let ℓ : ℝ := (ℓNat : ℝ)
+    have h0 :
+        Tendsto (fun r : ℕ => (ℓ * (r : ℝ)) / K ^ r) atTop (nhds 0) := by
+      simpa [mul_assoc, mul_div_assoc] using
+        (tendsto_mul_const_nat_div_pow_atTop_nhds_0 (K := K) (c := ℓ) hK1)
 
-      -- We know y / exp(y) -> 0 as y -> infty
-      have h_lim_exp : Filter.Tendsto (fun z => z / Real.exp z) Filter.atTop (nhds 0) := by
-        simpa [div_eq_mul_inv, Real.exp_neg, pow_one] using Real.tendsto_pow_mul_exp_neg_atTop_nhds_zero 1
-
-      -- Therefore (r * log K) / exp(r * log K) -> 0
-      have h_comp := h_lim_exp.comp h_lim_y
-
-      -- Rewrite the target limit (r / K^r) in terms of the substituted limit
-      have h_eq : ∀ r : ℕ, (r : ℝ) / K ^ r = (1 / Real.log K) * (y r / Real.exp (y r)) := by
-        intro r
-        dsimp [y]
-        rw [Real.exp_nat_mul, Real.exp_log h_K_pos]
-        field_simp [ne_of_gt h_log_pos, pow_ne_zero r (ne_of_gt h_K_pos)]
-
-      -- Apply the equality and the limit properties
-      simp only [h_eq]
-      -- Simplify (c * 0) to 0
-      simpa using Filter.Tendsto.const_mul (1 / Real.log K) h_comp
-
-    simpa [mul_div_right_comm] using hr_factor.mul_const _
+    simpa [ℓ, div_eq_mul_inv, mul_assoc, mul_left_comm, mul_comm] using h0
 
   obtain ⟨r, hr⟩ := Filter.eventually_atTop.mp (hr_exists.eventually (gt_mem_nhds zero_lt_one))
   refine ⟨r + 1, by linarith, ?_⟩
   have := hr (r + 1) (by linarith)
   rw [div_lt_iff₀ (by positivity)] at this
   linarith
+
+end McMillan
