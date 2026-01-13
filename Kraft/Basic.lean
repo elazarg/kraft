@@ -32,4 +32,9 @@ lemma epsilon_prefix_singleton {S : Set (List α)} (hS : PrefixFree S) :
     rintro rfl
     exact h_nil
 
+lemma PrefixFree.mono {α : Type _} {S T : Set (List α)} (hS : PrefixFree S) (hST : T ⊆ S) :
+  PrefixFree T := by
+  intro a ha b hb hpre
+  exact hS a (hST ha) b (hST hb) hpre
+
 end Kraft
