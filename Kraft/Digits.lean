@@ -358,116 +358,116 @@ def natToBits' (n w : ℕ) : List Bool :=
 /-- `natToBits` is injective for numbers less than `2^width`. -/
 lemma natToBits_inj {n m width : ℕ} (hn : n < 2 ^ width) (hm : m < 2 ^ width)
     (h : natToBits n width = natToBits m width) : n = m := by
-      refine' Nat.eq_of_testBit_eq fun i => _
-      by_cases hi : i < width
-      · replace h := congr_arg (fun l => l[width - 1 - i]!) h
-        unfold natToBits at h
-        simp_all only [Nat.shiftRight_eq_div_pow, Nat.testBit, Nat.shiftRight_eq_div_pow]
+  refine' Nat.eq_of_testBit_eq fun i => _
+  by_cases hi : i < width
+  · replace h := congr_arg (fun l => l[width - 1 - i]!) h
+    unfold natToBits at h
+    simp_all only [Nat.shiftRight_eq_div_pow, Nat.testBit, Nat.shiftRight_eq_div_pow]
 
-        have hw : 0 < width := (by exact Nat.zero_lt_of_lt hi)
-        have hcond : width - 1 - i < width := by
-          -- ≤ width-1 < width
-          have hle : width - 1 - i ≤ width - 1 := Nat.sub_le _ _
-          exact lt_of_le_of_lt hle (Nat.pred_lt (by exact Nat.ne_zero_of_lt hi))
+    have hw : 0 < width := (by exact Nat.zero_lt_of_lt hi)
+    have hcond : width - 1 - i < width := by
+      -- ≤ width-1 < width
+      have hle : width - 1 - i ≤ width - 1 := Nat.sub_le _ _
+      exact lt_of_le_of_lt hle (Nat.pred_lt (by exact Nat.ne_zero_of_lt hi))
 
-        have hsub : width - 1 - (width - 1 - i) = i := by
-          -- `i ≤ width-1` since `i < width`
-          have hi' : i ≤ width - 1 := Nat.le_pred_of_lt hi
-          -- standard arithmetic on `Nat` subtraction
-          omega
+    have hsub : width - 1 - (width - 1 - i) = i := by
+      -- `i ≤ width-1` since `i < width`
+      have hi' : i ≤ width - 1 := Nat.le_pred_of_lt hi
+      -- standard arithmetic on `Nat` subtraction
+      omega
 
-        -- extract the Bool equality from `h` and convert == to =
-        have hbool : (n / 2 ^ i % 2 == 1) = (m / 2 ^ i % 2 == 1) := by simpa [hcond, hsub] using h
-        simpa [Nat.beq_eq_true_eq, decide_eq_decide] using hbool
+    -- extract the Bool equality from `h` and convert == to =
+    have hbool : (n / 2 ^ i % 2 == 1) = (m / 2 ^ i % 2 == 1) := by simpa [hcond, hsub] using h
+    simpa [Nat.beq_eq_true_eq, decide_eq_decide] using hbool
 
-      · simp_all only [not_lt, Nat.testBit]
-        rw [Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow]
-        rw [Nat.div_eq_of_lt (lt_of_lt_of_le hn (Nat.pow_le_pow_right (by decide) hi)), Nat.div_eq_of_lt (lt_of_lt_of_le hm (Nat.pow_le_pow_right (by decide) hi))]
+  · simp_all only [not_lt, Nat.testBit]
+    rw [Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow]
+    rw [Nat.div_eq_of_lt (lt_of_lt_of_le hn (Nat.pow_le_pow_right (by decide) hi)), Nat.div_eq_of_lt (lt_of_lt_of_le hm (Nat.pow_le_pow_right (by decide) hi))]
 
 /-- `natToBits n w` is a prefix of `natToBits m v` iff `w ≤ v` and `m` lies in the
 dyadic interval `[n·2^{v-w}, (n+1)·2^{v-w})`. This characterizes when two codewords
 in our construction have a prefix relationship. -/
 lemma natToBits_prefix_iff {n m w v : ℕ} (hn : n < 2 ^ w) (hm : m < 2 ^ v) :
     natToBits n w <+: natToBits m v ↔ w ≤ v ∧ n * 2 ^ (v - w) ≤ m ∧ m < (n + 1) * 2 ^ (v - w) := by
-      constructor <;> intro h_1
-      · -- If `natToBits n w` is a prefix of `natToBits m v`, then `w ≤ v`.
-        have h_le : w ≤ v := by
-          have := h_1.length_le
-          unfold natToBits at this
-          simp_all only [List.length_ofFn]
-        -- If `natToBits n w` is a prefix of `natToBits m v`, then `m >> (v - w) = n`.
-        have h_shift : m / 2 ^ (v - w) = n := by
-          have h_shift : ∀ k < w, m.testBit (v - 1 - k) = n.testBit (w - 1 - k) := by
-            rw [natToBits, natToBits] at h_1
-            obtain ⟨ k, hk ⟩ := h_1
-            intro i hi
-            replace hk := congr_arg (fun l => l[i]!) hk
-            have hiv : i < v := lt_of_lt_of_le hi h_le
-            have hnmi : m.testBit (v - 1 - i) = n.testBit (w - 1 - i) := by
-                -- 1. Accessing index 'i' in 'L1 ++ k' falls into 'L1' because i < length L1
-                simp_all only [List.getElem!_eq_getElem?_getD]
-                rw [List.getElem?_append_left] at hk
-                · -- 2. Accessing index 'i' in 'List.ofFn f' is just 'f i'
-                  rw [List.getElem?_ofFn] at hk
-                  simp_all only [↓reduceDIte, Option.getD_some, List.length_ofFn, getElem?_pos, List.getElem_ofFn]
-                · -- Proof that i < length L1 (for step 1)
-                  simp [hi]
-            exact hnmi
-          refine' Nat.eq_of_testBit_eq _
-          intro i
-          specialize h_shift (w - 1 - i)
-          rcases lt_trichotomy i (w - 1) with hi | rfl | hi
-          · simp_all only [Nat.testBit]
-            convert h_shift (by omega) using 2 <;> norm_num [Nat.shiftRight_eq_div_pow]
-            · rw [Nat.div_div_eq_div_mul]
-              rw [← pow_add, show v - w + i = v - 1 - (w - 1 - i) by omega]
-            · rw [Nat.sub_sub_self (by omega)]
-          · simp_all only [Nat.testBit]
-            rcases w with (_ | w)
-            · simp_all only [pow_zero, Nat.lt_one_iff, tsub_zero, Nat.shiftRight_eq_div_pow, Nat.one_and_eq_mod_two, Nat.mod_two_bne_zero]
-              rw [Nat.div_eq_of_lt hm, Nat.zero_mod]
-            · simp_all only [tsub_self, tsub_zero, Nat.shiftRight_eq_div_pow]
-              convert h_shift using 1
-              rw [show v - 1 = v - (w + 1) + w by omega, Nat.pow_add]
-              norm_num [Nat.div_div_eq_div_mul]
-          · simp_all only [Nat.testBit]
-            rw [Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow]
-            rw [Nat.div_eq_of_lt, Nat.div_eq_of_lt]
-            · exact hn.trans_le (Nat.pow_le_pow_right (by decide) (by omega))
-            · rw [Nat.div_lt_iff_lt_mul <| by positivity]
-              rw [← pow_add]
-              exact hm.trans_le (pow_le_pow_right₀ (by decide) (by omega))
-        exact ⟨ h_le, by nlinarith [Nat.div_mul_le_self m (2 ^ (v - w)), pow_pos (zero_lt_two' ℕ) (v - w)], by nlinarith [Nat.div_add_mod m (2 ^ (v - w)), Nat.mod_lt m (pow_pos (zero_lt_two' ℕ) (v - w)), pow_pos (zero_lt_two' ℕ) (v - w)] ⟩
-      · -- Since $m$ lies in the dyadic interval corresponding to $n$, the binary representation of $m$ starts with the binary representation of $n$.
-        have h_binary : ∀ i : Fin w, (m.testBit (v - 1 - i)) = (n.testBit (w - 1 - i)) := by
-          intro i
-          have h_div : m / 2 ^ (v - w) = n := by
-            exact Nat.le_antisymm (Nat.le_of_lt_succ <| Nat.div_lt_of_lt_mul <| by linarith) (Nat.le_div_iff_mul_le (by positivity) |>.2 <| by linarith)
-          -- 1. Replace n with the division form given in h_div
-          rw [← h_div]
+  constructor <;> intro h_1
+  · -- If `natToBits n w` is a prefix of `natToBits m v`, then `w ≤ v`.
+    have h_le : w ≤ v := by
+      have := h_1.length_le
+      unfold natToBits at this
+      simp_all only [List.length_ofFn]
+    -- If `natToBits n w` is a prefix of `natToBits m v`, then `m >> (v - w) = n`.
+    have h_shift : m / 2 ^ (v - w) = n := by
+      have h_shift : ∀ k < w, m.testBit (v - 1 - k) = n.testBit (w - 1 - k) := by
+        rw [natToBits, natToBits] at h_1
+        obtain ⟨ k, hk ⟩ := h_1
+        intro i hi
+        replace hk := congr_arg (fun l => l[i]!) hk
+        have hiv : i < v := lt_of_lt_of_le hi h_le
+        have hnmi : m.testBit (v - 1 - i) = n.testBit (w - 1 - i) := by
+            -- 1. Accessing index 'i' in 'L1 ++ k' falls into 'L1' because i < length L1
+            simp_all only [List.getElem!_eq_getElem?_getD]
+            rw [List.getElem?_append_left] at hk
+            · -- 2. Accessing index 'i' in 'List.ofFn f' is just 'f i'
+              rw [List.getElem?_ofFn] at hk
+              simp_all only [↓reduceDIte, Option.getD_some, List.length_ofFn, getElem?_pos, List.getElem_ofFn]
+            · -- Proof that i < length L1 (for step 1)
+              simp [hi]
+        exact hnmi
+      refine' Nat.eq_of_testBit_eq _
+      intro i
+      specialize h_shift (w - 1 - i)
+      rcases lt_trichotomy i (w - 1) with hi | rfl | hi
+      · simp_all only [Nat.testBit]
+        convert h_shift (by omega) using 2 <;> norm_num [Nat.shiftRight_eq_div_pow]
+        · rw [Nat.div_div_eq_div_mul]
+          rw [← pow_add, show v - w + i = v - 1 - (w - 1 - i) by omega]
+        · rw [Nat.sub_sub_self (by omega)]
+      · simp_all only [Nat.testBit]
+        rcases w with (_ | w)
+        · simp_all only [pow_zero, Nat.lt_one_iff, tsub_zero, Nat.shiftRight_eq_div_pow, Nat.one_and_eq_mod_two, Nat.mod_two_bne_zero]
+          rw [Nat.div_eq_of_lt hm, Nat.zero_mod]
+        · simp_all only [tsub_self, tsub_zero, Nat.shiftRight_eq_div_pow]
+          convert h_shift using 1
+          rw [show v - 1 = v - (w + 1) + w by omega, Nat.pow_add]
+          norm_num [Nat.div_div_eq_div_mul]
+      · simp_all only [Nat.testBit]
+        rw [Nat.shiftRight_eq_div_pow, Nat.shiftRight_eq_div_pow]
+        rw [Nat.div_eq_of_lt, Nat.div_eq_of_lt]
+        · exact hn.trans_le (Nat.pow_le_pow_right (by decide) (by omega))
+        · rw [Nat.div_lt_iff_lt_mul <| by positivity]
+          rw [← pow_add]
+          exact hm.trans_le (pow_le_pow_right₀ (by decide) (by omega))
+    exact ⟨ h_le, by nlinarith [Nat.div_mul_le_self m (2 ^ (v - w)), pow_pos (zero_lt_two' ℕ) (v - w)], by nlinarith [Nat.div_add_mod m (2 ^ (v - w)), Nat.mod_lt m (pow_pos (zero_lt_two' ℕ) (v - w)), pow_pos (zero_lt_two' ℕ) (v - w)] ⟩
+  · -- Since $m$ lies in the dyadic interval corresponding to $n$, the binary representation of $m$ starts with the binary representation of $n$.
+    have h_binary : ∀ i : Fin w, (m.testBit (v - 1 - i)) = (n.testBit (w - 1 - i)) := by
+      intro i
+      have h_div : m / 2 ^ (v - w) = n := by
+        exact Nat.le_antisymm (Nat.le_of_lt_succ <| Nat.div_lt_of_lt_mul <| by linarith) (Nat.le_div_iff_mul_le (by positivity) |>.2 <| by linarith)
+      -- 1. Replace n with the division form given in h_div
+      rw [← h_div]
 
-          -- 2. Use the lemma that relates bit-testing on division to bit-testing on the original number
-          -- Lemma: (m / 2^k).testBit i = m.testBit (i + k)
-          rw [Nat.testBit_div_two_pow]
+      -- 2. Use the lemma that relates bit-testing on division to bit-testing on the original number
+      -- Lemma: (m / 2^k).testBit i = m.testBit (i + k)
+      rw [Nat.testBit_div_two_pow]
 
-          -- 3. Now the goal is m.testBit (...) = m.testBit (...).
-          -- We just need to prove the indices are equal.
-          congr 1
+      -- 3. Now the goal is m.testBit (...) = m.testBit (...).
+      -- We just need to prove the indices are equal.
+      congr 1
 
-          -- 4. Prove the arithmetic equality: (v - 1 - i) = (w - 1 - i) + (v - w)
-          -- We need to unpack the fact that i < w and w ≤ v to ensure subtraction behaves nicely.
-          have hi : ↑i < w := i.isLt
-          have hwv : w ≤ v := h_1.1
-          omega
-        unfold natToBits
-        refine' ⟨ List.ofFn fun i : Fin (v - w) => m.testBit (v - 1 - (w + i)), _ ⟩
-        refine' List.ext_get _ _
-        · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le]
-        · simp_all only [List.get_eq_getElem, List.getElem_append, List.getElem_ofFn]
-          intro i hi
-          split_ifs
-          · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le, forall_const]
-            exact Eq.symm (h_binary ⟨ i, by linarith ⟩)
-          · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le, not_lt, imp_self]
+      -- 4. Prove the arithmetic equality: (v - 1 - i) = (w - 1 - i) + (v - w)
+      -- We need to unpack the fact that i < w and w ≤ v to ensure subtraction behaves nicely.
+      have hi : ↑i < w := i.isLt
+      have hwv : w ≤ v := h_1.1
+      omega
+    unfold natToBits
+    refine' ⟨ List.ofFn fun i : Fin (v - w) => m.testBit (v - 1 - (w + i)), _ ⟩
+    refine' List.ext_get _ _
+    · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le]
+    · simp_all only [List.get_eq_getElem, List.getElem_append, List.getElem_ofFn]
+      intro i hi
+      split_ifs
+      · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le, forall_const]
+        exact Eq.symm (h_binary ⟨ i, by linarith ⟩)
+      · simp_all only [List.length_append, List.length_ofFn, add_tsub_cancel_of_le, not_lt, imp_self]
 
 end Digits
