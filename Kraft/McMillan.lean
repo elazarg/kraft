@@ -4,9 +4,10 @@ import Mathlib.Data.Real.Basic
 
 import Mathlib.Order.Filter.Tendsto
 import Mathlib.Order.Filter.AtTopBot.Archimedean
-import Mathlib.Analysis.Complex.Exponential
+import Mathlib.Algebra.BigOperators.Pi
 import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Exp
+import Mathlib.Analysis.SpecialFunctions.Pow.Asymptotics
 
 import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.Ring
@@ -17,55 +18,136 @@ import Kraft.Basic
 namespace Kraft
 
 variable {α : Type _}
-variable {S : Finset (List α)}
+
+lemma uniquelyDecodable_flatten_injective
+  {S : Set (List α)} (h : UniquelyDecodable S) (r : ℕ) :
+  Function.Injective (fun (w : Fin r → S) =>
+    (List.ofFn (fun i => (w i).val)).flatten) := by
+  intro w1 w2 hflat
+  -- Turn the tuples into lists of codewords
+  let f1 : Fin r → List α := fun i => (w1 i).val
+  let f2 : Fin r → List α := fun i => (w2 i).val
+  let L1 : List (List α) := List.ofFn f1
+  let L2 : List (List α) := List.ofFn f2
+
+  have hL : L1 = L2 := by
+    apply h L1 L2
+    · intro x hx
+      rcases List.mem_ofFn.mp hx with ⟨i, rfl⟩
+      exact (w1 i).property
+    · intro x hx
+      rcases List.mem_ofFn.mp hx with ⟨i, rfl⟩
+      exact (w2 i).property
+    · simpa [L1, L2, f1, f2] using hflat
+
+  -- From list equality, recover pointwise equality, hence function equality
+  funext i
+  apply Subtype.ext
+  rcases i with ⟨n, hn⟩
+
+  -- equality of nth entries
+  have hn1 : n < L1.length := by simpa [L1] using hn
+  have hn2 : n < L2.length := by simpa [L2] using hn
+  have hget : L1.get ⟨n, hn1⟩ = L2.get ⟨n, hn2⟩ := by simp [hL]
+  simpa [L1, L2, f1, f2] using hget
+
+lemma flatten_length_le_mul_sup  {S : Finset (List α)} (r : ℕ) (w : Fin r → S):
+    (List.ofFn (fun i : Fin r => (w i).val)).flatten.length
+      ≤ r * (S.sup List.length) := by
+  -- Rewrite the LHS as a finite sum of lengths.
+  have hlen :
+      (List.ofFn (fun i : Fin r => (w i).val)).flatten.length
+        = ∑ i : Fin r, (w i).val.length := by
+    -- `length(flatten L) = sum (map length L)`, then for `ofFn` turn list-sum into `∑ i`
+    simp [List.length_flatten, Function.comp, List.sum_ofFn]
+
+  -- Each codeword length is ≤ the supremum.
+  have h_each : ∀ i : Fin r, (w i).val.length ≤ S.sup List.length := by
+    intro i
+    -- `w i` is an element of `S`, so its length is ≤ sup of lengths in `S`
+    exact Finset.le_sup (f := List.length) (w i).property
+
+  -- Sum the pointwise bound.
+  calc
+    (List.ofFn (fun i : Fin r => (w i).val)).flatten.length
+        = ∑ i : Fin r, (w i).val.length := hlen
+    _ ≤ ∑ i : Fin r, S.sup List.length := by
+        -- monotonicity of summation over `Fin r`
+        -- (internally this is over `Finset.univ`)
+        simpa using (Finset.sum_le_sum (s := (Finset.univ : Finset (Fin r)))
+          (fun i _ => h_each i))
+    _ = r * (S.sup List.length) := by
+        -- sum of a constant over `Fin r` is `r * const`
+        simp [Finset.sum_const, Fintype.card_fin]
+
+lemma r_le_flatten_length_of_no_empty
+    {S : Set (List α)}
+    (hε : ([] : List α) ∉ S) (r : ℕ) (w : Fin r → S) :
+    r ≤ (List.ofFn (fun i : Fin r => (w i).val)).flatten.length := by
+  -- Rewrite the length of the concatenation as a sum of lengths.
+  have hlen :
+      (List.ofFn (fun i : Fin r => (w i).val)).flatten.length
+        = ∑ i : Fin r, (w i).val.length := by
+    simp [List.length_flatten, Function.comp, List.sum_ofFn]
+
+  -- Each codeword is nonempty, hence has length ≥ 1.
+  have h_each : ∀ i : Fin r, 1 ≤ (w i).val.length := by
+    intro i
+    have hiS : (w i).val ∈ S := (w i).property
+    have hne : (w i).val ≠ ([] : List α) := by
+      intro h0
+      apply hε
+      simpa [h0] using hiS
+    -- `length_pos` gives 0 < length, turn it into 1 ≤ length for naturals
+    exact Nat.succ_le_iff.mp (Nat.succ_le_iff.mpr (List.length_pos_iff.mpr hne))
+    -- If the above line is annoying in your version, replace it by:
+    -- exact Nat.succ_le_iff.mpr (List.length_pos_iff.mpr hne)
+
+  -- Sum of the lower bounds: ∑ 1 ≤ ∑ length
+  have hsum : (∑ i : Fin r, (1 : ℕ)) ≤ ∑ i : Fin r, (w i).val.length := by
+    simpa using (Finset.sum_le_sum (s := (Finset.univ : Finset (Fin r)))
+      (fun i _ => h_each i))
+
+  -- Convert `∑ i : Fin r, 1` to `r`.
+  have hone : (∑ i : Fin r, (1 : ℕ)) = r := by
+    simp [Finset.sum_const, Fintype.card_fin]
+
+  -- Finish.
+  -- From hsum and hlen: r ≤ flatten.length
+  calc
+    r = ∑ i : Fin r, (1 : ℕ) := by simp [hone]
+    _ ≤ ∑ i : Fin r, (w i).val.length := hsum
+    _ = (List.ofFn (fun i : Fin r => (w i).val)).flatten.length := by simp [hlen]
+
+lemma disjoint_filter_length {S : Finset (List α)} {s t : ℕ} (hst : s ≠ t) :
+  Disjoint (S.filter (fun x => x.length = s)) (S.filter (fun x => x.length = t)) := by
+  refine Finset.disjoint_left.2 ?_
+  intro x hs hx
+  have hslen : x.length = s := (Finset.mem_filter.1 hs).2
+  have htlen : x.length = t := (Finset.mem_filter.1 hx).2
+  exact hst (hslen.symm.trans htlen)
 
 /-- If a code is uniquely decodable, it does not contain the empty string.
 
 The empty string ε can be "decoded" as either zero or two copies of itself,
 violating unique decodability. -/
-lemma epsilon_not_mem_of_uniquely_decodable (h : UniquelyDecodable (S: Set (List α))):
+lemma epsilon_not_mem_of_uniquely_decodable
+    {S : Set (List α)}
+    (h : UniquelyDecodable (S: Set (List α))) :
     [] ∉ S := by
-  have h_empty : ∀ x ∈ S, x ≠ [] := by
-    intro x hx
-    have := h
-    specialize this [x] [x, x]
-    simp_all only [List.mem_cons, List.not_mem_nil, or_false, SetLike.mem_coe,  or_self, List.flatten_cons, List.self_eq_append_left, List.ne_cons_self, imp_false, forall_const, ne_eq, not_false_eq_true]
-  exact fun h => h_empty _ h rfl
-
-/-- If `S` is uniquely decodable, then the concatenation map from `S^r` to strings is injective.
-
-This is the key property that makes the Kraft-McMillan proof work: when we expand
-`C^r = (Σ 2^{-|w|})^r`, each term corresponds to a unique concatenation. -/
-lemma uniquely_decodable_extension_injective (h : UniquelyDecodable (S: Set (List α))) (r : ℕ) :
-    Function.Injective (fun (w : Fin r → S) => (List.ofFn (fun i => (w i).val)).flatten) := by
-  -- Assume two functions w1 and w2 map to the same flattened list. We need to show w1 = w2.
-  intro w1 w2 h_eq
-  -- 1. Use Unique Decodability to show the lists of words are equal
-  have h_lists : List.ofFn (fun i => (w1 i).val) = List.ofFn (fun i => (w2 i).val) := by
-    apply h
-    · simp only [List.mem_ofFn, forall_exists_index, forall_apply_eq_imp_iff]
-      intro i
-      exact (w1 i).2
-    · simp only [List.mem_ofFn, forall_exists_index, forall_apply_eq_imp_iff]
-      intro i
-      exact (w2 i).2
-    · exact h_eq
-
-  -- 2. List equality implies pointwise equality of values
-  have h_vals : (fun i => (w1 i).val) = (fun i => (w2 i).val) :=
-    List.ofFn_injective h_lists
-  -- 3. Pointwise equality of values implies equality of functions
-  funext i
-  apply Subtype.ext
-  simpa using congrArg (fun f => f i) h_vals
-
+  intro h_in
+  -- UniquelyDecodable implies [] cannot be decomposed in two ways.
+  -- But if [] ∈ S, then [] = [] (1 part) and [] = [] ++ [] (2 parts).
+  unfold UniquelyDecodable at h
+  specialize h (L1 := [[]]) (L2 := [[], []]) (by simp [h_in]) (by simp [h_in]) (by simp)
+  simp at h
 
 /-- If `S` is uniquely decodable, then `(Σ 2^{-|w|})^r ≤ r·ℓ` where `ℓ` is the maximum codeword length.
 
 This auxiliary bound is the heart of the Kraft-McMillan proof. The r-th power of the Kraft sum
 counts concatenations of r codewords, which by unique decodability are distinct. Since these
 concatenations have lengths between r and r·ℓ, we get at most r·ℓ - r + 1 ≤ r·ℓ terms. -/
-lemma kraft_mcmillan_inequality_aux [DecidableEq α] [Fintype α] (h : UniquelyDecodable (S: Set (List α))) (r : ℕ) (hr : r ≥ 1) :
+lemma kraft_mcmillan_inequality_aux {S : Finset (List α)} [DecidableEq α] [Fintype α] [Nonempty α] (h : UniquelyDecodable (S: Set (List α))) (r : ℕ) (hr : r ≥ 1) :
     (∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length) ^ r ≤ r * (Finset.sup S List.length) := by
   -- Let $\ell = \max_{w \in S} |w|$.
   set ℓ := (S.sup List.length) with hℓ_def
@@ -82,39 +164,38 @@ lemma kraft_mcmillan_inequality_aux [DecidableEq α] [Fintype α] (h : UniquelyD
       · simp [funext_iff]
       · exact fun b _ => ⟨ fun i _ => b i |>.1, Finset.mem_pi.mpr fun i _ => b i |>.2, rfl ⟩
       · simp_all only [Finset.prod_attach_univ, implies_true]
+
   -- Since the map $(w_1,\dots,w_r) \mapsto w_1 \cdots w_r$ is injective, the sum $\sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$ is at most $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}$.
-  have h_injective : ∑ w : Fin r → S, (1 / D : ℝ) ^ ((List.ofFn (fun i => (w i).val)).flatten.length) ≤ ∑ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / D : ℝ) ^ x.length := by
+  have hε : ([] : List α) ∉ S := epsilon_not_mem_of_uniquely_decodable h
+
+  let T : Finset (List α) :=
+    Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten)
+      (Finset.univ : Finset (Fin r → S))
+
+  have h_injective :
+    ∑ w : Fin r → S, (1 / D : ℝ) ^ ((List.ofFn (fun i => (w i).val)).flatten.length)
+      ≤ ∑ s ∈ Finset.Icc r (r * ℓ),
+          ∑ x ∈ T.filter (fun x => x.length = s), (1 / D : ℝ) ^ x.length := by
     rw [← Finset.sum_biUnion]
     · refine le_of_eq ?_
-      refine Finset.sum_bij (fun w _ => (List.ofFn fun i => (w i : List α)).flatten) ?_ ?_ ?_ ?_
-      -- Membership: flattened length is in [r, r*ℓ]
+      refine Finset.sum_bij
+        (fun w _ => (List.ofFn (fun i : Fin r => (w i).val)).flatten) ?_ ?_ (by simp [T]) (by simp)
       · intro a _
-        simp only [Finset.mem_biUnion, Finset.mem_Icc, Finset.mem_filter, Finset.mem_image,
-                   Finset.mem_univ, true_and]
-        use (List.ofFn fun i => (a i : List α)).flatten.length
+        simp only [T, Finset.mem_biUnion, Finset.mem_Icc, Finset.mem_filter,
+          Finset.mem_image, Finset.mem_univ, true_and]
+        refine ⟨(List.ofFn (fun i : Fin r => (a i).val)).flatten.length, ?_⟩
         refine ⟨⟨?_, ?_⟩, ⟨a, rfl⟩, rfl⟩
-        -- Lower bound: r ≤ length (each codeword has length ≥ 1)
-        · rw [List.length_flatten, List.map_ofFn, List.sum_ofFn]
-          refine le_trans (by simp) (Finset.sum_le_sum fun i _ => Nat.one_le_iff_ne_zero.mpr ?_)
-          exact ne_of_gt (List.length_pos_iff.mpr (ne_of_mem_of_not_mem (a i).2 (epsilon_not_mem_of_uniquely_decodable h)))
-        -- Upper bound: length ≤ r * ℓ (each codeword has length ≤ ℓ)
-        · rw [List.length_flatten, List.map_ofFn, List.sum_ofFn]
-          exact le_trans (Finset.sum_le_sum fun i _ => Finset.le_sup (f := List.length) (a i).2) (by
-            simp_all only [Finset.sum_const, Finset.card_univ, Fintype.card_fin, smul_eq_mul, le_refl]
-         )
-      -- Injectivity: follows from unique decodability
+        · simpa using (r_le_flatten_length_of_no_empty hε r a)
+        · simpa [ℓ] using (flatten_length_le_mul_sup r a)
       · intro a₁ _ a₂ _ h_eq
-        exact uniquely_decodable_extension_injective h r h_eq
-      -- Image property
-      · simp
-      -- Surjectivity onto image
-      · simp
-    · intro _ _ _ _ hxy
-      exact Finset.disjoint_left.mpr fun z hz1 hz2 => hxy (by
-        simp_all only [ne_eq, Finset.mem_filter]
-     )
+        exact uniquelyDecodable_flatten_injective h r h_eq
+    · intro s hs t ht hst
+      exact disjoint_filter_length hst
+
   -- Since $\sum_{x \in \{0,1\}^s} 2^{-|x|} = 1$ for any $s$, we have $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|} = \sum_{s=r}^{r\ell} 1 = r\ell - r + 1 \le r\ell$.
-  have h_sum_one : ∀ s ∈ Finset.Icc r (r * ℓ), ∑ x ∈ Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S))), (1 / D : ℝ) ^ x.length ≤ 1 := by
+  have h_sum_one :
+      ∀ s ∈ Finset.Icc r (r * ℓ),
+        ∑ x ∈ T.filter (fun x => x.length = s), (1 / D : ℝ) ^ x.length ≤ 1 := by
     intros s hs
     have h_card : Finset.card (Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S)))) ≤ D ^ s := by
       have h_card : Finset.card (Finset.filter (fun x => x.length = s) (Finset.image (fun w : Fin r → S => (List.ofFn (fun i => (w i).val)).flatten) (Finset.univ : Finset (Fin r → S)))) ≤ Finset.card (Finset.image (fun x : Fin s → α => List.ofFn x) (Finset.univ : Finset (Fin s → α))) := by
@@ -153,17 +234,6 @@ lemma kraft_mcmillan_inequality_aux [DecidableEq α] [Fintype α] (h : UniquelyD
       -- Handle the algebra manually
       rw [one_div]
       simp
-      rw [←inv_pow, ←mul_pow]
-      by_cases hD : (D : ℝ) = 0
-      · -- If D=0, then 0 ≤ 1
-        simp [hD]
-        rw [zero_pow]
-        · simp
-        · intro szero
-          subst s
-          simp_all
-      · -- If D≠0, then D * D⁻¹ = 1, and 1^s = 1
-        simp [hD]
   refine le_trans h_sum.le <| h_injective.trans <| le_trans (Finset.sum_le_sum h_sum_one) ?_
   rcases r with (_ | _ | r) <;> rcases ℓ with (_ | _ | ℓ) <;> norm_num at *
   · positivity
@@ -171,7 +241,7 @@ lemma kraft_mcmillan_inequality_aux [DecidableEq α] [Fintype α] (h : UniquelyD
 
 /-- **Kraft-McMillan Inequality**: If `S` is a finite uniquely decodable code,
 then `Σ D^{-|w|} ≤ 1`. -/
-theorem kraft_mcmillan_inequality [DecidableEq α] [Fintype α] [Nonempty α] (h : UniquelyDecodable (S: Set (List α))) :
+theorem kraft_mcmillan_inequality {S : Finset (List α)} [DecidableEq α] [Fintype α] [Nonempty α] (h : UniquelyDecodable (S: Set (List α))) :
     ∑ w ∈ S, (1 / Fintype.card α : ℝ) ^ w.length ≤ 1 := by
   let D_nat := Fintype.card α
   let D : ℝ := D_nat
