@@ -1467,66 +1467,6 @@ lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
         · simp_all only [Fin.getElem_fin, le_refl]
       exact ⟨ h_order_iso.choose, fun i j hij => h_order_iso.choose_spec i j hij ⟩
 
-/-- **Converse of Kraft's Inequality** (infinite case).
-
-For any index set `I` (finite or infinite) and length function `l : I → ℕ`,
-if `∑' i, 2^{-l(i)} ≤ 1`, then there exists an injective prefix-free code
-`w : I → List Bool` with the prescribed lengths.
-
-The proof handles two cases:
-- **Finite case**: Sort indices by length and apply `kraft_inequality_tight_finite_mono`
-- **Infinite case**: Use equivalence with ℕ and apply `kraft_inequality_tight_nat_mono` -/
-theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
-    (h_summable : Summable (fun i ↦ (1 / 2 : ℝ) ^ l i))
-    (h_sum : ∑' i, (1 / 2 : ℝ) ^ l i ≤ 1) :
-    ∃ w : I → List Bool,
-      Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
-      ∀ i, (w i).length = l i := by
-  by_cases h_finite : Finite I
-  · haveI := Fintype.ofFinite I
-    -- By `exists_equiv_fin_monotone`, there exists an equivalence `e : Fin (card I) ≃ I` such that `l ∘ e` is monotone.
-    obtain ⟨e, he⟩ : ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) :=
-      exists_equiv_fin_monotone l
-    -- By `kraft_inequality_tight_finite_mono`, there exists `w' : Fin (card I) → List Bool` satisfying the conditions for `l ∘ e`.
-    obtain ⟨w', hw'⟩ : ∃ w' : Fin (Fintype.card I) → List Bool, Function.Injective w' ∧ PrefixFree (Set.range w') ∧ ∀ i, (w' i).length = l (e i) := by
-      have h_sum_eq : ∑ i, (1 / Fintype.card Bool : ℝ) ^ (l (e i)) ≤ 1 := by
-        simp only [Fintype.card_bool]
-        convert h_sum using 1
-        rw [tsum_fintype, ← Equiv.sum_comp e]
-        sorry
-      exact kraft_inequality_tight_finite_mono_alpha_le (fun i ↦ l (e i)) he h_sum_eq
-    refine' ⟨ w' ∘ e.symm, _, _, _ ⟩
-    · simp_all only [Function.Injective]
-      exact fun a₁ a₂ h => e.symm.injective (hw'.1 h)
-    · simp_all only [Function.Injective, EquivLike.range_comp]
-    · simp_all only [Function.comp_apply, Equiv.apply_symm_apply, implies_true]
-  · have h_equiv : ∃ e : ℕ ≃ I, Monotone (l ∘ e) := by
-      convert exists_equiv_nat_monotone_of_infinite l h_summable using 1
-      simpa using h_finite
-    obtain ⟨ e, he ⟩ := h_equiv
-    have h_exists_w : ∃ w : ℕ → List Bool, Function.Injective w ∧ PrefixFree (Set.range w) ∧ ∀ i, (w i).length = l (e i) := by
-      have h_exists_w_1 : ∑' i : ℕ, (1 / 2 : ℝ) ^ l (e i) ≤ 1 := by
-        convert h_sum using 1
-        conv_rhs => rw [← Equiv.tsum_eq e]
-      have h_exists_w : Summable (fun i : ℕ => (1 / 2 : ℝ) ^ l (e i)) := by
-        convert h_summable.comp_injective e.injective using 1
-      exact kraft_inequality_tight_nat_mono_alpha (fun i ↦ l (e i)) he h_exists_w h_exists_w_1
-    obtain ⟨ w, hw₁, hw₂, hw₃ ⟩ := h_exists_w
-    refine' ⟨ fun i => w (e.symm i), _, _, _ ⟩
-    · exact hw₁.comp e.symm.injective
-    · intro x hx y hy hxy
-      simp_all only [one_div, inv_pow, not_finite_iff_infinite, Set.mem_range]
-      obtain ⟨w_1, h⟩ := hx
-      obtain ⟨w_2, h_1⟩ := hy
-      subst h h_1
-      apply hw₂
-      · simp_all only [Set.mem_range, exists_apply_eq_apply]
-      · simp_all only [Set.mem_range, exists_apply_eq_apply]
-      · simp_all only
-    · intro i
-      simp_all only [one_div, inv_pow, not_finite_iff_infinite, Equiv.apply_symm_apply]
-
 variable {α : Type _} [DecidableEq α] [Fintype α] [Nontrivial α]
 
 /-- **Converse of Kraft's Inequality** (general alphabet, any index set).
@@ -1581,7 +1521,6 @@ theorem kraft_inequality_tight_infinite_alpha
       exact hw_pf (w (e.symm i)) ⟨e.symm i, rfl⟩ (w (e.symm j)) ⟨e.symm j, rfl⟩ hxy
     · intro i
       simp [hw_len]
-
 
 /-- **Converse of Kraft's Inequality** (General Arity).
 
@@ -1638,5 +1577,32 @@ theorem kraft_tight_of_arity
     rw [List.IsPrefix.map_iff ι.injective] at hpre
     exact congrArg (List.map ι) (hw_pf (w_D x) ⟨x, rfl⟩ (w_D y) ⟨y, rfl⟩ hpre)
   · intro i; simp [hw_len]
+
+/-- **Converse of Kraft's Inequality** (infinite case).
+
+For any index set `I` (finite or infinite) and length function `l : I → ℕ`,
+if `∑' i, 2^{-l(i)} ≤ 1`, then there exists an injective prefix-free code
+`w : I → List Bool` with the prescribed lengths.
+
+The proof handles two cases:
+- **Finite case**: Sort indices by length and apply `kraft_inequality_tight_finite_mono`
+- **Infinite case**: Use equivalence with ℕ and apply `kraft_inequality_tight_nat_mono` -/
+theorem kraft_inequality_tight_infinite {I : Type _} (l : I → ℕ)
+    (h_summable : Summable (fun i ↦ (1 / 2 : ℝ) ^ l i))
+    (h_sum : ∑' i, (1 / 2 : ℝ) ^ l i ≤ 1) :
+    ∃ w : I → List Bool,
+      Function.Injective w ∧
+      PrefixFree (Set.range w) ∧
+      ∀ i, (w i).length = l i := by
+  -- an injection Fin 2 ↪ Bool
+  let ι : Fin 2 ↪ Bool :=
+  { toFun := (Fintype.equivFin Bool).symm
+    inj'  := (Fintype.equivFin Bool).symm.injective }
+
+  -- now specialize
+  simpa using
+    (kraft_tight_of_arity (D := 2) (hD := by decide) (α := Bool) ι
+      (I := I) (l := l)
+      (h_summable := h_summable) (h_sum := h_sum))
 
 end Kraft
