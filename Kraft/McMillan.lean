@@ -16,105 +16,12 @@ import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.Linarith
 
 import Kraft.Basic
+import Kraft.UniquelyDecodable
+import Kraft.ConcatFn
 
 namespace Kraft
 
-section concatFn
-
 variable {α : Type _}
-
-def concatFn {S : Set (List α)} {r : ℕ} (w : Fin r → S) : List α :=
-  (List.ofFn (fun i : Fin r => (w i).val)).flatten
-
-@[simp]
-lemma concatFn_def {S : Set (List α)} {r : ℕ} (w : Fin r → S):
-  concatFn w = (List.ofFn (fun i : Fin r => (w i).val)).flatten :=
-  rfl
-
-def concatImage [DecidableEq α] {S : Finset (List α)} {r : ℕ} : Finset (List α) :=
-  (Finset.univ : Finset (Fin r → (S : Set (List α)))).image concatFn
-
-lemma concatFn_length {S : Set (List α)} {r : ℕ} (w : Fin r → S):
-  (concatFn w).length = ∑ i : Fin r, (w i).val.length := by
-  simp [concatFn, List.length_flatten, List.sum_ofFn]
-
-lemma concatFn_length_le_mul_sup {Sf : Finset (List α)} {r : ℕ}
-    (ws : Fin r → (Sf : Set (List α))) :
-  (concatFn ws).length ≤ r * (Sf.sup List.length) := by
-  have h_each : ∀ i : Fin r, (ws i).val.length ≤ Sf.sup List.length := by
-    intro i
-    -- (w i).property : (w i).val ∈ (S : Set _)
-    exact Finset.le_sup (f := List.length) (by simp)
-
-  have hsum :
-      (∑ i : Fin r, (ws i).val.length) ≤ ∑ i : Fin r, Sf.sup List.length := by
-    -- `Fintype.sum` is definitionaly `Finset.univ.sum`
-    simpa using
-      (Finset.sum_le_sum (s := (Finset.univ : Finset (Fin r)))
-        (fun i _ => h_each i))
-
-  calc
-    (concatFn ws).length
-        = ∑ i : Fin r, (ws i).val.length := concatFn_length (w := ws)
-    _ ≤ ∑ i : Fin r, Sf.sup List.length := hsum
-    _ = r * (Sf.sup List.length) := by
-      -- sum of a constant over `Fin r`
-      simp [Fintype.card_fin]
-
-lemma le_concatFn_length_of_no_empty {S : Set (List α)} {r : ℕ} (w : Fin r → S) (hε : ([] : List α) ∉ S):
-  r ≤ (concatFn w).length := by
-  have h_each : ∀ i : Fin r, (1 : ℕ) ≤ (w i).val.length := by
-    intro i
-    have hne : (w i).val ≠ ([] : List α) := by
-      intro h0
-      apply hε
-      simpa [h0] using (w i).property
-    -- `0 < length` -> `1 ≤ length`
-    have : 0 < (w i).val.length := List.length_pos_iff.2 hne
-    simpa using (Nat.succ_le_iff.2 this)  -- succ 0 = 1
-
-  have hsum :
-      (∑ i : Fin r, (1 : ℕ)) ≤ ∑ i : Fin r, (w i).val.length := by
-    simpa using
-      (Finset.sum_le_sum (s := (Finset.univ : Finset (Fin r)))
-        (fun i _ => h_each i))
-
-  -- rewrite `∑ i : Fin r, 1` as `r`
-  have hone : (∑ i : Fin r, (1 : ℕ)) = r := by
-    simp [Fintype.card_fin]
-
-  calc
-    r = ∑ i : Fin r, (1 : ℕ) := by simp [hone]
-    _ ≤ ∑ i : Fin r, (w i).val.length := hsum
-    _ = (concatFn w).length := by simpa using (concatFn_length (w := w)).symm
-
-end concatFn
-
-variable {α : Type _}
-
-/-- If a code is uniquely decodable, it does not contain the empty string.
-
-The empty string ε can be "decoded" as either zero or two copies of itself,
-violating unique decodability. -/
-lemma epsilon_not_mem_of_uniquely_decodable
-    {S : Set (List α)}
-    (h : UniquelyDecodable S) :
-    [] ∉ S := by
-  intro h_in
-  -- UniquelyDecodable implies [] cannot be decomposed in two ways.
-  -- But if [] ∈ S, then [] = [] (1 part) and [] = [] ++ [] (2 parts).
-  unfold UniquelyDecodable at h
-  specialize h (L1 := [[]]) (L2 := [[], []]) (by simp [h_in]) (by simp [h_in]) (by simp)
-  simp at h
-
-lemma UniquelyDecodable.flatten_injective
-  {S : Set (List α)} (h : UniquelyDecodable S) :
-  Function.Injective (fun (L : {L : List (List α) // ∀ x ∈ L, x ∈ S}) => L.1.flatten) :=
-by
-  intro L1 L2 hflat
-  -- Reduce to UD on the underlying lists; use Subtype.ext
-  apply Subtype.ext
-  exact h L1.1 L2.1 L1.2 L2.2 hflat
 
 lemma uniquelyDecodable_concatFn_injective
   {S : Set (List α)} (h : UniquelyDecodable S) (r : ℕ) :
@@ -401,5 +308,19 @@ theorem kraft_mcmillan_inequality {S : Finset (List α)} [DecidableEq α] [Finty
   have := hr (r + 1) (by linarith)
   rw [div_lt_iff₀ (by positivity)] at this
   linarith
+
+
+variable {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
+
+theorem kraft_inequality (S : Finset (List α)) (hpf : PrefixFree (S : Set (List α))) :
+    ∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length ≤ 1 := by
+  by_cases he : [] ∈ S
+  · have h_eq : S = {[]} := by
+      exact_mod_cast epsilon_prefix_singleton (S := (S : Set (List α))) hpf he
+    subst h_eq
+    simp
+  · have hud : UniquelyDecodable (S : Set (List α)) :=
+      prefixFree_uniqDecodable he hpf
+    simpa using (kraft_mcmillan_inequality hud)
 
 end McMillan

@@ -13,7 +13,7 @@ import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 import Kraft.Basic
-import Kraft.InequalityFinite
+import Kraft.McMillan
 
 namespace Kraft
 open scoped BigOperators Real
