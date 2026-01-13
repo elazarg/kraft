@@ -29,7 +29,7 @@ by
 
 The empty string ε can be "decoded" as either zero or two copies of itself,
 violating unique decodability. -/
-lemma epsilon_not_mem_of_uniquely_decodable
+lemma UniquelyDecodable.epsilon_not_mem
     {S : Set (List α)}
     (h : UniquelyDecodable S) :
     [] ∉ S := by
@@ -40,109 +40,6 @@ lemma epsilon_not_mem_of_uniquely_decodable
   specialize h (L1 := [[]]) (L2 := [[], []]) (by simp [h_in]) (by simp [h_in]) (by simp)
   simp at h
 
-lemma prefixFree_uniqDecodable
-    {S : Set (List α)} (hε : [] ∉ S) (hpf : PrefixFree S) :
-    UniquelyDecodable S := by
-  intro L1 L2 hL1 hL2 hflat
-  -- Prove L1 = L2 by induction on L1, generalizing L2.
-  revert L2
-  induction L1 with
-  | nil =>
-      intro L2 hL2 hflat
-      cases L2 with
-      | nil =>
-          rfl
-      | cons b bs =>
-          -- From [] = b ++ bs.flatten we get b = [], contradicting hε.
-          have hbS : b ∈ S := hL2 b (by simp)
-          have hbne : b ≠ ([] : List α) := by
-            intro hb0
-            apply hε
-            simpa [hb0] using hbS
-          have : b ++ bs.flatten = ([] : List α) := by
-            -- hflat : [] = (b :: bs).flatten = b ++ bs.flatten
-            simpa using hflat.symm
-          have : b = ([] : List α) := (List.append_eq_nil_iff.mp this).1
-          exact (hbne this).elim
-  | cons a as ih =>
-      intro L2 hL2 hflat
-      cases L2 with
-      | nil =>
-          -- Symmetric contradiction: a ++ as.flatten = []
-          have haS : a ∈ S := hL1 a (by simp)
-          have hane : a ≠ ([] : List α) := by
-            intro ha0
-            apply hε
-            simpa [ha0] using haS
-          have : a ++ as.flatten = ([] : List α) := by
-            simpa using hflat
-          have : a = ([] : List α) := (List.append_eq_nil_iff.mp this).1
-          exact (hane this).elim
-      | cons b bs =>
-          have haS : a ∈ S := hL1 a (by simp)
-          have hbS : b ∈ S := hL2 b (by simp)
-
-          have hL1_tail : ∀ x ∈ as, x ∈ S := by
-            intro x hx
-            exact hL1 x (by simp [hx])
-          have hL2_tail : ∀ x ∈ bs, x ∈ S := by
-            intro x hx
-            exact hL2 x (by simp [hx])
-
-          -- flatten equations expand to append equations
-          have hab : a ++ as.flatten = b ++ bs.flatten := by
-            simpa using hflat
-
-          -- Compare heads via append_eq_append_iff: one is a prefix of the other.
-          rw [List.append_eq_append_iff] at hab
-          rcases hab with ⟨m, hm_head, hm_tail⟩ | ⟨m, hm_head, hm_tail⟩
-          · -- Case: b = a ++ m
-            have hapre : a <+: b := ⟨m, hm_head.symm⟩
-            have hab_eq : a = b := hpf a haS b hbS hapre
-
-            have ha_eq : a = a ++ m := by
-              calc
-                a = b := hab_eq
-                _ = a ++ m := hm_head
-            have ha_eq' : a ++ m = a := ha_eq.symm
-            have hm_len0 : m.length = 0 := by
-              have := congrArg List.length ha_eq'
-              simpa [List.length_append] using this
-            have hm_nil : m = ([] : List α) := List.length_eq_zero_iff.mp hm_len0
-
-            have hflat_tail : as.flatten = bs.flatten := by
-              simpa [hm_nil] using hm_tail
-
-            have : as = bs := ih hL1_tail _ hL2_tail hflat_tail
-            simp [hab_eq, this]
-          · -- Case: a = b ++ m
-            -- So b <+: a; prefix-free gives a = b, hence m = []
-            have hbpre : b <+: a := ⟨m, hm_head.symm⟩
-            have hab_eq : b = a := hpf b hbS a haS hbpre
-
-            -- From a = b ++ m and b = a we get b = b ++ m, hence m = []
-            have hb_eq : b = b ++ m := by
-              calc
-                b = a := hab_eq
-                _ = b ++ m := hm_head
-            have hb_eq' : b ++ m = b := hb_eq.symm
-            have hm_len0 : m.length = 0 := by
-              -- lengths: (b ++ m).length = b.length
-              have := congrArg List.length hb_eq'
-              -- simp gives b.length + m.length = b.length
-              simpa [List.length_append] using this
-            have hm_nil : m = ([] : List α) := List.length_eq_zero_iff.mp hm_len0
-
-            -- Tail equality simplifies to as.flatten = bs.flatten
-            have hflat_tail : as.flatten = bs.flatten := by
-              -- hm_tail is the “rest” equality produced by append_eq_append_iff
-              grind only
-
-            -- Apply IH to tails
-            have : as = bs := ih hL1_tail _ hL2_tail hflat_tail
-            -- Assemble
-            simp [hab_eq, this]
-
 /-- Prefix-free codes are uniquely decodable.
 
 If `S` is prefix-free (no codeword is a prefix of another) and does not contain the empty string,
@@ -150,7 +47,7 @@ then any string formed by concatenating codewords from `S` can be parsed into th
 in exactly one way.
 
 The proof proceeds by structural induction on the list of codewords `L₁`.. -/
-theorem prefix_free_is_uniquely_decodable
+theorem PrefixFree.uniquelyDecodable
     {α : Type _}
     {S : Set (List α)}
     (h0 : [] ∉ S)
@@ -240,6 +137,6 @@ theorem prefix_free_is_uniquely_decodable_of_card_ge_two
     omega
 
   -- Now delegate to the main theorem
-  exact prefix_free_is_uniquely_decodable h0 hS
+  exact hS.uniquelyDecodable h0
 
 end Kraft

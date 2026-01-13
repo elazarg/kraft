@@ -213,7 +213,7 @@ lemma kraft_mcmillan_inequality_aux {S : Finset (List α)} [DecidableEq α] [Fin
     simpa using (kraft_sum_pow_eq_sum_concatFn (α := α) (S := S) D r)
 
   -- Since the map $(w_1,\dots,w_r) \mapsto w_1 \cdots w_r$ is injective, the sum $\sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|}$ is at most $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}$.
-  have hε : ([] : List α) ∉ S := epsilon_not_mem_of_uniquely_decodable h
+  have hε : ([] : List α) ∉ S := h.epsilon_not_mem
 
   let T : Finset (List α) := Finset.image concatFn (Finset.univ : Finset (Fin r → S))
 
@@ -320,7 +320,7 @@ theorem kraft_inequality (S : Finset (List α)) (hpf : PrefixFree (S : Set (List
     subst h_eq
     simp
   · have hud : UniquelyDecodable (S : Set (List α)) :=
-      prefixFree_uniqDecodable he hpf
+      hpf.uniquelyDecodable he
     simpa using (kraft_mcmillan_inequality hud)
 
 end McMillan
