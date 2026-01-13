@@ -27,62 +27,27 @@ namespace Kraft
 open scoped BigOperators Real
 open Nat
 
-/-- The "address" function for constructing prefix-free codes.
+/-- Generalized interval start function for constructing prefix-free codes over alphabet of size D.
 
-For a monotone length sequence `l`, `kraft_A l n` is chosen so that `kraft_A l n / 2^{l n}`
-equals the partial Kraft sum `Σ_{k<n} 2^{-l k}`. The codeword for index `n` is then
-`natToBits (kraft_A l n) (l n)`. -/
-def kraft_A (l : ℕ → ℕ) : ℕ → ℕ
+For a monotone length sequence `l`, `kraft_numerator D l n` is chosen so that
+`kraft_numerator D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} D^{-l k}`. -/
+def kraft_numerator (D : ℕ) (l : ℕ → ℕ) : ℕ → ℕ
   | 0 => 0
-  | n + 1 => (kraft_A l n + 1) * 2 ^ (l (n + 1) - l n)
+  | n + 1 => (kraft_numerator D l n + 1) * D ^ (l (n + 1) - l n)
 
-/-- `kraft_A l n / 2^{l n}` equals the partial Kraft sum `Σ_{k<n} 2^{-l k}`.
-
-This is the key invariant that ensures non-overlapping dyadic intervals. -/
-lemma kraft_A_div_pow_eq_sum (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
-    (kraft_A l n : ℝ) / 2 ^ l n = ∑ k ∈ Finset.range n, (1 / 2 : ℝ) ^ l k := by
-      induction n
-      · simp_all only [CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
-      · -- Substitute the definition of `kraft_A` into the left-hand side.
-        simp_all only [one_div, inv_pow, Finset.sum_range_succ]
-        have h_sub : (Kraft.kraft_A l (Nat.succ ‹_›) : ℝ) = (Kraft.kraft_A l ‹_› + 1) * 2 ^ (l (Nat.succ ‹_›) - l ‹_›) := by
-          norm_cast
-        rw [← ‹ (Kraft.kraft_A l _ : ℝ) / 2 ^ l _ = ∑ x ∈ Finset.range _, (2 ^ l x) ⁻¹ ›, h_sub]
-        rw [show l (_ + 1) = l _ + (l (_ + 1) - l _) by rw [Nat.add_sub_of_le (h_mono (Nat.le_succ _))]]
-        ring_nf
-        -- Combine like terms and simplify the expression.
-        field_simp
-        ring_nf
-        norm_num [← mul_pow]
-
-/-- Generalized "address" function for constructing prefix-free codes over alphabet of size D.
-
-For a monotone length sequence `l`, `kraft_A_gen D l n` is chosen so that
-`kraft_A_gen D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} D^{-l k}`. -/
-def kraft_A_gen (D : ℕ) (l : ℕ → ℕ) : ℕ → ℕ
-  | 0 => 0
-  | n + 1 => (kraft_A_gen D l n + 1) * D ^ (l (n + 1) - l n)
-
-/-- `kraft_A` is `kraft_A_gen` specialized to base 2. -/
-lemma kraft_A_eq_kraft_A_gen_two (l : ℕ → ℕ) : kraft_A l = kraft_A_gen 2 l := by
-  ext n
-  induction n with
-  | zero => rfl
-  | succ n ih => simp only [kraft_A, kraft_A_gen, ih]
-
-/-- `kraft_A_gen D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} (1/D)^{l k}`.
+/-- `kraft_numerator D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} (1/D)^{l k}`.
 
 This is the key invariant that ensures non-overlapping D-adic intervals. -/
-lemma kraft_A_gen_div_pow_eq_sum (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
-    (kraft_A_gen D l n : ℝ) / D ^ l n = ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k := by
+lemma kraft_numerator_div_pow_eq_sum (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
+    (kraft_numerator D l n : ℝ) / D ^ l n = ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k := by
   have hD_pos : (0 : ℝ) < D := by exact_mod_cast Nat.zero_lt_of_lt hD
   have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos
   induction n with
-  | zero => simp only [kraft_A_gen, CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
+  | zero => simp only [kraft_numerator, CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
   | succ n ih =>
     simp only [one_div, inv_pow, Finset.sum_range_succ]
-    have h_sub : (kraft_A_gen D l (n + 1) : ℝ) = (kraft_A_gen D l n + 1) * D ^ (l (n + 1) - l n) := by
-      simp only [kraft_A_gen, Nat.cast_mul, Nat.cast_add, Nat.cast_one, Nat.cast_pow]
+    have h_sub : (kraft_numerator D l (n + 1) : ℝ) = (kraft_numerator D l n + 1) * D ^ (l (n + 1) - l n) := by
+      simp only [kraft_numerator, Nat.cast_mul, Nat.cast_add, Nat.cast_one, Nat.cast_pow]
     rw [h_sub]
     simp_all only [one_div, inv_pow]
     rw [← ih]
@@ -95,7 +60,7 @@ lemma kraft_A_gen_div_pow_eq_sum (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ) (h_mon
 
 Given a monotone `l : ℕ → ℕ` with summable Kraft sum ≤ 1 over alphabet of size D,
 we construct a prefix-free code by assigning to index `n` the codeword
-`natToDigitsBE D (kraft_A_gen D l n) (l n)`. -/
+`natToDigitsBE D (kraft_numerator D l n) (l n)`. -/
 theorem kraft_inequality_tight_nat_mono_gen (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ) (h_mono : Monotone l)
     (h_summable : Summable (fun i => (1 / D : ℝ) ^ l i))
     (h_sum : ∑' i, (1 / D : ℝ) ^ l i ≤ 1) :
@@ -107,11 +72,11 @@ theorem kraft_inequality_tight_nat_mono_gen (D : ℕ) (hD : 1 < D) (l : ℕ → 
   have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
   have hD_pos_real : (0 : ℝ) < D := by exact_mod_cast hD_pos
   have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos_real
-  -- By definition of kraft_A_gen, we know that kraft_A_gen D l n < D^{l n} for all n.
-  have h_kraft_A_lt : ∀ n, kraft_A_gen D l n < D ^ l n := by
+  -- By definition of kraft_numerator, we know that kraft_numerator D l n < D^{l n} for all n.
+  have h_kraft_A_lt : ∀ n, kraft_numerator D l n < D ^ l n := by
     intro n
-    have h_eq : (kraft_A_gen D l n : ℝ) / D ^ l n = ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k :=
-      kraft_A_gen_div_pow_eq_sum D hD l h_mono n
+    have h_eq : (kraft_numerator D l n : ℝ) / D ^ l n = ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k :=
+      kraft_numerator_div_pow_eq_sum D hD l h_mono n
     have h_lt_succ : ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k < ∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k := by
       simp only [Finset.sum_range_succ]
       linarith [pow_pos (one_div_pos.mpr hD_pos_real) (l n)]
@@ -121,16 +86,16 @@ theorem kraft_inequality_tight_nat_mono_gen (D : ℕ) (hD : 1 < D) (l : ℕ → 
       lt_of_lt_of_le (lt_of_lt_of_le h_lt_succ h_le_tsum) h_sum
     rw [← h_eq, div_lt_one (by positivity)] at h_lt_one
     exact_mod_cast h_lt_one
-  -- kraft_A_gen D is strictly monotone
-  have h_kraft_A_mono : StrictMono (kraft_A_gen D l) := by
+  -- kraft_numerator D is strictly monotone
+  have h_kraft_A_mono : StrictMono (kraft_numerator D l) := by
     refine strictMono_nat_of_lt_succ ?_
     intro n
-    simp only [kraft_A_gen]
+    simp only [kraft_numerator]
     exact lt_of_lt_of_le (Nat.lt_add_one _) (Nat.le_mul_of_pos_right _ (Nat.pow_pos hD_pos))
-  refine ⟨fun n => Digits.natToDigitsBE D (kraft_A_gen D l n) (l n), ?_, ?_, ?_, ?_⟩
+  refine ⟨fun n => Digits.natToDigitsBE D (kraft_numerator D l n) (l n), ?_, ?_, ?_, ?_⟩
   · -- Injectivity
     intro n m hnm
-    have h_kraft_A_eq : kraft_A_gen D l n = kraft_A_gen D l m := by
+    have h_kraft_A_eq : kraft_numerator D l n = kraft_numerator D l m := by
       apply Digits.natToDigitsBE_inj (Nat.ne_of_gt hD_pos)
       · exact h_kraft_A_lt n
       · have := congr_arg List.length hnm
@@ -150,12 +115,12 @@ theorem kraft_inequality_tight_nat_mono_gen (D : ℕ) (hD : 1 < D) (l : ℕ → 
     · -- Use natToDigitsBE_prefix_iff_div
       rw [Digits.natToDigitsBE_prefix_iff_div hD_pos (h_kraft_A_lt n) (h_kraft_A_lt m)] at hpre
       obtain ⟨hwv, hdiv⟩ := hpre
-      -- From hdiv: kraft_A_gen D l m / D^(l m - l n) = kraft_A_gen D l n
-      -- This means kraft_A_gen D l m lies in the interval [kraft_A_gen D l n * D^(l m - l n), (kraft_A_gen D l n + 1) * D^(l m - l n))
-      have h_lb : kraft_A_gen D l n * D ^ (l m - l n) ≤ kraft_A_gen D l m := by
+      -- From hdiv: kraft_numerator D l m / D^(l m - l n) = kraft_numerator D l n
+      -- This means kraft_numerator D l m lies in the interval [kraft_numerator D l n * D^(l m - l n), (kraft_numerator D l n + 1) * D^(l m - l n))
+      have h_lb : kraft_numerator D l n * D ^ (l m - l n) ≤ kraft_numerator D l m := by
         rw [← hdiv]
         exact Nat.div_mul_le_self _ _
-      have h_ub : kraft_A_gen D l m < (kraft_A_gen D l n + 1) * D ^ (l m - l n) := by
+      have h_ub : kraft_numerator D l m < (kraft_numerator D l n + 1) * D ^ (l m - l n) := by
         rw [← hdiv, add_mul, one_mul]
         exact Nat.lt_div_mul_add (Nat.pow_pos hD_pos)
       -- Now derive contradiction using Kraft sum bounds
@@ -163,34 +128,34 @@ theorem kraft_inequality_tight_nat_mono_gen (D : ℕ) (hD : 1 < D) (l : ℕ → 
                           (∑ k ∈ Finset.range m, (1 / D : ℝ) ^ l k) < (∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k) + (1 / D : ℝ) ^ l n := by
         constructor
         · -- Lower bound from h_lb
-          rw [← kraft_A_gen_div_pow_eq_sum D hD l h_mono n, ← kraft_A_gen_div_pow_eq_sum D hD l h_mono m]
+          rw [← kraft_numerator_div_pow_eq_sum D hD l h_mono n, ← kraft_numerator_div_pow_eq_sum D hD l h_mono m]
           rw [div_le_div_iff₀ (by positivity) (by positivity)]
-          have h_eq : (kraft_A_gen D l n : ℝ) * D ^ l m = kraft_A_gen D l n * D ^ (l m - l n) * D ^ l n := by
+          have h_eq : (kraft_numerator D l n : ℝ) * D ^ l m = kraft_numerator D l n * D ^ (l m - l n) * D ^ l n := by
             rw [mul_assoc, ← pow_add, Nat.sub_add_cancel hwv]
           rw [h_eq]
-          have h_cast : (kraft_A_gen D l n : ℝ) * D ^ (l m - l n) = (kraft_A_gen D l n * D ^ (l m - l n) : ℕ) := by
+          have h_cast : (kraft_numerator D l n : ℝ) * D ^ (l m - l n) = (kraft_numerator D l n * D ^ (l m - l n) : ℕ) := by
             simp only [Nat.cast_mul, Nat.cast_pow]
           rw [h_cast]
-          calc ((kraft_A_gen D l n * D ^ (l m - l n) : ℕ) : ℝ) * D ^ l n
-              ≤ (kraft_A_gen D l m : ℕ) * D ^ l n := by
+          calc ((kraft_numerator D l n * D ^ (l m - l n) : ℕ) : ℝ) * D ^ l n
+              ≤ (kraft_numerator D l m : ℕ) * D ^ l n := by
                 apply mul_le_mul_of_nonneg_right _ (by positivity)
                 exact_mod_cast h_lb
-            _ = (kraft_A_gen D l m : ℝ) * D ^ l n := by norm_cast
+            _ = (kraft_numerator D l m : ℝ) * D ^ l n := by norm_cast
         · -- Upper bound from h_ub
           -- abbreviations
-          set An : ℕ := kraft_A_gen D l n
-          set Am : ℕ := kraft_A_gen D l m
+          set An : ℕ := kraft_numerator D l n
+          set Am : ℕ := kraft_numerator D l m
           set ln : ℕ := l n
           set lm : ℕ := l m
           set f : ℕ → ℝ := fun k => (1 / (D : ℝ)) ^ l k
 
           have hsum_n :
               (An : ℝ) / (D : ℝ) ^ ln = ∑ k ∈ Finset.range n, f k := by
-            simpa [An, ln, f] using (kraft_A_gen_div_pow_eq_sum D hD l h_mono n)
+            simpa [An, ln, f] using (kraft_numerator_div_pow_eq_sum D hD l h_mono n)
 
           have hsum_m :
               (Am : ℝ) / (D : ℝ) ^ lm = ∑ k ∈ Finset.range m, f k := by
-            simpa [Am, lm, f] using (kraft_A_gen_div_pow_eq_sum D hD l h_mono m)
+            simpa [Am, lm, f] using (kraft_numerator_div_pow_eq_sum D hD l h_mono m)
 
           -- Nat upper bound from division equality (Am / D^(lm-ln) = An)
           have h_ub_nat : Am < (An + 1) * D ^ (lm - ln) := by
@@ -270,7 +235,7 @@ theorem kraft_inequality_tight_nat_mono_gen (D : ℕ) (hD : 1 < D) (l : ℕ → 
       | inr h_gt =>
         have hlmn : l m ≤ l n := h_mono (le_of_lt h_gt)
         have hlen : l n = l m := le_antisymm hwv hlmn
-        have hAeq : kraft_A_gen D l m = kraft_A_gen D l n := by
+        have hAeq : kraft_numerator D l m = kraft_numerator D l n := by
           -- exponent is 0 now
           simpa [hlen] using hdiv
         have : n = m := h_kraft_A_mono.injective hAeq.symm
@@ -678,25 +643,25 @@ lemma sum_range_lt_one_of_sum_range_le_one
   exact lt_of_lt_of_le this h_le
 
 /-- Helper: turn the invariant + `< 1` into the numeric bound `A n < D^(lNat n)`. -/
-lemma kraft_A_gen_lt_pow_of_sum_range_lt_one
+lemma kraft_numerator_lt_pow_of_sum_range_lt_one
     (D : ℕ) (hD : 1 < D) (lNat : ℕ → ℕ) (hmono : Monotone lNat)
     {n : ℕ}
     (h_sum_lt1 : (∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t) < 1) :
-    kraft_A_gen D lNat n < D ^ lNat n := by
+    kraft_numerator D lNat n < D ^ lNat n := by
   have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
   have hD_pos_real : (0 : ℝ) < D := by exact_mod_cast hD_pos
   have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos_real
 
   have h_eq :
-      (kraft_A_gen D lNat n : ℝ) / (D : ℝ) ^ lNat n
+      (kraft_numerator D lNat n : ℝ) / (D : ℝ) ^ lNat n
         = ∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t :=
-    kraft_A_gen_div_pow_eq_sum (D := D) hD lNat hmono n
+    kraft_numerator_div_pow_eq_sum (D := D) hD lNat hmono n
 
   have hden : 0 < (D : ℝ) ^ lNat n := by positivity
-  have hdivlt : (kraft_A_gen D lNat n : ℝ) / (D : ℝ) ^ lNat n < 1 := by
+  have hdivlt : (kraft_numerator D lNat n : ℝ) / (D : ℝ) ^ lNat n < 1 := by
     simpa [h_eq] using h_sum_lt1
 
-  have hlt_real : (kraft_A_gen D lNat n : ℝ) < (D : ℝ) ^ lNat n := by
+  have hlt_real : (kraft_numerator D lNat n : ℝ) < (D : ℝ) ^ lNat n := by
     -- `a/b < 1` with `0<b` gives `a < b`
     exact (div_lt_one hden).1 hdivlt
 
@@ -729,14 +694,14 @@ lemma prefixFree_range_natToDigitsBEFin_of_div_separated
     exact (hSep (i := i) (j := j) hij hpre').elim
 
 
-/-- Closed form for `kraft_A_gen` as a Nat sum of scaled powers. -/
-lemma kraft_A_gen_eq_sum_pow_range
+/-- Closed form for `kraft_numerator` as a Nat sum of scaled powers. -/
+lemma kraft_numerator_eq_sum_pow_range
     (D : ℕ) (l : ℕ → ℕ) (hmono : Monotone l) :
-    ∀ n, kraft_A_gen D l n = ∑ t ∈ Finset.range n, D ^ (l n - l t) := by
+    ∀ n, kraft_numerator D l n = ∑ t ∈ Finset.range n, D ^ (l n - l t) := by
   intro n
   induction n with
   | zero =>
-      simp [kraft_A_gen]
+      simp [kraft_numerator]
   | succ n ih =>
       -- Notation
       have hln : l n ≤ l (n+1) := hmono (Nat.le_succ n)
@@ -744,7 +709,7 @@ lemma kraft_A_gen_eq_sum_pow_range
 
       -- Start from the RHS for `n+1`
       -- split off last term, then factor out `D^a` from the prefix sum
-      simp [Finset.sum_range_succ, kraft_A_gen, ih]
+      simp [Finset.sum_range_succ, kraft_numerator, ih]
 
       -- Goal after simp is essentially:
       --   (∑ t∈range n, D^(l(n+1)-l t)) + D^(l(n+1)-l n)
@@ -784,19 +749,19 @@ lemma kraft_A_gen_eq_sum_pow_range
       simp [hfac, hlast, Nat.mul_add, Nat.mul_comm]
 
 /--
-Separation property for `A = kraft_A_gen D l`:
+Separation property for `A = kraft_numerator D l`:
 if `i < j` then you cannot have `A j / D^(l j - l i) = A i` (even assuming `l i ≤ l j`).
 -/
-lemma kraft_A_gen_div_separated_of_lt
+lemma kraft_numerator_div_separated_of_lt
     (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ)
     (hmono : Monotone l) :
     ∀ {i j : ℕ}, i < j →
-      ¬ (l i ≤ l j ∧ kraft_A_gen D l j / D ^ (l j - l i) = kraft_A_gen D l i) := by
+      ¬ (l i ≤ l j ∧ kraft_numerator D l j / D ^ (l j - l i) = kraft_numerator D l i) := by
   intro i j hij
   rintro ⟨hij_len, hdiv⟩
 
   have hDpos : 0 < D := Nat.zero_lt_of_lt hD
-  set A : ℕ → ℕ := kraft_A_gen D l
+  set A : ℕ → ℕ := kraft_numerator D l
   set d : ℕ := D ^ (l j - l i)
   have hdpos : 0 < d := by
     dsimp [d]
@@ -804,9 +769,9 @@ lemma kraft_A_gen_div_separated_of_lt
 
   -- Closed forms for A i and A j
   have hAi : A i = ∑ t ∈  Finset.range i, D ^ (l i - l t) := by
-    simpa [A] using (kraft_A_gen_eq_sum_pow_range D l hmono i)
+    simpa [A] using (kraft_numerator_eq_sum_pow_range D l hmono i)
   have hAj : A j = ∑ t ∈ Finset.range j, D ^ (l j - l t) := by
-    simpa [A] using (kraft_A_gen_eq_sum_pow_range D l hmono j)
+    simpa [A] using (kraft_numerator_eq_sum_pow_range D l hmono j)
 
   -- The partial sum up to `i+1` sits inside the sum up to `j`
   have hsub : Finset.range (i+1) ⊆ Finset.range j := by
@@ -908,13 +873,13 @@ lemma kraft_inequality_tight_fin_le
   let lNat : ℕ → ℕ := ext_shift Llast 0 l
   have hmonoNat : Monotone lNat := ext_shift_monotone k l h_mono hk 0
 
-  let A : ℕ → ℕ := kraft_A_gen D lNat
+  let A : ℕ → ℕ := kraft_numerator D lNat
 
   -- define codewords
   let w : Fin k → List (Fin D) := fun i =>
     Digits.natToDigitsBEFin D (A i.val) (l i) (by omega)
 
-  -- show address bound `A i < D^(l i)` for each `i : Fin k`
+  -- show interval bound `A i < D^(l i)` for each `i : Fin k`
   have hA_lt : ∀ i : Fin k, A i.val < D ^ l i := by
     intro i
     have h_sum_range :
@@ -952,8 +917,8 @@ lemma kraft_inequality_tight_fin_le
         (r := (1 / D : ℝ)) hrpos (k := k) (n := i.val) i.isLt lNat h_sum_range
 
     -- now convert invariant + `<1` into the Nat bound
-    have : kraft_A_gen D lNat i.val < D ^ lNat i.val :=
-      kraft_A_gen_lt_pow_of_sum_range_lt_one (D := D) hD lNat hmonoNat h_pref_lt1
+    have : kraft_numerator D lNat i.val < D ^ lNat i.val :=
+      kraft_numerator_lt_pow_of_sum_range_lt_one (D := D) hD lNat hmonoNat h_pref_lt1
 
     -- rewrite `lNat i.val = l i` and finish
     simpa [A, lNat, ext_shift_eq (l := l) (Llast := Llast) (s := 0) i] using this
@@ -964,7 +929,7 @@ lemma kraft_inequality_tight_fin_le
     intro i j hij
     apply Fin.ext
     -- first get `A i.val = A j.val` via `natToDigitsBEFin_inj`,
-    -- then strictMono injectivity for `A = kraft_A_gen ...`.
+    -- then strictMono injectivity for `A = kraft_numerator ...`.
     have hDpos : 0 < D := Nat.zero_lt_of_lt hD
     have hA_eq : A i.val = A j.val := by
       -- (exactly the pattern you used in the ℕ theorem’s injectivity proof)
@@ -994,9 +959,9 @@ lemma kraft_inequality_tight_fin_le
 
         simp_all only [w]
 
-    -- strict monotonicity of `kraft_A_gen` (you already proved this in the ℕ proof)
+    -- strict monotonicity of `kraft_numerator` (you already proved this in the ℕ proof)
     have hA_strict : StrictMono A := by
-      -- reuse the lemma you had: `StrictMono (kraft_A_gen D lNat)`
+      -- reuse the lemma you had: `StrictMono (kraft_numerator D lNat)`
       -- (its proof doesn’t use summability, only `0 < D`)
       refine strictMono_nat_of_lt_succ ?_
       intro n
@@ -1017,12 +982,12 @@ lemma kraft_inequality_tight_fin_le
           -- (1) decide which one is smaller
           rcases lt_trichotomy i.val j.val with hlt | heq | hgt
           · -- i.val < j.val
-            -- Here you use the Nat lemma for the generator `A = kraft_A_gen D lNat`
+            -- Here you use the Nat lemma for the generator `A = kraft_numerator D lNat`
             -- specialized to i.val < j.val, then rewrite lNat = l on < k.
             -- This is the only “real” content.
             have : ¬ (lNat i.val ≤ lNat j.val ∧ A j.val / D ^ (lNat j.val - lNat i.val) = A i.val) := by
-              -- main invariant of kraft_A_gen (Nat-indexed separation)
-              exact kraft_A_gen_div_separated_of_lt
+              -- main invariant of kraft_numerator (Nat-indexed separation)
+              exact kraft_numerator_div_separated_of_lt
                 (D := D) (l := lNat) (hmono := hmonoNat) hD hlt
             -- now rewrite lNat at i.val and j.val into l i and l j
             -- because i.val < k and j.val < k
@@ -1034,7 +999,7 @@ lemma kraft_inequality_tight_fin_le
             -- simplest: swap roles and use the lt-case lemma, then contradict.
             have hlt' : j.val < i.val := hgt
             have : ¬ (lNat j.val ≤ lNat i.val ∧ A i.val / D ^ (lNat i.val - lNat j.val) = A j.val) := by
-              exact kraft_A_gen_div_separated_of_lt
+              exact kraft_numerator_div_separated_of_lt
                 (D := D) (l := lNat) (hmono := hmonoNat) hD hlt'
             -- From the negated swapped statement, get the desired negation by
             -- noticing your target antecedent is “l i ≤ l j ∧ ... = ...”.

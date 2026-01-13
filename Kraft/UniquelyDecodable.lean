@@ -18,15 +18,6 @@ def UniquelyDecodable (S : Set (List α)) : Prop :=
     (∀ w ∈ L1, w ∈ S) → (∀ w ∈ L2, w ∈ S) →
     L1.flatten = L2.flatten → L1 = L2
 
-lemma UniquelyDecodable.flatten_injective
-  {S : Set (List α)} (h : UniquelyDecodable S) :
-  Function.Injective (fun (L : {L : List (List α) // ∀ x ∈ L, x ∈ S}) => L.1.flatten) :=
-by
-  intro L1 L2 hflat
-  -- Reduce to UD on the underlying lists; use Subtype.ext
-  apply Subtype.ext
-  exact h L1.1 L2.1 L1.2 L2.2 hflat
-
 /-- If a code is uniquely decodable, it does not contain the empty string.
 
 The empty string ε can be "decoded" as either zero or two copies of itself,

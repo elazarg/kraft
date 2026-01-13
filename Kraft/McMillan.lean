@@ -23,6 +23,14 @@ namespace Kraft
 
 variable {α : Type _}
 
+lemma UniquelyDecodable.flatten_injective
+  {S : Set (List α)} (h : UniquelyDecodable S) :
+  Function.Injective (fun (L : {L : List (List α) // ∀ x ∈ L, x ∈ S}) => L.1.flatten) :=
+by
+  intro L1 L2 hflat
+  apply Subtype.ext
+  exact h L1.1 L2.1 L1.2 L2.2 hflat
+
 /-- For uniquely decodable codes, the concatenation map is injective.
 
 This is the key property: distinct tuples of codewords produce distinct concatenations. -/
