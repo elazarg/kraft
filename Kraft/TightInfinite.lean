@@ -56,6 +56,263 @@ lemma kraft_numerator_div_pow_eq_sum (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ) (h
     field_simp
     simp only [add_tsub_cancel_left]
 
+/-- Closed form for `kraft_numerator` as a Nat sum of scaled powers. -/
+lemma kraft_numerator_eq_sum_pow_range
+    (D : ℕ) (l : ℕ → ℕ) (hmono : Monotone l) :
+    ∀ n, kraft_numerator D l n = ∑ t ∈ Finset.range n, D ^ (l n - l t) := by
+  intro n
+  induction n with
+  | zero =>
+      simp [kraft_numerator]
+  | succ n ih =>
+      -- Notation
+      have hln : l n ≤ l (n+1) := hmono (Nat.le_succ n)
+      set a : ℕ := l (n+1) - l n
+
+      -- Start from the RHS for `n+1`
+      -- split off last term, then factor out `D^a` from the prefix sum
+      simp [Finset.sum_range_succ, kraft_numerator, ih]
+
+      -- Goal after simp is essentially:
+      --   (∑ t∈range n, D^(l(n+1)-l t)) + D^(l(n+1)-l n)
+      -- = ( (∑ t∈range n, D^(l n - l t)) + 1 ) * D^(l(n+1)-l n)
+
+      -- Turn the prefix sum into a factored form
+      have hfac :
+          (∑ t ∈ Finset.range n, D ^ (l (n+1) - l t))
+            = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
+        -- rewrite each term using exponent arithmetic:
+        -- (l(n+1)-l t) = (l(n+1)-l n) + (l n - l t)
+        -- then use `pow_add` and pull out `D^a`
+        calc
+          (∑ t ∈ Finset.range n, D ^ (l (n+1) - l t))
+              = ∑ t ∈ Finset.range n, (D ^ a) * (D ^ (l n - l t)) := by
+                  refine Finset.sum_congr rfl ?_
+                  intro t ht
+                  have ht' : t < n := Finset.mem_range.mp ht
+                  have hlt : l t ≤ l n := hmono (Nat.le_of_lt_succ (Nat.lt_succ_of_lt ht'))
+                  have hlt' : l t ≤ l (n+1) := le_trans hlt hln
+                  -- exponent identity
+                  have hexp : (l (n+1) - l t) = a + (l n - l t) := by
+                    -- `a = l(n+1)-l n`
+                    dsimp [a]
+                    omega
+                  -- finish
+                  simp [hexp, pow_add, mul_comm]
+          _   = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
+                  -- pull out constant
+                  simp [Finset.mul_sum]
+
+      -- Now finish the `succ` step by rewriting with `hfac`
+      -- and using `l(n+1)-l n = a`
+      -- also: the last term is exactly `D^a`
+      have hlast : D ^ (l (n+1) - l n) = D ^ a := by simp [a]
+      -- substitute and algebra
+      simp [hfac, hlast, Nat.mul_add, Nat.mul_comm]
+
+/--
+Separation property for `A = kraft_numerator D l`:
+if `i < j` then you cannot have `A j / D^(l j - l i) = A i` (even assuming `l i ≤ l j`).
+-/
+lemma kraft_numerator_div_separated_of_lt
+    (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ)
+    (hmono : Monotone l) :
+    ∀ {i j : ℕ}, i < j →
+      ¬ (l i ≤ l j ∧ kraft_numerator D l j / D ^ (l j - l i) = kraft_numerator D l i) := by
+  intro i j hij
+  rintro ⟨hij_len, hdiv⟩
+
+  have hDpos : 0 < D := Nat.zero_lt_of_lt hD
+  set A : ℕ → ℕ := kraft_numerator D l
+  set d : ℕ := D ^ (l j - l i)
+  have hdpos : 0 < d := by
+    dsimp [d]
+    exact Nat.pow_pos hDpos
+
+  -- Closed forms for A i and A j
+  have hAi : A i = ∑ t ∈  Finset.range i, D ^ (l i - l t) := by
+    simpa [A] using (kraft_numerator_eq_sum_pow_range D l hmono i)
+  have hAj : A j = ∑ t ∈ Finset.range j, D ^ (l j - l t) := by
+    simpa [A] using (kraft_numerator_eq_sum_pow_range D l hmono j)
+
+  -- The partial sum up to `i+1` sits inside the sum up to `j`
+  have hsub : Finset.range (i+1) ⊆ Finset.range j := by
+    -- i+1 ≤ j since i< j
+    exact Finset.range_mono (Nat.succ_le_of_lt hij)
+
+  have hle_part :
+      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+        ≤ (∑ t ∈  Finset.range j, D ^ (l j - l t)) := by
+    refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
+    intro x hx _hx'
+    exact Nat.zero_le _
+
+  have hle_part' :
+      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t)) ≤ A j := by
+    simpa [hAj] using hle_part
+
+  -- Rewrite the `range (i+1)` sum as (range i) + last
+  have hsplit :
+      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+        = (∑ t ∈  Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
+    simp [Finset.sum_range_succ]
+
+  -- Show the prefix sum is a multiple of `d` with coefficient `A i`
+  have hmul_prefix :
+      (∑ t ∈  Finset.range i, D ^ (l j - l t))
+        = d * (∑ t ∈  Finset.range i, D ^ (l i - l t)) := by
+    -- each term: D^(l j - l t) = D^(l j - l i) * D^(l i - l t)
+    -- because l t ≤ l i ≤ l j
+    calc
+      (∑ t ∈  Finset.range i, D ^ (l j - l t))
+          = ∑ t ∈  Finset.range i, d * (D ^ (l i - l t)) := by
+              refine Finset.sum_congr rfl ?_
+              intro t ht
+              have ht' : t < i := Finset.mem_range.mp ht
+              have hti : l t ≤ l i := hmono (Nat.le_of_lt ht')
+              have htj : l t ≤ l j := le_trans hti hij_len
+              have hexp : (l j - l t) = (l j - l i) + (l i - l t) := by
+                -- needs l t ≤ l i ≤ l j
+                omega
+              -- unfold d and finish
+              simp [d, hexp, pow_add, mul_comm]
+      _   = d * (∑ t ∈  Finset.range i, D ^ (l i - l t)) := by
+              simp [Finset.mul_sum]
+
+  -- Now assemble: sum_{t≤i} = d*(A i + 1)
+  have hlower :
+      d * (A i + 1) ≤ A j := by
+    -- start from hle_part' and rewrite LHS
+    -- LHS = (prefix over range i) + d
+    -- prefix = d * (sum range i ...)
+    -- sum range i ... = A i
+    have : (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+              = d * (A i + 1) := by
+      -- rewrite using hsplit, hmul_prefix, hAi
+      calc
+        (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+            = (∑ t ∈  Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
+                exact hsplit
+        _   = d * (∑ t ∈ Finset.range i, D ^ (l i - l t)) + d := by
+                simp [hmul_prefix, d]
+        _   = d * (A i) + d := by
+                simp [hAi]
+        _   = d * (A i + 1) := by
+                simp [Nat.mul_add]
+    -- apply ≤ using hle_part'
+    simpa [this] using hle_part'
+  rw [mul_comm] at hlower
+  -- Divide both sides by `d`: (A i + 1) ≤ A j / d
+  have hquot_ge : A i + 1 ≤ A j / d := by
+    exact (Nat.le_div_iff_mul_le hdpos).2 hlower
+
+  -- But we assumed A j / d = A i
+  have : A i + 1 ≤ A i := by simp [hdiv, A, d] at hquot_ge
+  exact Nat.not_succ_le_self _ this
+
+/-- Helper: turn the invariant + `< 1` into the numeric bound `A n < D^(lNat n)`. -/
+lemma kraft_numerator_lt_pow_of_sum_range_lt_one
+    (D : ℕ) (hD : 1 < D) (lNat : ℕ → ℕ) (hmono : Monotone lNat)
+    {n : ℕ}
+    (h_sum_lt1 : (∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t) < 1) :
+    kraft_numerator D lNat n < D ^ lNat n := by
+  have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
+  have hD_pos_real : (0 : ℝ) < D := by exact_mod_cast hD_pos
+  have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos_real
+
+  have h_eq :
+      (kraft_numerator D lNat n : ℝ) / (D : ℝ) ^ lNat n
+        = ∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t :=
+    kraft_numerator_div_pow_eq_sum (D := D) hD lNat hmono n
+
+  have hden : 0 < (D : ℝ) ^ lNat n := by positivity
+  have hdivlt : (kraft_numerator D lNat n : ℝ) / (D : ℝ) ^ lNat n < 1 := by
+    simpa [h_eq] using h_sum_lt1
+
+  have hlt_real : (kraft_numerator D lNat n : ℝ) < (D : ℝ) ^ lNat n := by
+    -- `a/b < 1` with `0<b` gives `a < b`
+    exact (div_lt_one hden).1 hdivlt
+
+  -- cast back to `ℕ`
+  exact_mod_cast hlt_real
+
+/-- Helper: for `0 < r`, the partial sum over a proper prefix is strictly increasing. -/
+lemma sum_range_succ_lt {r : ℝ} (hr : 0 < r) (lNat : ℕ → ℕ) (n : ℕ) :
+    (∑ t ∈ Finset.range n, r ^ lNat t)
+      < (∑ t ∈ Finset.range (n+1), r ^ lNat t) := by
+  -- `sum_range_succ` gives `S(n+1) = S(n) + r^(lNat n)`, and the added term is positive.
+  simp [Finset.sum_range_succ]
+  have : 0 < r ^ lNat n := by
+    exact pow_pos hr _
+  linarith
+
+/-- Helper: if a nonnegative series of length `k` sums to `≤ 1`,
+then every proper prefix sum is `< 1`. -/
+lemma sum_range_lt_one_of_sum_range_le_one
+    {r : ℝ} (hr : 0 < r) {k n : ℕ} (hnk : n < k)
+    (lNat : ℕ → ℕ)
+    (h_le : (∑ t ∈ Finset.range k, r ^ lNat t) ≤ 1) :
+    (∑ t ∈ Finset.range n, r ^ lNat t) < 1 := by
+  -- `S(n) < S(n+1) ≤ S(k) ≤ 1`
+  have hlt_succ : (∑ t ∈ Finset.range n, r ^ lNat t)
+      < (∑ t ∈ Finset.range (n+1), r ^ lNat t) :=
+    sum_range_succ_lt (r := r) hr lNat n
+  have h_le_succ_k :
+      (∑ t ∈ Finset.range (n+1), r ^ lNat t)
+        ≤ (∑ t ∈ Finset.range k, r ^ lNat t) := by
+    have hsub : Finset.range (n+1) ⊆ Finset.range k :=
+      Finset.range_mono (Nat.succ_le_of_lt hnk)
+    refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
+    intro _ _ _
+    exact le_of_lt (pow_pos hr _)
+
+  have : (∑ t ∈ Finset.range n, r ^ lNat t)
+      < (∑ t ∈ Finset.range k, r ^ lNat t) := by
+    exact lt_of_lt_of_le hlt_succ (le_trans h_le_succ_k (le_rfl))
+  exact lt_of_lt_of_le this h_le
+
+/-- Core interval-engine: from monotone lengths + strict prefix Kraft bounds,
+construct the integer interval starts `A` with the key separation property. -/
+theorem kraft_interval_construction
+    (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ)
+    (hmono : Monotone l)
+    (h_sum_prefix :
+      ∀ n, (∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k) < 1) :
+    ∃ A : ℕ → ℕ,
+      StrictMono A ∧
+      (∀ n, A n < D ^ (l n)) ∧
+      (∀ i j : ℕ, i < j → A j / D ^ (l j - l i) ≠ A i) := by
+  refine ⟨kraft_numerator D l, ?_, ?_, ?_⟩
+
+  · -- StrictMono A
+    refine strictMono_nat_of_lt_succ ?_
+    intro n
+    -- unfold A
+    simp [kraft_numerator]
+    have hDpos : 0 < D := Nat.zero_lt_of_lt hD
+    have hpowpos : 0 < D ^ (l (n + 1) - l n) := Nat.pow_pos hDpos
+    -- A n < A n + 1 ≤ (A n + 1) * D^Δ
+    exact lt_of_lt_of_le (Nat.lt_add_one _) (Nat.le_mul_of_pos_right _ hpowpos)
+
+  · -- Bound: A n < D^(l n)
+    intro n
+    have : kraft_numerator D l n < D ^ l n := by
+      exact kraft_numerator_lt_pow_of_sum_range_lt_one
+        (D := D) (hD := hD) (lNat := l) (hmono := hmono)
+        (n := n) (h_sum_lt1 := h_sum_prefix n)
+    simpa using this
+
+  · -- Separation: no earlier interval is a prefix of a later one (in division form)
+    intro i j hij
+    have hij_len : l i ≤ l j := hmono (Nat.le_of_lt hij)
+    intro hdiv
+    have hsep :
+        ¬ (l i ≤ l j ∧
+            kraft_numerator D l j / D ^ (l j - l i) = kraft_numerator D l i) := by
+      exact kraft_numerator_div_separated_of_lt
+        (D := D) (hD := hD) (l := l) (hmono := hmono) hij
+    exact hsep ⟨hij_len, hdiv⟩
+
 /-- Generalized converse of Kraft's inequality for monotone length sequences indexed by ℕ.
 
 Given a monotone `l : ℕ → ℕ` with summable Kraft sum ≤ 1 over alphabet of size D,
@@ -70,183 +327,83 @@ theorem kraft_inequality_tight_nat_mono_gen (D : ℕ) (hD : 1 < D) (l : ℕ → 
       (∀ i, (w i).length = l i) ∧
       (∀ i, ∀ d ∈ w i, d < D) := by
   have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
-  have hD_pos_real : (0 : ℝ) < D := by exact_mod_cast hD_pos
-  have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos_real
-  -- By definition of kraft_numerator, we know that kraft_numerator D l n < D^{l n} for all n.
-  have h_kraft_A_lt : ∀ n, kraft_numerator D l n < D ^ l n := by
+  have hrpos : (0 : ℝ) < (1 / D : ℝ) := by
+    exact one_div_pos.mpr (by exact_mod_cast hD_pos)
+
+  -- derive the strict prefix bounds from `tsum ≤ 1`
+  have h_sum_prefix :
+      ∀ n, (∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k) < 1 := by
     intro n
-    have h_eq : (kraft_numerator D l n : ℝ) / D ^ l n = ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k :=
-      kraft_numerator_div_pow_eq_sum D hD l h_mono n
-    have h_lt_succ : ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k < ∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k := by
-      simp only [Finset.sum_range_succ]
-      linarith [pow_pos (one_div_pos.mpr hD_pos_real) (l n)]
-    have h_le_tsum : ∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k ≤ ∑' k, (1 / D : ℝ) ^ l k :=
+    -- first: sum over range (n+1) is ≤ tsum ≤ 1
+    have h_le_tsum :
+        (∑ k ∈ Finset.range (n+1), (1 / D : ℝ) ^ l k)
+          ≤ ∑' k, (1 / D : ℝ) ^ l k :=
       Summable.sum_le_tsum _ (fun _ _ => by positivity) h_summable
-    have h_lt_one : ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k < 1 :=
-      lt_of_lt_of_le (lt_of_lt_of_le h_lt_succ h_le_tsum) h_sum
-    rw [← h_eq, div_lt_one (by positivity)] at h_lt_one
-    exact_mod_cast h_lt_one
-  -- kraft_numerator D is strictly monotone
-  have h_kraft_A_mono : StrictMono (kraft_numerator D l) := by
-    refine strictMono_nat_of_lt_succ ?_
-    intro n
-    simp only [kraft_numerator]
-    exact lt_of_lt_of_le (Nat.lt_add_one _) (Nat.le_mul_of_pos_right _ (Nat.pow_pos hD_pos))
-  refine ⟨fun n => Digits.natToDigitsBE D (kraft_numerator D l n) (l n), ?_, ?_, ?_, ?_⟩
+    have h_le_one :
+        (∑ k ∈ Finset.range (n+1), (1 / D : ℝ) ^ l k) ≤ 1 :=
+      le_trans h_le_tsum h_sum
+    -- then: proper prefix < 1
+    exact sum_range_lt_one_of_sum_range_le_one
+      (r := (1 / D : ℝ)) hrpos
+      (k := n+1) (n := n) (hnk := Nat.lt_succ_self n)
+      (lNat := l) h_le_one
+
+  -- interval engine gives A + monotonicity + bounds + separation
+  obtain ⟨A, hA_strict, hA_lt, hA_sep⟩ :=
+    kraft_interval_construction (D := D) (l := l) (hmono := h_mono)
+      (hD := hD) (h_sum_prefix := h_sum_prefix)
+
+  refine ⟨fun n => Digits.natToDigitsBE D (A n) (l n), ?_, ?_, ?_, ?_⟩
+
   · -- Injectivity
     intro n m hnm
-    have h_kraft_A_eq : kraft_numerator D l n = kraft_numerator D l m := by
+    have hlen : l n = l m := by
+      have := congrArg List.length hnm
+      simpa [Digits.natToDigitsBE_length] using this
+    have hAeq : A n = A m := by
+      -- decode natToDigitsBE equality back to equal addresses
       apply Digits.natToDigitsBE_inj (Nat.ne_of_gt hD_pos)
-      · exact h_kraft_A_lt n
-      · have := congr_arg List.length hnm
-        simp only [Digits.natToDigitsBE_length] at this
-        rw [this]
-        exact h_kraft_A_lt m
-      · have := congr_arg List.length hnm
-        simp only [Digits.natToDigitsBE_length] at this
-        rw [this]
-        simp_all only
-    exact h_kraft_A_mono.injective h_kraft_A_eq
-  · -- Prefix-freeness
+      · exact hA_lt n
+      · simpa [hlen] using hA_lt m
+      · have hnm' :
+            Digits.natToDigitsBE D (A n) (l n)
+              = Digits.natToDigitsBE D (A m) (l n) := by
+          -- rewrite RHS width using hlen.symm (so l m -> l n)
+          simpa [hlen.symm] using hnm
+        exact hnm'
+    exact hA_strict.injective hAeq
+
+  · -- PrefixFree
     rintro _ ⟨n, rfl⟩ _ ⟨m, rfl⟩ hpre
     by_cases hnm : n = m
-    · subst n
-      rfl
-    · -- Use natToDigitsBE_prefix_iff_div
-      rw [Digits.natToDigitsBE_prefix_iff_div hD_pos (h_kraft_A_lt n) (h_kraft_A_lt m)] at hpre
-      obtain ⟨hwv, hdiv⟩ := hpre
-      -- From hdiv: kraft_numerator D l m / D^(l m - l n) = kraft_numerator D l n
-      -- This means kraft_numerator D l m lies in the interval [kraft_numerator D l n * D^(l m - l n), (kraft_numerator D l n + 1) * D^(l m - l n))
-      have h_lb : kraft_numerator D l n * D ^ (l m - l n) ≤ kraft_numerator D l m := by
-        rw [← hdiv]
-        exact Nat.div_mul_le_self _ _
-      have h_ub : kraft_numerator D l m < (kraft_numerator D l n + 1) * D ^ (l m - l n) := by
-        rw [← hdiv, add_mul, one_mul]
-        exact Nat.lt_div_mul_add (Nat.pow_pos hD_pos)
-      -- Now derive contradiction using Kraft sum bounds
-      have h_sum_bounds : (∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k) ≤ (∑ k ∈ Finset.range m, (1 / D : ℝ) ^ l k) ∧
-                          (∑ k ∈ Finset.range m, (1 / D : ℝ) ^ l k) < (∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k) + (1 / D : ℝ) ^ l n := by
-        constructor
-        · -- Lower bound from h_lb
-          rw [← kraft_numerator_div_pow_eq_sum D hD l h_mono n, ← kraft_numerator_div_pow_eq_sum D hD l h_mono m]
-          rw [div_le_div_iff₀ (by positivity) (by positivity)]
-          have h_eq : (kraft_numerator D l n : ℝ) * D ^ l m = kraft_numerator D l n * D ^ (l m - l n) * D ^ l n := by
-            rw [mul_assoc, ← pow_add, Nat.sub_add_cancel hwv]
-          rw [h_eq]
-          have h_cast : (kraft_numerator D l n : ℝ) * D ^ (l m - l n) = (kraft_numerator D l n * D ^ (l m - l n) : ℕ) := by
-            simp only [Nat.cast_mul, Nat.cast_pow]
-          rw [h_cast]
-          calc ((kraft_numerator D l n * D ^ (l m - l n) : ℕ) : ℝ) * D ^ l n
-              ≤ (kraft_numerator D l m : ℕ) * D ^ l n := by
-                apply mul_le_mul_of_nonneg_right _ (by positivity)
-                exact_mod_cast h_lb
-            _ = (kraft_numerator D l m : ℝ) * D ^ l n := by norm_cast
-        · -- Upper bound from h_ub
-          -- abbreviations
-          set An : ℕ := kraft_numerator D l n
-          set Am : ℕ := kraft_numerator D l m
-          set ln : ℕ := l n
-          set lm : ℕ := l m
-          set f : ℕ → ℝ := fun k => (1 / (D : ℝ)) ^ l k
-
-          have hsum_n :
-              (An : ℝ) / (D : ℝ) ^ ln = ∑ k ∈ Finset.range n, f k := by
-            simpa [An, ln, f] using (kraft_numerator_div_pow_eq_sum D hD l h_mono n)
-
-          have hsum_m :
-              (Am : ℝ) / (D : ℝ) ^ lm = ∑ k ∈ Finset.range m, f k := by
-            simpa [Am, lm, f] using (kraft_numerator_div_pow_eq_sum D hD l h_mono m)
-
-          -- Nat upper bound from division equality (Am / D^(lm-ln) = An)
-          have h_ub_nat : Am < (An + 1) * D ^ (lm - ln) := by
-            let d := D ^ (lm - ln)
-            have hdpos : 0 < d := Nat.pow_pos hD_pos
-            have hmod : Am % d < d := Nat.mod_lt _ hdpos
-            calc
-              Am = (Am / d) * d + Am % d := by exact Eq.symm (div_add_mod' Am d)
-              _  < (Am / d) * d + d      := by exact Nat.add_lt_add_left hmod _
-              _  = (Am / d + 1) * d      := by simp [Nat.succ_mul]
-              _  = (An + 1) * d          := by simp [d, hdiv, An, Am]  -- hdiv is your div-equality
-
-          have hDm_pos : (0 : ℝ) < (D : ℝ) ^ lm := by positivity
-          have hcast : (Am : ℝ) < ((An + 1) * D ^ (lm - ln) : ℕ) := by
-            exact_mod_cast h_ub_nat
-
-          have hdivlt :
-              (Am : ℝ) / (D : ℝ) ^ lm
-                < (( (An + 1) * D ^ (lm - ln) : ℕ) : ℝ) / (D : ℝ) ^ lm :=
-            (div_lt_div_of_pos_right hcast hDm_pos)
-
-          -- simplify RHS to (An+1)/D^ln using ln ≤ lm (your hwv)
-          have hwv' : ln ≤ lm := hwv
-          have hpow :
-              (D : ℝ) ^ lm = (D : ℝ) ^ (lm - ln) * (D : ℝ) ^ ln := by
-            -- lm = (lm-ln)+ln
-            nth_rewrite 1 [show lm = (lm - ln) + ln by exact (Nat.sub_add_cancel hwv').symm]
-            simp [pow_add]
-
-          have hrhs :
-              (( (An + 1) * D ^ (lm - ln) : ℕ) : ℝ) / (D : ℝ) ^ lm
-                = (An + 1 : ℝ) / (D : ℝ) ^ ln := by
-            -- expand casts + cancel the (D^(lm-ln)) factor
-            simp [Nat.cast_mul, Nat.cast_pow, hpow, div_eq_mul_inv, mul_assoc, mul_left_comm, mul_comm]
-            have ha : ( (D : ℝ) ^ (lm - ln)) ≠ 0 := pow_ne_zero _ hD_ne
-            calc
-              ( (D : ℝ) ^ (lm - ln)) * (((D : ℝ) ^ ln)⁻¹ * (((D : ℝ) ^ (lm - ln))⁻¹ * ((An : ℝ) + 1)))
-                  =
-                (((D : ℝ) ^ ln)⁻¹) * (( (D : ℝ) ^ (lm - ln)) * (((D : ℝ) ^ (lm - ln))⁻¹ * ((An : ℝ) + 1))) := by
-                    ac_rfl
-              _ = (((D : ℝ) ^ ln)⁻¹) * ((An : ℝ) + 1) := by
-                    -- cancels (D^(lm-ln))*(D^(lm-ln))⁻¹
-                    simp [ha]
-
-          have hdivlt' :
-              (Am : ℝ) / (D : ℝ) ^ lm < (An + 1 : ℝ) / (D : ℝ) ^ ln := by
-            exact lt_of_lt_of_eq hdivlt hrhs
-
-          -- (An+1)/D^ln = An/D^ln + 1/D^ln, and 1/D^ln = f n
-          have hf : f n = 1 / (D : ℝ) ^ ln := by
-            simp [f, ln, one_div, inv_pow]
-
-          have hf' : (1 / (D : ℝ) ^ ln) = f n := hf.symm
-
-          have hrhs2 :
-              ((An : ℝ) + 1) / (D : ℝ) ^ ln
-                = (∑ k ∈ Finset.range n, f k) + f n := by
-            calc
-              ((An : ℝ) + 1) / (D : ℝ) ^ ln
-                  = (An : ℝ) / (D : ℝ) ^ ln + (1 : ℝ) / (D : ℝ) ^ ln := by
-                      simp [add_div]
-              _   = (∑ k ∈ Finset.range n, f k) + (1 : ℝ) / (D : ℝ) ^ ln := by
-                      simp [hsum_n]
-              _   = (∑ k ∈ Finset.range n, f k) + f n := by
-                      simp [hf']
-
-          -- first normalize the RHS of hdivlt' into ((An:ℝ)+1)/...
-          refine (lt_of_lt_of_eq ?_ hrhs2)
-          simpa [hsum_m, Nat.cast_add, Nat.cast_one] using hdivlt'
-      cases lt_or_gt_of_ne hnm with
-      | inl h_lt =>
-        have h_sum_ge : ∑ k ∈ Finset.Ico n m, (1 / D : ℝ) ^ l k ≥ (1 / D : ℝ) ^ l n := by
-          have hmem : n ∈ Finset.Ico n m := Finset.left_mem_Ico.mpr h_lt
-          exact Finset.single_le_sum (f := fun k => (1 / D : ℝ) ^ l k) (fun x _ => by positivity) hmem
-        simp only [Finset.sum_Ico_eq_sub _ (le_of_lt h_lt)] at h_sum_ge
-        linarith [h_sum_bounds.1, h_sum_bounds.2]
-      | inr h_gt =>
-        have hlmn : l m ≤ l n := h_mono (le_of_lt h_gt)
-        have hlen : l n = l m := le_antisymm hwv hlmn
-        have hAeq : kraft_numerator D l m = kraft_numerator D l n := by
-          -- exponent is 0 now
-          simpa [hlen] using hdiv
-        have : n = m := h_kraft_A_mono.injective hAeq.symm
+    · subst hnm; rfl
+    · -- pull back the prefix relation to the div characterization
+      have hdiv :
+          l n ≤ l m ∧ A m / D ^ (l m - l n) = A n := by
+        exact (Digits.natToDigitsBE_prefix_iff_div
+          (Nat.zero_lt_of_lt hD) (hA_lt n) (hA_lt m)).1 hpre
+      -- split on order of indices; use separation for n<m, and strictness for n>m
+      rcases lt_or_gt_of_ne hnm with hlt | hgt
+      · cases (hA_sep n m hlt) hdiv.2
+      · -- n > m: monotone lengths force equality, then strictMono contradicts
+        have hlen_le : l m ≤ l n := h_mono (Nat.le_of_lt hgt)
+        have hlen_eq : l n = l m := le_antisymm hdiv.1 hlen_le
+        -- exponent becomes 0, so div gives A m = A n
+        have : A m = A n := by
+          have : l m - l n = 0 := by simp [hlen_eq]
+          -- hdiv.2 : A m / D^(l m - l n) = A n
+          simpa [this] using hdiv.2
+        have : n = m := hA_strict.injective this.symm
         exact (hnm this).elim
-  · -- Length preservation
+
+  · -- lengths
     intro i
-    simp only [Digits.natToDigitsBE_length]
-  · -- Digits are < D
+    simp [Digits.natToDigitsBE_length]
+
+  · -- digit bounds
     intro i d hd
-    simp only [Digits.natToDigitsBE, List.mem_ofFn] at hd
-    obtain ⟨j, rfl⟩ := hd
+    simp [Digits.natToDigitsBE, List.mem_ofFn] at hd
+    rcases hd with ⟨j, rfl⟩
     exact Nat.mod_lt _ hD_pos
 
 lemma map_val_pmap_mk (D : ℕ) (xs : List ℕ) (h : ∀ d ∈ xs, d < D) :
@@ -606,68 +763,6 @@ lemma kraft_inequality_tight_fin_lt
     -- lNat agrees with l on i < k
     simp [w, hwNat_len, lNat, ext_shift_eq]
 
-
-/-- Helper: for `0 < r`, the partial sum over a proper prefix is strictly increasing. -/
-lemma sum_range_succ_lt {r : ℝ} (hr : 0 < r) (lNat : ℕ → ℕ) (n : ℕ) :
-    (∑ t ∈ Finset.range n, r ^ lNat t)
-      < (∑ t ∈ Finset.range (n+1), r ^ lNat t) := by
-  -- `sum_range_succ` gives `S(n+1) = S(n) + r^(lNat n)`, and the added term is positive.
-  simp [Finset.sum_range_succ]
-  have : 0 < r ^ lNat n := by
-    exact pow_pos hr _
-  linarith
-
-/-- Helper: if a nonnegative series of length `k` sums to `≤ 1`,
-then every proper prefix sum is `< 1`. -/
-lemma sum_range_lt_one_of_sum_range_le_one
-    {r : ℝ} (hr : 0 < r) {k n : ℕ} (hnk : n < k)
-    (lNat : ℕ → ℕ)
-    (h_le : (∑ t ∈ Finset.range k, r ^ lNat t) ≤ 1) :
-    (∑ t ∈ Finset.range n, r ^ lNat t) < 1 := by
-  -- `S(n) < S(n+1) ≤ S(k) ≤ 1`
-  have hlt_succ : (∑ t ∈ Finset.range n, r ^ lNat t)
-      < (∑ t ∈ Finset.range (n+1), r ^ lNat t) :=
-    sum_range_succ_lt (r := r) hr lNat n
-  have h_le_succ_k :
-      (∑ t ∈ Finset.range (n+1), r ^ lNat t)
-        ≤ (∑ t ∈ Finset.range k, r ^ lNat t) := by
-    have hsub : Finset.range (n+1) ⊆ Finset.range k :=
-      Finset.range_mono (Nat.succ_le_of_lt hnk)
-    refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
-    intro _ _ _
-    exact le_of_lt (pow_pos hr _)
-
-  have : (∑ t ∈ Finset.range n, r ^ lNat t)
-      < (∑ t ∈ Finset.range k, r ^ lNat t) := by
-    exact lt_of_lt_of_le hlt_succ (le_trans h_le_succ_k (le_rfl))
-  exact lt_of_lt_of_le this h_le
-
-/-- Helper: turn the invariant + `< 1` into the numeric bound `A n < D^(lNat n)`. -/
-lemma kraft_numerator_lt_pow_of_sum_range_lt_one
-    (D : ℕ) (hD : 1 < D) (lNat : ℕ → ℕ) (hmono : Monotone lNat)
-    {n : ℕ}
-    (h_sum_lt1 : (∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t) < 1) :
-    kraft_numerator D lNat n < D ^ lNat n := by
-  have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
-  have hD_pos_real : (0 : ℝ) < D := by exact_mod_cast hD_pos
-  have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos_real
-
-  have h_eq :
-      (kraft_numerator D lNat n : ℝ) / (D : ℝ) ^ lNat n
-        = ∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t :=
-    kraft_numerator_div_pow_eq_sum (D := D) hD lNat hmono n
-
-  have hden : 0 < (D : ℝ) ^ lNat n := by positivity
-  have hdivlt : (kraft_numerator D lNat n : ℝ) / (D : ℝ) ^ lNat n < 1 := by
-    simpa [h_eq] using h_sum_lt1
-
-  have hlt_real : (kraft_numerator D lNat n : ℝ) < (D : ℝ) ^ lNat n := by
-    -- `a/b < 1` with `0<b` gives `a < b`
-    exact (div_lt_one hden).1 hdivlt
-
-  -- cast back to `ℕ`
-  exact_mod_cast hlt_real
-
 /-- Sufficient separation condition for prefix-freeness via the `div` characterization. -/
 lemma prefixFree_range_natToDigitsBEFin_of_div_separated
     {D : ℕ} (hD : 1 < D) {k : ℕ}
@@ -692,161 +787,6 @@ lemma prefixFree_range_natToDigitsBEFin_of_div_separated
                 (hA_lt j)).1 hpre
       exact this
     exact (hSep (i := i) (j := j) hij hpre').elim
-
-
-/-- Closed form for `kraft_numerator` as a Nat sum of scaled powers. -/
-lemma kraft_numerator_eq_sum_pow_range
-    (D : ℕ) (l : ℕ → ℕ) (hmono : Monotone l) :
-    ∀ n, kraft_numerator D l n = ∑ t ∈ Finset.range n, D ^ (l n - l t) := by
-  intro n
-  induction n with
-  | zero =>
-      simp [kraft_numerator]
-  | succ n ih =>
-      -- Notation
-      have hln : l n ≤ l (n+1) := hmono (Nat.le_succ n)
-      set a : ℕ := l (n+1) - l n
-
-      -- Start from the RHS for `n+1`
-      -- split off last term, then factor out `D^a` from the prefix sum
-      simp [Finset.sum_range_succ, kraft_numerator, ih]
-
-      -- Goal after simp is essentially:
-      --   (∑ t∈range n, D^(l(n+1)-l t)) + D^(l(n+1)-l n)
-      -- = ( (∑ t∈range n, D^(l n - l t)) + 1 ) * D^(l(n+1)-l n)
-
-      -- Turn the prefix sum into a factored form
-      have hfac :
-          (∑ t ∈ Finset.range n, D ^ (l (n+1) - l t))
-            = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
-        -- rewrite each term using exponent arithmetic:
-        -- (l(n+1)-l t) = (l(n+1)-l n) + (l n - l t)
-        -- then use `pow_add` and pull out `D^a`
-        calc
-          (∑ t ∈ Finset.range n, D ^ (l (n+1) - l t))
-              = ∑ t ∈ Finset.range n, (D ^ a) * (D ^ (l n - l t)) := by
-                  refine Finset.sum_congr rfl ?_
-                  intro t ht
-                  have ht' : t < n := Finset.mem_range.mp ht
-                  have hlt : l t ≤ l n := hmono (Nat.le_of_lt_succ (Nat.lt_succ_of_lt ht'))
-                  have hlt' : l t ≤ l (n+1) := le_trans hlt hln
-                  -- exponent identity
-                  have hexp : (l (n+1) - l t) = a + (l n - l t) := by
-                    -- `a = l(n+1)-l n`
-                    dsimp [a]
-                    omega
-                  -- finish
-                  simp [hexp, pow_add, mul_comm]
-          _   = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
-                  -- pull out constant
-                  simp [Finset.mul_sum]
-
-      -- Now finish the `succ` step by rewriting with `hfac`
-      -- and using `l(n+1)-l n = a`
-      -- also: the last term is exactly `D^a`
-      have hlast : D ^ (l (n+1) - l n) = D ^ a := by simp [a]
-      -- substitute and algebra
-      simp [hfac, hlast, Nat.mul_add, Nat.mul_comm]
-
-/--
-Separation property for `A = kraft_numerator D l`:
-if `i < j` then you cannot have `A j / D^(l j - l i) = A i` (even assuming `l i ≤ l j`).
--/
-lemma kraft_numerator_div_separated_of_lt
-    (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ)
-    (hmono : Monotone l) :
-    ∀ {i j : ℕ}, i < j →
-      ¬ (l i ≤ l j ∧ kraft_numerator D l j / D ^ (l j - l i) = kraft_numerator D l i) := by
-  intro i j hij
-  rintro ⟨hij_len, hdiv⟩
-
-  have hDpos : 0 < D := Nat.zero_lt_of_lt hD
-  set A : ℕ → ℕ := kraft_numerator D l
-  set d : ℕ := D ^ (l j - l i)
-  have hdpos : 0 < d := by
-    dsimp [d]
-    exact Nat.pow_pos hDpos
-
-  -- Closed forms for A i and A j
-  have hAi : A i = ∑ t ∈  Finset.range i, D ^ (l i - l t) := by
-    simpa [A] using (kraft_numerator_eq_sum_pow_range D l hmono i)
-  have hAj : A j = ∑ t ∈ Finset.range j, D ^ (l j - l t) := by
-    simpa [A] using (kraft_numerator_eq_sum_pow_range D l hmono j)
-
-  -- The partial sum up to `i+1` sits inside the sum up to `j`
-  have hsub : Finset.range (i+1) ⊆ Finset.range j := by
-    -- i+1 ≤ j since i< j
-    exact Finset.range_mono (Nat.succ_le_of_lt hij)
-
-  have hle_part :
-      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
-        ≤ (∑ t ∈  Finset.range j, D ^ (l j - l t)) := by
-    refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
-    intro x hx _hx'
-    exact Nat.zero_le _
-
-  have hle_part' :
-      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t)) ≤ A j := by
-    simpa [hAj] using hle_part
-
-  -- Rewrite the `range (i+1)` sum as (range i) + last
-  have hsplit :
-      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
-        = (∑ t ∈  Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
-    simp [Finset.sum_range_succ]
-
-  -- Show the prefix sum is a multiple of `d` with coefficient `A i`
-  have hmul_prefix :
-      (∑ t ∈  Finset.range i, D ^ (l j - l t))
-        = d * (∑ t ∈  Finset.range i, D ^ (l i - l t)) := by
-    -- each term: D^(l j - l t) = D^(l j - l i) * D^(l i - l t)
-    -- because l t ≤ l i ≤ l j
-    calc
-      (∑ t ∈  Finset.range i, D ^ (l j - l t))
-          = ∑ t ∈  Finset.range i, d * (D ^ (l i - l t)) := by
-              refine Finset.sum_congr rfl ?_
-              intro t ht
-              have ht' : t < i := Finset.mem_range.mp ht
-              have hti : l t ≤ l i := hmono (Nat.le_of_lt ht')
-              have htj : l t ≤ l j := le_trans hti hij_len
-              have hexp : (l j - l t) = (l j - l i) + (l i - l t) := by
-                -- needs l t ≤ l i ≤ l j
-                omega
-              -- unfold d and finish
-              simp [d, hexp, pow_add, mul_comm]
-      _   = d * (∑ t ∈  Finset.range i, D ^ (l i - l t)) := by
-              simp [Finset.mul_sum]
-
-  -- Now assemble: sum_{t≤i} = d*(A i + 1)
-  have hlower :
-      d * (A i + 1) ≤ A j := by
-    -- start from hle_part' and rewrite LHS
-    -- LHS = (prefix over range i) + d
-    -- prefix = d * (sum range i ...)
-    -- sum range i ... = A i
-    have : (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
-              = d * (A i + 1) := by
-      -- rewrite using hsplit, hmul_prefix, hAi
-      calc
-        (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
-            = (∑ t ∈  Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
-                exact hsplit
-        _   = d * (∑ t ∈ Finset.range i, D ^ (l i - l t)) + d := by
-                simp [hmul_prefix, d]
-        _   = d * (A i) + d := by
-                simp [hAi]
-        _   = d * (A i + 1) := by
-                simp [Nat.mul_add]
-    -- apply ≤ using hle_part'
-    simpa [this] using hle_part'
-  rw [mul_comm] at hlower
-  -- Divide both sides by `d`: (A i + 1) ≤ A j / d
-  have hquot_ge : A i + 1 ≤ A j / d := by
-    exact (Nat.le_div_iff_mul_le hdpos).2 hlower
-
-  -- But we assumed A j / d = A i
-  have : A i + 1 ≤ A i := by simp [hdiv, A, d] at hquot_ge
-  exact Nat.not_succ_le_self _ this
 
 /-- Finite-index converse with `≤ 1`. -/
 lemma kraft_inequality_tight_fin_le
