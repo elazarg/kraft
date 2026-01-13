@@ -20,7 +20,7 @@ import Mathlib.Analysis.SpecificLimits.Normed
 import Kraft.Basic
 import Kraft.Digits
 import Kraft.Helpers
-import Kraft.InequalityFinite
+import Kraft.McMillan
 
 namespace Kraft
 
