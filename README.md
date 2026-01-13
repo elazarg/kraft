@@ -6,32 +6,34 @@ A formalization of Kraft's inequality and related results from information theor
 
 Kraft's inequality is a fundamental result in coding theory that characterizes when a set of codeword lengths can form a prefix-free (instantaneous) code. This project formalizes:
 
-- **Kraft's inequality**: For any prefix-free code over a binary alphabet, the sum of 2^(-length) over all codewords is at most 1
+- **Kraft's inequality**: For any prefix-free code over an alphabet of size D, the sum of D^(-length) over all codewords is at most 1
 - **The converse**: Any sequence of lengths satisfying this constraint admits a prefix-free code
 - **Kraft-McMillan inequality**: The same bound holds for the broader class of uniquely decodable codes
 - **Prefix-free implies uniquely decodable**: Every prefix-free code is uniquely decodable
+
+All results are generalized to arbitrary finite alphabets (not just binary).
 
 ## Main Results
 
 | Theorem | Statement |
 |---------|-----------|
-| `kraft_inequality` | For finite prefix-free S: `sum_{w in S} 2^(-|w|) <= 1` |
+| `kraft_inequality` | For finite prefix-free S: `sum_{w in S} D^(-|w|) <= 1` |
 | `kraft_inequality_infinite` | Extension to infinite prefix-free codes (as a tsum) |
 | `kraft_mcmillan_inequality` | Same bound for uniquely decodable codes |
-| `kraft_inequality_tight` | Converse: lengths with `sum 2^(-l_i) <= 1` admit a prefix-free code |
-| `kraft_inequality_tight_infinite` | Infinite version of the converse |
-| `prefix_free_is_uniquely_decodable` | Prefix-free codes are uniquely decodable |
+| `kraft_inequality_tight_infinite` | Converse: lengths with `sum D^(-l_i) <= 1` admit a prefix-free code |
+| `PrefixFree.uniquelyDecodable` | Prefix-free codes are uniquely decodable |
 
 ## Project Structure
 
 ```
 Kraft/
   Basic.lean              -- Core definitions: PrefixFree, UniquelyDecodable
-  InequalityFinite.lean   -- Kraft's inequality for finite codes
+  ConcatFn.lean           -- Concatenation function for code construction
+  Digits.lean             -- Number-to-digit representation (arbitrary base)
+  Helpers.lean            -- Utility lemmas
   InequalityInfinite.lean -- Extension to infinite codes via tsum
-  McMillan.lean           -- Kraft-McMillan inequality for uniquely decodable codes
-  TightFinite.lean        -- Converse of Kraft's inequality (finite case)
-  TightInfinite.lean      -- Converse of Kraft's inequality (infinite case)
+  McMillan.lean           -- Kraft-McMillan inequality and finite Kraft inequality
+  TightInfinite.lean      -- Converse of Kraft's inequality (finite and infinite)
   UniquelyDecodable.lean  -- Prefix-free implies uniquely decodable
 ```
 
@@ -39,15 +41,17 @@ Kraft/
 
 - **Basic.lean**: Defines `PrefixFree` (no codeword is a prefix of another) and `UniquelyDecodable` (distinct concatenations yield distinct strings)
 
-- **InequalityFinite.lean**: Proves Kraft's inequality using a cylinder counting argument: extensions of codewords to a fixed length are disjoint
+- **ConcatFn.lean**: Defines the concatenation function mapping tuples of codewords to their concatenation, used in the McMillan proof
+
+- **Digits.lean**: Provides `natToDigitsBE` and related functions for converting numbers to fixed-width digit representations in arbitrary bases
+
+- **Helpers.lean**: Utility lemmas for working with finite sets, sums, and real arithmetic
 
 - **InequalityInfinite.lean**: Extends to infinite codes by showing any finite subset satisfies the bound, establishing summability
 
-- **McMillan.lean**: Proves the inequality for uniquely decodable codes using the exponential growth of C^r where C is the Kraft sum
+- **McMillan.lean**: Proves Kraft's inequality and the Kraft-McMillan inequality using the exponential growth of C^r where C is the Kraft sum
 
-- **TightFinite.lean**: Constructs a prefix-free code for any length sequence satisfying the inequality, via recursive binary tree allocation
-
-- **TightInfinite.lean**: Extends the construction to infinite index sets using an ordering by length and injectivity arguments
+- **TightInfinite.lean**: Constructs a prefix-free code for any length sequence satisfying the inequality, via dyadic interval allocation; handles both finite and infinite index sets
 
 - **UniquelyDecodable.lean**: Shows prefix-free codes are uniquely decodable by induction on the decoded string length
 
