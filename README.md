@@ -20,7 +20,7 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 | `kraft_inequality` | For finite prefix-free S: `sum_{w in S} D^(-|w|) <= 1` |
 | `kraft_inequality_infinite` | Extension to infinite prefix-free codes (as a tsum) |
 | `kraft_mcmillan_inequality` | Same bound for uniquely decodable codes |
-| `kraft_inequality_tight_infinite` | Converse: lengths with `sum D^(-l_i) <= 1` admit a prefix-free code |
+| `Kraft.Converse.exists_code` | Converse: lengths with `sum D^(-l_i) <= 1` admit a prefix-free code |
 | `PrefixFree.uniquelyDecodable` | Prefix-free codes are uniquely decodable |
 
 ## Project Structure
@@ -29,11 +29,13 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 Kraft/
   Basic.lean              -- Core definitions: PrefixFree, UniquelyDecodable
   ConcatFn.lean           -- Concatenation function for code construction
+  Converse.lean           -- Converse of Kraft's inequality (main construction)
   Digits.lean             -- Number-to-digit representation (arbitrary base)
+  ExtShift.lean           -- Helper for extending finite sequences to infinite
   Helpers.lean            -- Utility lemmas
   InequalityInfinite.lean -- Extension to infinite codes via tsum
+  KraftOrder.lean         -- Ordering machinery for infinite index sets
   McMillan.lean           -- Kraft-McMillan inequality and finite Kraft inequality
-  TightInfinite.lean      -- Converse of Kraft's inequality (finite and infinite)
   UniquelyDecodable.lean  -- Prefix-free implies uniquely decodable
 ```
 
@@ -43,15 +45,19 @@ Kraft/
 
 - **ConcatFn.lean**: Defines the concatenation function mapping tuples of codewords to their concatenation, used in the McMillan proof
 
+- **Converse.lean**: Constructs a prefix-free code for any length sequence satisfying the inequality, via D-adic interval allocation; handles both finite and infinite index sets
+
 - **Digits.lean**: Provides `natToDigitsBE` and related functions for converting numbers to fixed-width digit representations in arbitrary bases
+
+- **ExtShift.lean**: Utility for extending finite length sequences (over `Fin k`) to infinite sequences over `ℕ`, preserving monotonicity
 
 - **Helpers.lean**: Utility lemmas for working with finite sets, sums, and real arithmetic
 
 - **InequalityInfinite.lean**: Extends to infinite codes by showing any finite subset satisfies the bound, establishing summability
 
-- **McMillan.lean**: Proves Kraft's inequality and the Kraft-McMillan inequality using the exponential growth of C^r where C is the Kraft sum
+- **KraftOrder.lean**: Defines the `KraftOrder` on indices and machinery for ranking elements in infinite index sets by their Kraft contributions
 
-- **TightInfinite.lean**: Constructs a prefix-free code for any length sequence satisfying the inequality, via dyadic interval allocation; handles both finite and infinite index sets
+- **McMillan.lean**: Proves Kraft's inequality and the Kraft-McMillan inequality using the exponential growth of C^r where C is the Kraft sum
 
 - **UniquelyDecodable.lean**: Shows prefix-free codes are uniquely decodable by induction on the decoded string length
 
