@@ -29,10 +29,6 @@ lemma concatFn_def {S : Set (List α)} {r : ℕ} (w : Fin r → S):
   concatFn w = (List.ofFn (fun i : Fin r => (w i).val)).flatten :=
   rfl
 
-/-- The set of all possible concatenations of `r` codewords from `S`. -/
-def concatImage [DecidableEq α] {S : Finset (List α)} {r : ℕ} : Finset (List α) :=
-  (Finset.univ : Finset (Fin r → (S : Set (List α)))).image concatFn
-
 /-- The length of a concatenation is the sum of the codeword lengths. -/
 lemma concatFn_length {S : Set (List α)} {r : ℕ} (w : Fin r → S):
   (concatFn w).length = ∑ i : Fin r, (w i).val.length := by
