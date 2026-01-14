@@ -16,10 +16,10 @@ open Nat
 Internal implementation: fixed-width digits built from `Nat.digits`.
 Public API at the bottom exposes only:
 
-* `natToDigitsBEFin`
-* `natToDigitsBEFin_length`
-* `natToDigitsBEFin_prefix_iff_div`
-* `natToDigitsBEFin_inj`
+* `natToDigitsBE`
+* `natToDigitsBE_length`
+* `natToDigitsBE_prefix_iff_div`
+* `natToDigitsBE_inj`
 -/
 
 /-- Fixed-width little-endian digits: take low digits, pad with zeros. -/
@@ -220,20 +220,20 @@ private lemma digitsBE_fixed_prefix_iff_div
 /- ========== PUBLIC API ========== -/
 
 /-- Fixed-width, MSB-first digits of `n` base `D`, as `Fin D`. -/
-def natToDigitsBEFin (D n width : ℕ) (hD : 1 < D) : List (Fin D) :=
+def natToDigitsBE (D n width : ℕ) (hD : 1 < D) : List (Fin D) :=
   (digitsBE_fixed D n width).pmap
     (fun d hd => ⟨d, hd⟩)
     (fun _ hd => digitsBE_fixed_lt_base hD hd)
 
 @[simp]
-lemma natToDigitsBEFin_length (D n width : ℕ) (hD : 1 < D) :
-    (natToDigitsBEFin D n width hD).length = width := by
-  simp [natToDigitsBEFin, digitsBE_fixed_length]
+lemma natToDigitsBE_length (D n width : ℕ) (hD : 1 < D) :
+    (natToDigitsBE D n width hD).length = width := by
+  simp [natToDigitsBE, digitsBE_fixed_length]
 
 /-- Internal bridge: forgetting `Fin` gives the underlying Nat BE digits. -/
 @[simp]
-private lemma natToDigitsBEFin_map_val (D n width : ℕ) (hD : 1 < D) :
-    (natToDigitsBEFin D n width hD).map (fun x => x.val)
+private lemma natToDigitsBE_map_val (D n width : ℕ) (hD : 1 < D) :
+    (natToDigitsBE D n width hD).map (fun x => x.val)
       = digitsBE_fixed D n width := by
   -- general lemma: mapping `val` over `pmap (Fin.mk)` returns the original list
   have map_val_pmap_mk :
@@ -250,33 +250,33 @@ private lemma natToDigitsBEFin_map_val (D n width : ℕ) (hD : 1 < D) :
           exact hx d (by simp [hd])
         simp [List.pmap, ih htl]
 
-  unfold natToDigitsBEFin
+  unfold natToDigitsBE
   simpa using map_val_pmap_mk (digitsBE_fixed D n width)
     (by
       intro d hd
       exact digitsBE_fixed_lt_base hD hd)
 
 /-- Prefix characterization (MSB-first): prefix iff quotient agrees. -/
-lemma natToDigitsBEFin_prefix_iff_div
+lemma natToDigitsBE_prefix_iff_div
   {D n m w v : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^v) :
-  natToDigitsBEFin D n w hD <+: natToDigitsBEFin D m v hD
+  natToDigitsBE D n w hD <+: natToDigitsBE D m v hD
     ↔ w ≤ v ∧ m / D^(v - w) = n := by
   -- reduce prefix on `Fin` lists to prefix on Nat lists
   rw [←List.IsPrefix.map_iff Fin.val_injective]
-  simp [natToDigitsBEFin_map_val]
+  simp [natToDigitsBE_map_val]
   exact digitsBE_fixed_prefix_iff_div hD hn hm
 
 /-- Injectivity under the Kraft bound `n,m < D^w`. -/
-lemma natToDigitsBEFin_inj
+lemma natToDigitsBE_inj
   {D n m w : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^w)
-  (h : natToDigitsBEFin D n w hD = natToDigitsBEFin D m w hD) :
+  (h : natToDigitsBE D n w hD = natToDigitsBE D m w hD) :
   n = m := by
   -- forget `Fin` and reduce to Nat BE equality
   have h_map := congrArg (List.map (fun x => x.val)) h
   have h_nat : digitsBE_fixed D n w = digitsBE_fixed D m w := by
-    simpa [natToDigitsBEFin_map_val] using h_map
+    simpa [natToDigitsBE_map_val] using h_map
 
   -- cancel reverse to get LE equality
   have h_le : digitsLE_fixed D n w = digitsLE_fixed D m w := by
