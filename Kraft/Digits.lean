@@ -78,6 +78,16 @@ private lemma ofDigits_digitsLE_fixed
   -- `ofDigits` ignores trailing zeros
   simp [ht, Nat.ofDigits_append_replicate_zero, Nat.ofDigits_digits]
 
+ private lemma div_pow_lt_pow_of_lt {D m v w : ℕ} (hDpos : 0 < D) (hm : m < D^v) (hwv : w ≤ v) :
+     m / D^(v-w) < D^w := by
+   have hvpow : D^v = D^(v-w) * D^w := by
+     calc D^v = D^((v-w)+w) := by simp [Nat.sub_add_cancel hwv]
+       _ = D^(v-w) * D^w := by simp [Nat.pow_add]
+   have : m < D^(v-w) * D^w := by simpa [hvpow] using hm
+   have hpos : 0 < D^(v-w) := Nat.pow_pos hDpos
+   exact (Nat.div_lt_iff_lt_mul hpos).2
+     (by simpa [Nat.mul_comm, Nat.mul_left_comm, Nat.mul_assoc] using this)
+
 /-- LE bridge: dropping `(v-w)` low digits corresponds to dividing by `D^(v-w)`. -/
 private lemma digitsLE_fixed_drop_eq_div
   {D m w v : ℕ} (hD : 1 < D) (hm : m < D^v) (hvw : w ≤ v) :
@@ -106,15 +116,7 @@ private lemma digitsLE_fixed_drop_eq_div
         (digits:=digitsLE_fixed D m v)
         (w₁:=fun _ => digitsLE_fixed_lt_base hD)).symm
 
-  have hq : m / D^(v-w) < D^w := by
-    have hvpow : D^v = D^(v-w) * D^w := by
-      calc
-        D^v = D^((v-w)+w) := by simp [Nat.sub_add_cancel hvw]
-        _   = D^(v-w) * D^w := by simp [Nat.pow_add]
-    have : m < D^(v-w) * D^w := by simpa [hvpow] using hm
-    have hpos : 0 < D^(v-w) := Nat.pow_pos hDpos
-    exact (Nat.div_lt_iff_lt_mul hpos).2
-      (by simpa [Nat.mul_comm, Nat.mul_left_comm, Nat.mul_assoc] using this)
+  have hq : m / D^(v-w) < D^w := div_pow_lt_pow_of_lt hDpos hm hvw
 
   -- conclude list equality by `ofDigits` injectivity (fixed length + digit bounds)
   apply Nat.ofDigits_inj_of_len_eq (b:=D) hD
@@ -187,16 +189,8 @@ private lemma digitsBE_fixed_prefix_iff_div
       simpa [digitsBE_fixed] using congrArg List.reverse hdiv_eq
 
     -- Turn LE equality into equality of numbers via `ofDigits_digitsLE_fixed`.
-    have hq : m / D^(v-w) < D^w := by
-      have hDpos : 0 < D := lt_trans Nat.zero_lt_one hD
-      have hvpow : D^v = D^(v-w) * D^w := by
-        calc
-          D^v = D^((v-w)+w) := by simp [Nat.sub_add_cancel hwv]
-          _   = D^(v-w) * D^w := by simp [Nat.pow_add]
-      have : m < D^(v-w) * D^w := by simpa [hvpow] using hm
-      have hpos : 0 < D^(v-w) := Nat.pow_pos hDpos
-      exact (Nat.div_lt_iff_lt_mul hpos).2
-        (by simpa [Nat.mul_comm, Nat.mul_left_comm, Nat.mul_assoc] using this)
+    have hDpos : 0 < D := lt_trans Nat.zero_lt_one hD
+    have hq : m / D^(v-w) < D^w := div_pow_lt_pow_of_lt hDpos hm hwv
 
     have : m / D^(v-w) = n := by
       have h_of := congrArg (Nat.ofDigits D) hLE
