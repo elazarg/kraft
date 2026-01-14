@@ -63,7 +63,3 @@ lemma List.IsPrefix.map_iff {α β : Type _} {f : α → β} (hf : Function.Inje
 
   · intro h
     exact List.IsPrefix.map f h
-
-/-- `Fin.val` is injective. -/
-lemma Fin.val_injective' {n : ℕ} : Function.Injective (Fin.val : Fin n → ℕ) :=
-  Fin.val_injective

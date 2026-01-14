@@ -508,7 +508,7 @@ theorem kraft_inequality_tight_nat_mono_fin
 
   -- define w directly in Fin D
   let w : ℕ → List (Fin D) := fun n =>
-    Digits.natToDigitsBEFin D (A n) (l n) hD_pos
+    Digits.natToDigitsBEFin D (A n) (l n) hD
 
   refine ⟨w, ?_, ?_, ?_⟩
 
@@ -519,7 +519,7 @@ theorem kraft_inequality_tight_nat_mono_fin
       simpa [w, Digits.natToDigitsBEFin_length] using this
     have hAeq : A n = A m := by
       -- use your Digits lemma for Fin-coded digits
-      apply Digits.natToDigitsBEFin_inj hD_pos
+      apply Digits.natToDigitsBEFin_inj hD
       · exact hA_lt n
       · simpa [hlen] using hA_lt m
       · subst w
@@ -536,7 +536,7 @@ theorem kraft_inequality_tight_nat_mono_fin
     · have hdiv :
         l n ≤ l m ∧ A m / D ^ (l m - l n) = A n := by
         -- Fin-version of your existing nat lemma
-        exact (Digits.natToDigitsBEFin_prefix_iff_div hD_pos (hA_lt n) (hA_lt m)).1 hpre
+        exact (Digits.natToDigitsBEFin_prefix_iff_div hD (hA_lt n) (hA_lt m)).1 hpre
       rcases lt_or_gt_of_ne hnm with hlt | hgt
       · exact (hA_sep n m hlt) hdiv.2 |>.elim
       · have hlen_le : l m ≤ l n := h_mono (Nat.le_of_lt hgt)
@@ -570,7 +570,7 @@ lemma prefixFree_range_natToDigitsBEFin_of_div_separated
     have hpre' :
         (l i ≤ l j ∧ A j.val / D ^ (l j - l i) = A i.val) := by
       have := (Digits.natToDigitsBEFin_prefix_iff_div
-                (Nat.zero_lt_of_lt hD)
+                hD
                 (hA_lt i)
                 (hA_lt j)).1 hpre
       exact this
@@ -661,7 +661,7 @@ lemma kraft_inequality_tight_fin
     have hDpos : 0 < D := Nat.zero_lt_of_lt hD
     have hA_eq : A i.val = A j.val := by
       -- (exactly the pattern you used in the ℕ theorem’s injectivity proof)
-      apply Digits.natToDigitsBEFin_inj hDpos
+      apply Digits.natToDigitsBEFin_inj hD
       · exact hA_lt i
       · -- get equality of widths from `hij` via lengths of `w i` and `w j`
         have hlij : l i = l j := by
@@ -674,8 +674,8 @@ lemma kraft_inequality_tight_fin
         -- (you can usually discharge it by rewriting lengths and using `hA_lt j`)
         have hlij : l i = l j := by
           -- lengths of `w i` and `w j` are the widths `l i` and `l j`
-          have hwi : (w i).length = l i := by simp [w, Digits.natToDigitsBEFin]
-          have hwj : (w j).length = l j := by simp [w, Digits.natToDigitsBEFin]
+          have hwi : (w i).length = l i := by simp [w, Digits.natToDigitsBEFin_length]
+          have hwj : (w j).length = l j := by simp [w, Digits.natToDigitsBEFin_length]
           -- `this : (w i).length = (w j).length`
           exact by simpa [hwi, hwj] using this
 

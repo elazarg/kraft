@@ -1,16 +1,10 @@
-/-
-Copyright (c) 2026 Elazar Gershuni. All rights reserved.
-Released under MIT license as described in the file LICENSE.
-Authors: Elazar Gershuni
--/
+/- Copyright (c) 2026 Elazar Gershuni.
+Released under MIT license.
+Authors: Elazar Gershuni -/
+import Mathlib.Data.Nat.Digits.Defs
+import Mathlib.Data.Nat.Digits.Lemmas
 import Mathlib.Data.List.Basic
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.List.OfFn
-import Mathlib.Data.Fintype.Card
-import Mathlib.Data.Fintype.EquivFin
-import Mathlib.Algebra.Order.Sub.Basic
-
-import Mathlib.Tactic.NormNum.Basic
+import Mathlib.Data.Fin.Basic
 
 import Kraft.Helpers
 
@@ -18,319 +12,283 @@ namespace Digits
 
 open Nat
 
-/-- Fixed-width base-`b` digits, **little-endian** (least significant digit first).
+/-!
+Internal implementation: fixed-width digits built from `Nat.digits`.
+Public API at the bottom exposes only:
 
-`natToDigitsLE b n width` has length `width`, and digit `i` is `(n / b^i) % b`. -/
-def natToDigitsLE (b n width : ℕ) : List ℕ :=
-  List.ofFn (fun i : Fin width => (n / b ^ (i : ℕ)) % b)
-
-/-- Big-endian base-`b` digits of `n`, padded/truncated to length `width`. -/
-def natToDigitsBE (b n width : ℕ) : List ℕ :=
-  List.ofFn (fun i : Fin width => n / b^(width - 1 - (i : ℕ)) % b)
-
-@[simp] lemma natToDigitsBE_length (b n width : ℕ) :
-    (natToDigitsBE b n width).length = width := by
-  simp [natToDigitsBE]
-
-/--
-Key bridge: taking the first `w` BE digits of a `v`-digit encoding is the same as
-encoding `m / b^(v-w)` in width `w`.
-
-This is the “base-`b` analogue” of shifting right to drop low digits.
+* `natToDigitsBEFin`
+* `natToDigitsBEFin_length`
+* `natToDigitsBEFin_prefix_iff_div`
+* `natToDigitsBEFin_inj`
 -/
-lemma natToDigitsBE_div_eq_take
-    {b m w v : ℕ} (hb : 0 < b) (hvw : w ≤ v) :
-    natToDigitsBE b (m / b^(v - w)) w
-      = (natToDigitsBE b m v).take w := by
-  -- ext by index
-  apply List.ext_get
-  · -- lengths
-    simp [natToDigitsBE, List.length_take, Nat.min_eq_left (by simpa using hvw)]
-  · intro n hn1 hn2
-    -- `n < w`
-    have hnw : n < w := by simpa [natToDigitsBE_length] using hn1
-    have hnv : n < v := lt_of_lt_of_le hnw hvw
 
-    -- evaluate both sides at index `n`
-    -- Left: digit of `m / b^(v-w)` at place `(w-1-n)`
-    -- Right: digit of `m` at place `(v-1-n)` (because take keeps MSBs)
-    simp [List.getElem_take, natToDigitsBE]
-    --   (m / b^(v-w)) / b^(w-1-n) % b = m / b^(v-1-n) % b
-    -- do the div/div/pow algebra
-    have hbpow : 0 < b^(v - w) := Nat.pow_pos hb
-    have hbpow2 : 0 < b^(w - 1 - n) := Nat.pow_pos hb
-    -- rewrite the nested division
-    -- (m / B) / C = m / (B*C)
-    rw [Nat.div_div_eq_div_mul]
-    -- and collapse exponents
-    have hexp :
-        (v - w) + (w - 1 - n) = (v - 1 - n) := by
-      omega
-    -- turn `b^(a+b)` into `b^a * b^b`
-    -- so `b^(v-w) * b^(w-1-n) = b^(v-1-n)`
-    -- then finish by rewriting that product
-    -- (the `simp [pow_add, hexp, mul_assoc]` usually works)
-    rw [<-Nat.pow_add, hexp]
+/-- Fixed-width little-endian digits: take low digits, pad with zeros. -/
+private def digitsLE_fixed (D n width : ℕ) : List ℕ :=
+  let ds := (Nat.digits D n).take width
+  ds ++ List.replicate (width - ds.length) 0
 
+/-- Fixed-width big-endian digits. -/
+private def digitsBE_fixed (D n width : ℕ) : List ℕ :=
+  (digitsLE_fixed D n width).reverse
 
-lemma natToDigitsLE_succ (b n w : ℕ) :
-    natToDigitsLE b n (w+1)
-      = (n % b) :: natToDigitsLE b (n / b) w := by
-  -- `ofFn` over `Fin (w+1)` splits into head + ofFn over tail indices
-  simp [natToDigitsLE, List.ofFn_succ]
-  ext i
-  -- 1) Normalize the RHS: (n / b) / b^i = n / (b * b^i)
-  have hR : n / b / b ^ (i : ℕ) = n / (b * b ^ (i : ℕ)) := by
-    simp [Nat.div_div_eq_div_mul]
+private lemma digitsLE_fixed_length (D n width : ℕ) :
+    (digitsLE_fixed D n width).length = width := by
+  unfold digitsLE_fixed
+  set ds := (Nat.digits D n).take width with hds
+  -- length(ds ++ replicate (width - ds.length) 0) = width
+  simp [ds, List.length_append, List.length_replicate]
 
-  -- 2) Normalize the LHS denom: b^(i+1) = b * b^i (up to comm)
-  have hPow : b ^ ((i : ℕ) + 1) = b * b ^ (i : ℕ) := by
-    -- `pow_succ` gives `b^i * b`; commute to `b * b^i`
-    simp [Nat.pow_succ, Nat.mul_comm]
+private lemma digitsBE_fixed_length (D n width : ℕ) :
+    (digitsBE_fixed D n width).length = width := by
+  simp [digitsBE_fixed, digitsLE_fixed_length]
 
-  have hL : n / b ^ ((i : ℕ) + 1) = n / (b * b ^ (i : ℕ)) := by
-    -- rewrite the denominator using hPow
-    simp [hPow]
+private lemma digitsLE_fixed_lt_base {D n width d : ℕ} (hD : 1 < D) :
+    d ∈ digitsLE_fixed D n width → d < D := by
+  intro hd
+  unfold digitsLE_fixed at hd
+  set ds := (Nat.digits D n).take width with hds
+  -- membership in append
+  rcases List.mem_append.mp hd with hd' | hd'
+  · -- comes from `take`, hence from `digits`
+    exact Nat.digits_lt_base hD (List.mem_of_mem_take (by simpa [hds] using hd'))
+  · -- comes from replicate zeros
+    have : d = 0 := List.eq_of_mem_replicate (by simpa using hd')
+    subst this
+    exact lt_trans Nat.zero_lt_one hD
 
-  -- 3) Rewrite both sides and finish by reflexivity
-  simp [hL, hR]
+private lemma digitsBE_fixed_lt_base {D n width d : ℕ} (hD : 1 < D) :
+    d ∈ digitsBE_fixed D n width → d < D := by
+  intro hd
+  have : d ∈ digitsLE_fixed D n width := by
+    -- mem(reverse xs) ↔ mem xs
+    simpa [digitsBE_fixed] using List.mem_reverse.mp hd
+  exact digitsLE_fixed_lt_base hD this
 
+/-- Under `n < D^width`, `ofDigits` of the fixed-width LE digits is `n`. -/
+private lemma ofDigits_digitsLE_fixed
+  {D n width : ℕ} (hD : 1 < D) (hn : n < D^width) :
+  Nat.ofDigits D (digitsLE_fixed D n width) = n := by
+  -- `digits_length_le_iff` gives `(digits D n).length ≤ width`
+  have hlen : (Nat.digits D n).length ≤ width :=
+    (Nat.digits_length_le_iff hD n).2 hn
+  -- thus `take width` is no-op
+  have ht : (Nat.digits D n).take width = Nat.digits D n :=
+    List.take_of_length_le hlen
+  unfold digitsLE_fixed
+  -- `ofDigits` ignores trailing zeros
+  simp [ht, Nat.ofDigits_append_replicate_zero, Nat.ofDigits_digits]
 
-lemma natToDigitsLE_inj {b n m width : ℕ}
-    (hb0 : b ≠ 0)
-    (hn : n < b ^ width) (hm : m < b ^ width)
-    (h : natToDigitsLE b n width = natToDigitsLE b m width) :
-    n = m := by
-  induction width generalizing n m with
-  | zero =>
-      -- b^0 = 1, so n,m < 1
-      have hn1 : n < 1 := by simpa using hn
-      have hm1 : m < 1 := by simpa using hm
-      have hn0 : n = 0 := (Nat.lt_one_iff.mp hn1)
-      have hm0 : m = 0 := (Nat.lt_one_iff.mp hm1)
-      simp [hn0, hm0]
-  | succ w ih =>
-      -- unfold the (w+1)-digits into head+tail
-      have hsN :
-          natToDigitsLE b n (w+1) = (n % b) :: natToDigitsLE b (n / b) w :=
-        natToDigitsLE_succ b n w
-      have hsM :
-          natToDigitsLE b m (w+1) = (m % b) :: natToDigitsLE b (m / b) w :=
-        natToDigitsLE_succ b m w
+/-- LE bridge: dropping `(v-w)` low digits corresponds to dividing by `D^(v-w)`. -/
+private lemma digitsLE_fixed_drop_eq_div
+  {D m w v : ℕ} (hD : 1 < D) (hm : m < D^v) (hvw : w ≤ v) :
+  (digitsLE_fixed D m v).drop (v - w) =
+    digitsLE_fixed D (m / D^(v-w)) w := by
+  have hDpos : 0 < D := lt_trans Nat.zero_lt_one hD
 
-      have h' :
-          (n % b) :: natToDigitsLE b (n / b) w
-            = (m % b) :: natToDigitsLE b (m / b) w := by
-        simpa [hsN, hsM] using h
+  have wL :
+      ∀ d ∈ (digitsLE_fixed D m v).drop (v-w), d < D := by
+    intro d hd
+    exact digitsLE_fixed_lt_base hD
+      (List.mem_of_mem_drop hd)
 
-      have hmod : n % b = m % b := (List.cons.inj h').1
-      have htail : natToDigitsLE b (n / b) w = natToDigitsLE b (m / b) w :=
-        (List.cons.inj h').2
+  have wR :
+      ∀ d ∈ digitsLE_fixed D (m / D^(v-w)) w, d < D := by
+    intro d hd
+    exact digitsLE_fixed_lt_base hD hd
 
-      -- bounds: n/b, m/b < b^w
-      have hbpos : 0 < b := Nat.pos_of_ne_zero hb0
+  have h_ofDigits_L :
+      Nat.ofDigits D ((digitsLE_fixed D m v).drop (v-w))
+        = Nat.ofDigits D (digitsLE_fixed D m v) / D^(v-w) := by
+    -- `ofDigits_div_pow_eq_ofDigits_drop` gives `/` = ofDigits(drop); rearrange
+    simpa [eq_comm] using
+      (Nat.ofDigits_div_pow_eq_ofDigits_drop
+        (p:=D) (i:=v-w) (hpos:=hDpos)
+        (digits:=digitsLE_fixed D m v)
+        (w₁:=fun _ => digitsLE_fixed_lt_base hD)).symm
 
-      have hnq : n / b < b ^ w := by
-        -- want: n < (b^w) * b
-        have hn' : n < (b ^ w) * b := by
-          -- b^(w+1) = b^w * b
-          simpa [Nat.pow_succ, Nat.mul_assoc] using hn
-        exact (Nat.div_lt_iff_lt_mul hbpos).2 hn'
-
-      have hmq : m / b < b ^ w := by
-        have hm' : m < (b ^ w) * b := by
-          simpa [Nat.pow_succ, Nat.mul_assoc] using hm
-        exact (Nat.div_lt_iff_lt_mul hbpos).2 hm'
-
-      have hdiv : n / b = m / b := ih hnq hmq htail
-      -- reconstruct from quotient+remainder
+  have hq : m / D^(v-w) < D^w := by
+    have hvpow : D^v = D^(v-w) * D^w := by
       calc
-        n = (n / b) * b + (n % b) := by
-          simpa [Nat.div_add_mod] using (Nat.div_add_mod' n b).symm
-        _ = (m / b) * b + (m % b) := by simp [hdiv, hmod]
-        _ = m := by
-          simpa [Nat.div_add_mod] using (Nat.div_add_mod' m b)
+        D^v = D^((v-w)+w) := by simp [Nat.sub_add_cancel hvw]
+        _   = D^(v-w) * D^w := by simp [Nat.pow_add]
+    have : m < D^(v-w) * D^w := by simpa [hvpow] using hm
+    have hpos : 0 < D^(v-w) := Nat.pow_pos hDpos
+    exact (Nat.div_lt_iff_lt_mul hpos).2
+      (by simpa [Nat.mul_comm, Nat.mul_left_comm, Nat.mul_assoc] using this)
 
+  -- conclude list equality by `ofDigits` injectivity (fixed length + digit bounds)
+  apply Nat.ofDigits_inj_of_len_eq (b:=D) hD
+  · -- length equality
+    simp [digitsLE_fixed_length, hvw, Nat.sub_sub_right]
+  · exact wL
+  · exact wR
+  · -- ofDigits equality
+    calc
+      Nat.ofDigits D ((digitsLE_fixed D m v).drop (v-w))
+          = Nat.ofDigits D (digitsLE_fixed D m v) / D^(v-w) := h_ofDigits_L
+      _   = m / D^(v-w) := by simp [ofDigits_digitsLE_fixed hD hm]
+      _   = Nat.ofDigits D (digitsLE_fixed D (m / D^(v-w)) w) := by simp [ofDigits_digitsLE_fixed hD hq]
 
-/-- BE digits reversed are LE digits.  (Works for any `b`, no assumptions.) -/
-lemma natToDigitsBE_reverse (b n width : ℕ) :
-    (natToDigitsBE b n width).reverse = natToDigitsLE b n width := by
-  -- compare by `get?` at every index
-  apply List.ext_get
-  · simp [natToDigitsBE, natToDigitsLE]
-  · intro i h1 h2
-    -- turn the bounds into `i < width`
-    have hi : i < width := by
-      -- `h2 : i < (natToDigitsLE ...).length`
-      simpa [natToDigitsLE] using h2
+/-- BE bridge: taking `w` MSB digits corresponds to dividing by `D^(v-w)`. -/
+private lemma digitsBE_fixed_take_eq_div
+  {D m w v : ℕ} (hD : 1 < D) (hm : m < D^v) (hvw : w ≤ v) :
+  (digitsBE_fixed D m v).take w =
+    digitsBE_fixed D (m / D^(v-w)) w := by
+  unfold digitsBE_fixed
+  have hl : (digitsLE_fixed D m v).length = v := by
+    simp [digitsLE_fixed_length]
+  -- `take` on `reverse` becomes `reverse` of `drop (len - w)`
+  -- `List.take_reverse` is in `Mathlib.Data.List.Basic`.
+  -- Statement: `l.reverse.take n = (l.drop (l.length - n)).reverse`.
+  simp [List.take_reverse, hl,
+        digitsLE_fixed_drop_eq_div hD hm hvw]
 
-    have hwpos : 0 < width := zero_lt_of_lt hi
-
-    -- index used by `reverse`: `width - 1 - i`
-    have hidx : width - 1 - i < (natToDigitsBE b n width).length := by
-      -- `width - 1 - i ≤ width - 1 < width = length`
-      have hle : width - 1 - i ≤ width - 1 := Nat.sub_le _ _
-      have hlt : width - 1 < width := Nat.pred_lt (Nat.ne_zero_of_lt hi)
-      -- rewrite the RHS length
-      simpa [natToDigitsBE] using lt_of_le_of_lt hle hlt
-
-    -- arithmetic: reversing twice lands back on `i`
-    have hsub : width - 1 - (width - 1 - i) = i := by
-      have : i ≤ width - 1 := Nat.le_pred_of_lt hi
-      omega
-    simp [natToDigitsBE, natToDigitsLE, hsub]
-
-/-- `natToDigitsBE` is injective for `n,m < b^width`. -/
-lemma natToDigitsBE_inj {b n m width : ℕ}
-    (hb0 : b ≠ 0)
-    (hn : n < b ^ width) (hm : m < b ^ width)
-    (h : natToDigitsBE b n width = natToDigitsBE b m width) :
-    n = m := by
-  -- reverse both sides, then rewrite BE.reverse to LE
-  have hrev : (natToDigitsBE b n width).reverse = (natToDigitsBE b m width).reverse :=
-    congrArg List.reverse h
-  have hLE : natToDigitsLE b n width = natToDigitsLE b m width := by
-    -- use the bridge on both sides
-    simpa [natToDigitsBE_reverse] using hrev
-  -- finish with your LE injectivity lemma
-  exact natToDigitsLE_inj (b := b) (n := n) (m := m) (width := width) hb0 hn hm hLE
-
-/--
-Prefix characterization (MSB-first): `natToDigitsBE b n w` is a prefix of `natToDigitsBE b m v`
-iff `w ≤ v` and dividing `m` by `b^(v-w)` yields `n`.
-
-The bounds `n < b^w`, `m < b^v` are needed because the fixed-width encoding truncates higher digits.
--/
-lemma natToDigitsBE_prefix_iff_div
-    {b n m w v : ℕ} (hb : 0 < b)
-    (hn : n < b^w) (hm : m < b^v) :
-    natToDigitsBE b n w <+: natToDigitsBE b m v
-      ↔ w ≤ v ∧ m / b^(v - w) = n := by
+/-- Nat-level prefix characterization for fixed-width BE digits. -/
+private lemma digitsBE_fixed_prefix_iff_div
+  {D n m w v : ℕ} (hD : 1 < D)
+  (hn : n < D^w) (hm : m < D^v) :
+  digitsBE_fixed D n w <+: digitsBE_fixed D m v
+    ↔ w ≤ v ∧ m / D^(v-w) = n := by
   constructor
   · intro hpre
     have hwv : w ≤ v := by
-      -- length monotonicity of prefix
       have := hpre.length_le
-      simpa [natToDigitsBE_length] using this
+      simpa [digitsBE_fixed_length] using this
 
-    -- turn prefix into an equality about `take`
-    have ht_take : (natToDigitsBE b m v).take w = natToDigitsBE b n w := by
-      rcases hpre with ⟨t, n_append⟩
-      rw [<-n_append]
-      simp [natToDigitsBE_length]
-
-    -- use the div/take bridge:
-    -- digits of (m / b^(v-w)) at width w = take w digits of m at width v
-    have hdigits :
-        natToDigitsBE b (m / b^(v - w)) w = natToDigitsBE b n w := by
+    -- Prefix -> take equality on length w
+    have ht :
+        (digitsBE_fixed D m v).take w = digitsBE_fixed D n w := by
+      rcases hpre with ⟨t, ht⟩
+      -- take w of both sides; use `take_append` normal form
+      -- `take w (A ++ t) = A` when `A.length = w`.
+      have hlenA : (digitsBE_fixed D n w).length = w := digitsBE_fixed_length D n w
+      -- rewrite, then simplify
+      -- `List.take_append` is the standard lemma: `take n (l1++l2) = take n l1 ++ take (n-l1.length) l2`.
+      -- With `n = l1.length`, it collapses to `l1`.
       calc
-        natToDigitsBE b (m / b^(v - w)) w
-            = (natToDigitsBE b m v).take w := natToDigitsBE_div_eq_take (b:=b) (m:=m) hb hwv
-        _   = natToDigitsBE b n w := ht_take
+        (digitsBE_fixed D m v).take w
+            = ((digitsBE_fixed D n w) ++ t).take w := by simp [ht]
+        _   = (digitsBE_fixed D n w) := by simp [hlenA]
 
-    -- conclude quotient equality by injectivity of BE encoding on the bounded range.
-    -- You said you already proved the general `natToDigitsLE_inj`; typically you prove
-    -- `natToDigitsBE_inj` from it (reverse index), then use it here.
-    have hq_lt : m / b^(v - w) < b^w := by
-      -- from hm: m < b^v = b^(v-w) * b^w
-      have : m < b^(v - w) * b^w := by
-        -- because v = (v-w) + w when w ≤ v
-        have : b^v = b^(v - w) * b^w := by
-          -- `pow_add` with `v = (v-w)+w`
-          -- `Nat.sub_add_cancel hwv : v - w + w = v`
-          rw [<-Nat.pow_add]
-          simp_all only [Nat.sub_add_cancel]
-        -- rewrite hm using that factorization
-        simpa [this] using hm
-      exact Nat.div_lt_of_lt_mul this
-
-    -- bound the quotient: (m / b^(v-w)) < b^w
-    have hb0 : b ≠ 0 := Nat.ne_of_gt hb
-
-    -- bridge: take w digits of BE(v) = BE(w) of quotient
-    have hdigits :
-        natToDigitsBE b (m / b^(v - w)) w = natToDigitsBE b n w := by
+    -- rewrite take via division bridge
+    have hdiv_eq :
+        digitsBE_fixed D (m / D^(v-w)) w = digitsBE_fixed D n w := by
       calc
-        natToDigitsBE b (m / b^(v - w)) w
-            = (natToDigitsBE b m v).take w := natToDigitsBE_div_eq_take (b:=b) (m:=m) (w:=w) (v:=v) hb hwv
-        _   = natToDigitsBE b n w := ht_take
+        digitsBE_fixed D (m / D^(v-w)) w
+            = (digitsBE_fixed D m v).take w := by
+                symm
+                exact digitsBE_fixed_take_eq_div hD hm hwv
+        _   = digitsBE_fixed D n w := ht
 
-    -- injectivity on width w gives quotient = n
-    have hdiv : m / b^(v - w) = n := by
-      -- use your BE injectivity lemma (likely proved via reverse+LE_inj)
-      exact natToDigitsBE_inj (b:=b) (n:=m / b^(v - w)) (m:=n) (width:=w)
-            hb0 hq_lt hn hdigits
-    exact ⟨hwv, hdiv⟩
+    -- Turn BE equality into LE equality by reversing both sides.
+    have hLE :
+        digitsLE_fixed D (m / D^(v-w)) w = digitsLE_fixed D n w := by
+      -- `digitsBE_fixed = reverse digitsLE_fixed`, so reversing cancels.
+      simpa [digitsBE_fixed] using congrArg List.reverse hdiv_eq
+
+    -- Turn LE equality into equality of numbers via `ofDigits_digitsLE_fixed`.
+    have hq : m / D^(v-w) < D^w := by
+      have hDpos : 0 < D := lt_trans Nat.zero_lt_one hD
+      have hvpow : D^v = D^(v-w) * D^w := by
+        calc
+          D^v = D^((v-w)+w) := by simp [Nat.sub_add_cancel hwv]
+          _   = D^(v-w) * D^w := by simp [Nat.pow_add]
+      have : m < D^(v-w) * D^w := by simpa [hvpow] using hm
+      have hpos : 0 < D^(v-w) := Nat.pow_pos hDpos
+      exact (Nat.div_lt_iff_lt_mul hpos).2
+        (by simpa [Nat.mul_comm, Nat.mul_left_comm, Nat.mul_assoc] using this)
+
+    have : m / D^(v-w) = n := by
+      have h_of := congrArg (Nat.ofDigits D) hLE
+      simpa
+        [ ofDigits_digitsLE_fixed hD hq
+        , ofDigits_digitsLE_fixed hD hn
+        ] using h_of
+
+    exact ⟨hwv, this⟩
 
   · rintro ⟨hwv, hdiv⟩
-    -- show prefix by exhibiting the tail `drop w`
-    refine ⟨(natToDigitsBE b m v).drop w, ?_⟩
-    -- use take_append_drop: take w B ++ drop w B = B
-    -- and identify take w B with natToDigitsBE b n w via the bridge + hdiv
-    have ht_take : (natToDigitsBE b m v).take w = natToDigitsBE b n w := by
-      -- rewrite m / ... = n
-      simpa [hdiv] using (natToDigitsBE_div_eq_take (b:=b) (m:=m) (w:=w) (v:=v) hb hwv).symm
+    -- show prefix by `take_append_drop`
+    refine ⟨(digitsBE_fixed D m v).drop w, ?_⟩
+    have ht :
+        (digitsBE_fixed D m v).take w = digitsBE_fixed D n w := by
+      have htake :=
+        digitsBE_fixed_take_eq_div hD hm hwv
+      simpa [hdiv] using htake
+    simpa [ht] using (List.take_append_drop w (digitsBE_fixed D m v))
 
-    -- now finish: B = (take w B) ++ (drop w B) = A ++ tail
-    simpa [ht_take] using (List.take_append_drop w (natToDigitsBE b m v))
+/- ========== PUBLIC API ========== -/
 
-def natToDigitsBEFin (D n width : ℕ) (ne: 0 < D): List (Fin D) :=
-  List.ofFn (fun i : Fin width =>
-    ⟨ n / D^(width - 1 - (i:ℕ)) % D, Nat.mod_lt _ ne⟩ )
+/-- Fixed-width, MSB-first digits of `n` base `D`, as `Fin D`. -/
+def natToDigitsBEFin (D n width : ℕ) (hD : 1 < D) : List (Fin D) :=
+  (digitsBE_fixed D n width).pmap
+    (fun d hd => ⟨d, hd⟩)
+    (fun _ hd => digitsBE_fixed_lt_base hD hd)
 
-/-- `natToDigitsBEFin` and `natToDigitsBE` produce the same digits. -/
-lemma natToDigitsBEFin_eq_map (D n w : ℕ) (hD : 0 < D) :
-    (natToDigitsBEFin D n w hD).map (·.val) = natToDigitsBE D n w := by
-  simp only [natToDigitsBEFin, natToDigitsBE, List.map_ofFn]
-  rfl
+@[simp]
+lemma natToDigitsBEFin_length (D n width : ℕ) (hD : 1 < D) :
+    (natToDigitsBEFin D n width hD).length = width := by
+  simp [natToDigitsBEFin, digitsBE_fixed_length]
 
-@[simp] lemma natToDigitsBEFin_length (D n w : ℕ) (hD : 0 < D) :
-    (natToDigitsBEFin D n w hD).length = w := by
-  simp [natToDigitsBEFin]
+/-- Internal bridge: forgetting `Fin` gives the underlying Nat BE digits. -/
+@[simp]
+private lemma natToDigitsBEFin_map_val (D n width : ℕ) (hD : 1 < D) :
+    (natToDigitsBEFin D n width hD).map (fun x => x.val)
+      = digitsBE_fixed D n width := by
+  -- general lemma: mapping `val` over `pmap (Fin.mk)` returns the original list
+  have map_val_pmap_mk :
+      ∀ (xs : List ℕ) (hx : ∀ d ∈ xs, d < D),
+        (List.pmap (fun d hd => (⟨d, hd⟩ : Fin D)) xs hx).map (fun x => x.val) = xs := by
+    intro xs hx
+    induction xs with
+    | nil =>
+        simp [List.pmap]
+    | cons a tl ih =>
+        have ha : a < D := hx a (by simp)
+        have htl : ∀ d ∈ tl, d < D := by
+          intro d hd
+          exact hx d (by simp [hd])
+        simp [List.pmap, ih htl]
 
-variable {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
+  unfold natToDigitsBEFin
+  simpa using map_val_pmap_mk (digitsBE_fixed D n width)
+    (by
+      intro d hd
+      exact digitsBE_fixed_lt_base hD hd)
 
-noncomputable def natToWord (n width : ℕ) : List α :=
-  (natToDigitsBEFin (Fintype.card α) n width Fintype.card_pos).map ((Fintype.equivFin α).symm)
-
-/-- Length of `natToWord`. -/
-@[simp] lemma natToWord_length {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
-    (n w : ℕ) : (natToWord n w : List α).length = w := by
-  simp [natToWord]
-
+/-- Prefix characterization (MSB-first): prefix iff quotient agrees. -/
 lemma natToDigitsBEFin_prefix_iff_div
-  {D n m w v : ℕ} (hD : 0 < D)
+  {D n m w v : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^v) :
   natToDigitsBEFin D n w hD <+: natToDigitsBEFin D m v hD
     ↔ w ≤ v ∧ m / D^(v - w) = n := by
-  -- proof: map (·.val), rewrite with natToDigitsBEFin_eq_map,
-  -- then apply natToDigitsBE_prefix_iff_div, then pull back.
-  -- 1. Transform the prefix relation on Fin lists to a prefix relation on Nat lists
-  --    using the injectivity of the mapping function (Fin.val).
-  rw [← List.IsPrefix.map_iff Fin.val_injective]
+  -- reduce prefix on `Fin` lists to prefix on Nat lists
+  rw [←List.IsPrefix.map_iff Fin.val_injective]
+  simp [natToDigitsBEFin_map_val]
+  exact digitsBE_fixed_prefix_iff_div hD hn hm
 
-  -- 2. Rewrite the mapped lists using the equivalence lemma `natToDigitsBEFin_eq_map`.
-  --    This turns `(natToDigitsBEFin ...).map val` into `natToDigitsBE ...`.
-  simp only [natToDigitsBEFin_eq_map]
-
-  -- 3. Apply the previously proved lemma for `natToDigitsBE`.
-  exact natToDigitsBE_prefix_iff_div hD hn hm
-
+/-- Injectivity under the Kraft bound `n,m < D^w`. -/
 lemma natToDigitsBEFin_inj
-  {D n m w : ℕ} (hD : 0 < D)
+  {D n m w : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^w)
   (h : natToDigitsBEFin D n w hD = natToDigitsBEFin D m w hD) :
   n = m := by
-  -- proof: congrArg (List.map (·.val)) h, rewrite with natToDigitsBEFin_eq_map,
-  -- then use natToDigitsBE_inj.
-  -- 1. Apply `map (·.val)` to both sides of the equality `h`.
-  have h_map := congrArg (List.map (·.val)) h
+  -- forget `Fin` and reduce to Nat BE equality
+  have h_map := congrArg (List.map (fun x => x.val)) h
+  have h_nat : digitsBE_fixed D n w = digitsBE_fixed D m w := by
+    simpa [natToDigitsBEFin_map_val] using h_map
 
-  -- 2. Rewrite the mapped lists to their Nat equivalents.
-  simp only [natToDigitsBEFin_eq_map] at h_map
+  -- cancel reverse to get LE equality
+  have h_le : digitsLE_fixed D n w = digitsLE_fixed D m w := by
+    -- `digitsBE_fixed = reverse digitsLE_fixed`
+    have := congrArg List.reverse h_nat
+    simpa [digitsBE_fixed] using this
 
-  -- 3. Apply the injectivity lemma for `natToDigitsBE`.
-  --    Note: We need `D ≠ 0`, which follows from `0 < D`.
-  exact natToDigitsBE_inj (Nat.ne_of_gt hD) hn hm h_map
+  -- apply `ofDigits` and use the reconstruction lemma under bounds
+  have h_of := congrArg (Nat.ofDigits D) h_le
+  simpa
+    [ ofDigits_digitsLE_fixed hD hn
+    , ofDigits_digitsLE_fixed hD hm
+    ] using h_of
 
 end Digits
