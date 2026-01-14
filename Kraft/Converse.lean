@@ -217,14 +217,12 @@ theorem exists_code_fin
     have h_pref_lt1 : (∑ t ∈ Finset.range i.val, (1 / D : ℝ) ^ lNat t) < 1 :=
       sum_range_lt_one_of_sum_range_le_one h_pos i.isLt lNat h_sum_range
     -- Result for lNat, then rewrite to l
-    have := kraft_numerator_lt_pow_of_sum_range_lt_one _ hD lNat hmonoNat h_pref_lt1
-    have this' : kraft_numerator D lNat i.val < D ^ lNat i.val :=
+    have : kraft_numerator D lNat i.val < D ^ lNat i.val :=
       kraft_numerator_lt_pow_of_sum_range_lt_one
-        (D := D) (hD := hD) (lNat := lNat) (hmono := hmonoNat)
-        (n := i.val) (h_sum_lt1 := h_pref_lt1)
+        (hD := hD) (hmono := hmonoNat) (h_sum_lt1 := h_pref_lt1)
 
     -- rewrite `A` and `lNat i.val`
-    simpa [A, lNat, ext_shift, i.isLt] using this'
+    simpa [A, lNat, ext_shift, i.isLt] using this
 
   -- 4. Define code
   let w (i : Fin k) := Digits.natToDigitsBE D (A i.val) (l i) (by omega)

@@ -25,8 +25,7 @@ variable {α : Type _}
 
 lemma UniquelyDecodable.flatten_injective
   {S : Set (List α)} (h : UniquelyDecodable S) :
-  Function.Injective (fun (L : {L : List (List α) // ∀ x ∈ L, x ∈ S}) => L.1.flatten) :=
-by
+  Function.Injective (fun (L : {L : List (List α) // ∀ x ∈ L, x ∈ S}) => L.1.flatten) := by
   intro L1 L2 hflat
   apply Subtype.ext
   exact h L1.1 L2.1 L1.2 L2.2 hflat
@@ -36,7 +35,7 @@ by
 This is the key property: distinct tuples of codewords produce distinct concatenations. -/
 lemma uniquelyDecodable_concatFn_injective
   {S : Set (List α)} (h : UniquelyDecodable S) (r : ℕ) :
-  Function.Injective (concatFn (α := α) (S := S) (r := r)) := by
+  Function.Injective (concatFn (S := S) (r := r)) := by
   intro w1 w2 hflat
 
   -- package tuples as subtype-lists
@@ -68,8 +67,7 @@ lemma uniquelyDecodable_concatFn_injective
 lemma disjoint_filter_eq_of_ne
   {β γ: Type _} [DecidableEq γ] {S : Finset β}
   (f : β → γ) {a b : γ} (hab : a ≠ b) :
-  Disjoint (S.filter (fun x => f x = a)) (S.filter (fun x => f x = b)) :=
-by
+  Disjoint (S.filter (fun x => f x = a)) (S.filter (fun x => f x = b)) := by
   refine Finset.disjoint_left.2 ?_
   intro x hx hx'
   have hlen1: f x = a := (Finset.mem_filter.1 hx).2
@@ -123,29 +121,17 @@ lemma kraft_sum_pow_eq_sum_concatFn
     rw [show (∑ w ∈ S, (1 / (D : ℝ)) ^ w.length) ^ r
           = ∏ _i : Fin r, (∑ w ∈ S, (1 / (D : ℝ)) ^ w.length) from by simp]
     -- distribute product over sums (over `Finset.univ`)
-    rw [Finset.prod_sum]
+    rw [Finset.prod_sum, Finset.sum_bij]
     -- now reindex the resulting `Finset.pi` as actual functions `Fin r → S`
-    refine Finset.sum_bij
-      (fun a ha i =>
-        ⟨a i (Finset.mem_univ i), (Finset.mem_pi.mp ha i (Finset.mem_univ i))⟩)
-      (by intro a ha; simp) -- show the summands match after reindexing
-      (by
-        intro a₁ ha₁ a₂ ha₂ hfun
-        -- this is the robust way; avoids the get?/Option mess
-        simpa [funext_iff] using hfun)
-      (by
-        intro b hb
-        -- build an element of the `pi` finset from a function `Fin r → S`
-        refine ⟨(fun i _ => (b i).1),
-          ?_, ?_⟩
-        · -- membership in the pi finset
-          refine Finset.mem_pi.mpr ?_
-          intro i hi
-          simp
-        · rfl -- and it maps back to b
-      )
-      (by simp) -- side condition: mapped elements land in the right place
-
+    · intros a ha i
+      exact ⟨a i (Finset.mem_univ i), (Finset.mem_pi.mp ha i (Finset.mem_univ i))⟩
+    · simp
+    · intro a₁ ha₁ a₂ ha₂
+      simp [funext_iff]
+    · intro b hb
+      -- build an element of the `pi` finset from a function `Fin r → S`
+      exact ⟨(fun i _ => (b i).1),  (Finset.mem_pi.mpr (by simp)), rfl⟩
+    · simp
   -- Rewrite the product of powers as a single power using concat length
   have h_term :
       ∀ w : Fin r → S,
@@ -325,7 +311,7 @@ theorem kraft_mcmillan_inequality {S : Finset (List α)} [DecidableEq α] [Finty
   linarith
 
 
-variable {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
+variable [DecidableEq α] [Fintype α] [Nonempty α]
 
 /-- **Kraft's Inequality**: If `S` is a finite prefix-free code over an alphabet of size `D`,
 then `∑_{w ∈ S} D^{-|w|} ≤ 1`.
@@ -334,8 +320,9 @@ This follows from the Kraft-McMillan inequality since prefix-free codes are uniq
 theorem kraft_inequality (S : Finset (List α)) (hpf : PrefixFree (S : Set (List α))) :
     ∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length ≤ 1 := by
   by_cases he : [] ∈ S
-  · have h_eq : S = {[]} := by
-      exact_mod_cast epsilon_prefix_singleton (S := (S : Set (List α))) hpf he
+  · simp
+    have h_eq : S = {[]} := by
+      exact_mod_cast epsilon_prefix_singleton hpf he
     subst h_eq
     simp
   · have hud : UniquelyDecodable (S : Set (List α)) :=

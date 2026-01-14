@@ -36,8 +36,7 @@ theorem kraft_inequality_infinite (S : Set (List α)) (h : PrefixFree S) :
     apply kraft_inequality F (fun x hx y hy hxy => h x (hF hx) y (hF hy) hxy)
   refine' ⟨ _, _ ⟩
   · have h_summable : Summable (fun w : S => (1 / D : ℝ) ^ w.val.length) := by
-      refine' summable_of_sum_le _ _
-      exact 1
+      refine summable_of_sum_le (c := 1) ?_ ?_
       · intro _
         positivity
       · intro u
