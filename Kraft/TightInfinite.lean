@@ -148,7 +148,7 @@ Separation property for `A = kraft_numerator D l`:
 if `i < j` then you cannot have `A j / D^(l j - l i) = A i` (even assuming `l i ≤ l j`).
 -/
 lemma kraft_numerator_div_separated_of_lt
-    (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ)
+    {D : ℕ} {l : ℕ → ℕ} (hD : 1 < D)
     (hmono : Monotone l) :
     ∀ {i j : ℕ}, i < j →
       ¬ (l i ≤ l j ∧ kraft_numerator D l j / D ^ (l j - l i) = kraft_numerator D l i) := by
@@ -553,9 +553,8 @@ theorem kraft_inequality_tight_nat_mono_fin
 
 /-- Sufficient separation condition for prefix-freeness via the `div` characterization. -/
 lemma prefixFree_range_natToDigitsBEFin_of_div_separated
-    {D : ℕ} (hD : 1 < D) {k : ℕ}
-    (l : Fin k → ℕ)
-    (A : ℕ → ℕ)
+    {D : ℕ} {k : ℕ} {l : Fin k → ℕ} {A : ℕ → ℕ}
+    (hD : 1 < D)
     (hA_lt : ∀ i : Fin k, A i.val < D ^ l i)
     (hSep :
       ∀ {i j : Fin k}, i ≠ j → ¬
@@ -702,71 +701,76 @@ lemma kraft_inequality_tight_fin
 
   · -- PrefixFree
     -- package the heavy argument once
-    simpa [w] using
-      (prefixFree_range_natToDigitsBEFin_of_div_separated
-        (hD := hD) (l := l) (A := A) hA_lt (by
-          intro i j hij
-          -- reduce to Nat indices
-          -- (1) decide which one is smaller
-          rcases lt_trichotomy i.val j.val with hlt | heq | hgt
-          · -- i.val < j.val
-            -- Here you use the Nat lemma for the generator `A = kraft_numerator D lNat`
-            -- specialized to i.val < j.val, then rewrite lNat = l on < k.
-            -- This is the only “real” content.
-            have : ¬ (lNat i.val ≤ lNat j.val ∧ A j.val / D ^ (lNat j.val - lNat i.val) = A i.val) := by
-              -- main invariant of kraft_numerator (Nat-indexed separation)
-              exact kraft_numerator_div_separated_of_lt
-                (D := D) (l := lNat) (hmono := hmonoNat) hD hlt
-            -- now rewrite lNat at i.val and j.val into l i and l j
-            -- because i.val < k and j.val < k
-            simpa [lNat, ext_shift, i.isLt, j.isLt] using this
-          · exact (hij (Fin.ext (by simpa using heq))).elim
-          · -- i.val > j.val
-            -- If l i ≤ l j holds, then (since l is monotone) impossible when i>j
-            -- or you can just reduce to the lt-case by symmetry.
-            -- simplest: swap roles and use the lt-case lemma, then contradict.
-            have hlt' : j.val < i.val := hgt
-            have : ¬ (lNat j.val ≤ lNat i.val ∧ A i.val / D ^ (lNat i.val - lNat j.val) = A j.val) := by
-              exact kraft_numerator_div_separated_of_lt
-                (D := D) (l := lNat) (hmono := hmonoNat) hD hlt'
-            -- From the negated swapped statement, get the desired negation by
-            -- noticing your target antecedent is “l i ≤ l j ∧ ... = ...”.
-            -- This last step is just “not_and_or” reshuffling; do it via `intro h; ...`.
-            intro h
-            -- h : l i ≤ l j ∧ A j.val / ... = A i.val
-            -- turn it into the swapped form using arithmetic + monotonicity;
-            -- easiest is to just mark this as a tiny helper.
-            apply this
+    suffices hraw :
+      PrefixFree
+        (Set.range (fun i : Fin k =>
+          Digits.natToDigitsBEFin D (A i.val) (l i) (by omega))) by
+      -- convert raw goal back to PrefixFree (Set.range w)`
+      simpa [w] using hraw
 
-            have hji : j ≤ i :=
-              Fin.le_iff_val_le_val.2 (Nat.le_of_lt hgt)
+    refine prefixFree_range_natToDigitsBEFin_of_div_separated hD hA_lt ?_
 
-            have h_lj_le_li : l j ≤ l i :=
-              h_mono hji
+    intro i j hij
+    -- reduce to Nat indices
+    -- (1) decide which one is smaller
+    rcases lt_trichotomy i.val j.val with hlt | heq | hgt
+    · -- i.val < j.val
+      -- Here you use the Nat lemma for the generator `A = kraft_numerator D lNat`
+      -- specialized to i.val < j.val, then rewrite lNat = l on < k.
+      have : ¬ (lNat i.val ≤ lNat j.val ∧ A j.val / D ^ (lNat j.val - lNat i.val) = A i.val) := by
+        -- main invariant of kraft_numerator (Nat-indexed separation)
+        exact kraft_numerator_div_separated_of_lt
+          (D := D) (l := lNat) (hmono := hmonoNat) hD hlt
+      -- now rewrite lNat at i.val and j.val into l i and l j
+      -- because i.val < k and j.val < k
+      simpa [lNat, ext_shift, i.isLt, j.isLt] using this
+    · exact (hij (Fin.ext (by simpa using heq))).elim
+    · -- i.val > j.val
+      -- If l i ≤ l j holds, then (since l is monotone) impossible when i>j
+      -- or you can just reduce to the lt-case by symmetry.
+      -- simplest: swap roles and use the lt-case lemma, then contradict.
+      have hlt' : j.val < i.val := hgt
+      have : ¬ (lNat j.val ≤ lNat i.val ∧ A i.val / D ^ (lNat i.val - lNat j.val) = A j.val) := by
+        exact kraft_numerator_div_separated_of_lt
+          (D := D) (l := lNat) (hmono := hmonoNat) hD hlt'
+      -- From the negated swapped statement, get the desired negation by
+      -- noticing your target antecedent is “l i ≤ l j ∧ ... = ...”.
+      -- This last step is just “not_and_or” reshuffling; do it via `intro h; ...`.
+      intro h
+      -- h : l i ≤ l j ∧ A j.val / ... = A i.val
+      -- turn it into the swapped form using arithmetic + monotonicity;
+      -- easiest is to just mark this as a tiny helper.
+      apply this
 
-            -- from h.1 : l i ≤ l j and monotonicity : l j ≤ l i
-            have h_len_eq : l i = l j :=
-              le_antisymm h.1 h_lj_le_li
+      have hji : j ≤ i :=
+        Fin.le_iff_val_le_val.2 (Nat.le_of_lt hgt)
 
-            -- turn h.2 into A j = A i (because exponent becomes 0)
-            have h_Aj_eq_Ai : A (↑j) = A (↑i) := by
-              -- h.2 : A ↑j / D^(l j - l i) = A ↑i
-              have : l j - l i = 0 := by simp [h_len_eq]
-              simpa [this] using h.2
+      have h_lj_le_li : l j ≤ l i :=
+        h_mono hji
 
-            have h_Ai_eq_Aj : A (↑i) = A (↑j) := h_Aj_eq_Ai.symm
+      -- from h.1 : l i ≤ l j and monotonicity : l j ≤ l i
+      have h_len_eq : l i = l j :=
+        le_antisymm h.1 h_lj_le_li
 
-            constructor
-            · -- lNat ↑j ≤ lNat ↑i
-              -- for indices < k, lNat agrees with l
-              simpa [lNat, ext_shift, j.isLt, i.isLt] using h_lj_le_li
-            · -- A ↑i / D^(lNat ↑i - lNat ↑j) = A ↑j
-              have : lNat (↑i) - lNat (↑j) = 0 := by
-                -- again, for < k this reduces to l i - l j, then uses h_len_eq
-                simp [lNat, h_len_eq]
-              -- now division by D^0 = 1
-              simp [this, h_Ai_eq_Aj]-- goal:
-        ))
+      -- turn h.2 into A j = A i (because exponent becomes 0)
+      have h_Aj_eq_Ai : A (↑j) = A (↑i) := by
+        -- h.2 : A ↑j / D^(l j - l i) = A ↑i
+        have : l j - l i = 0 := by simp [h_len_eq]
+        simpa [this] using h.2
+
+      have h_Ai_eq_Aj : A (↑i) = A (↑j) := h_Aj_eq_Ai.symm
+
+      constructor
+      · -- lNat ↑j ≤ lNat ↑i
+        -- for indices < k, lNat agrees with l
+        simpa [lNat, ext_shift, j.isLt, i.isLt] using h_lj_le_li
+      · -- A ↑i / D^(lNat ↑i - lNat ↑j) = A ↑j
+        have : lNat (↑i) - lNat (↑j) = 0 := by
+          -- again, for < k this reduces to l i - l j, then uses h_len_eq
+          simp [lNat, h_len_eq]
+        -- now division by D^0 = 1
+        simp [this, h_Ai_eq_Aj]-- goal:
+
   · -- Length preservation
     intro i
     simp [w]
@@ -1019,7 +1023,7 @@ This reduces the infinite case to the monotone case by using `kraftRank` to enum
 elements in increasing order of length.
 
 Generalized to any base D > 1. -/
-lemma exists_equiv_nat_monotone_of_infinite_gen {I : Type _} [Infinite I] (D : ℕ) (hD : 1 < D) (l : I → ℕ)
+lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] (D : ℕ) (hD : 1 < D) (l : I → ℕ)
     (h_summable : Summable (fun i => (1 / D : ℝ) ^ l i)) :
     ∃ e : ℕ ≃ I, Monotone (l ∘ e) := by
       have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
@@ -1064,15 +1068,6 @@ lemma exists_equiv_nat_monotone_of_infinite_gen {I : Type _} [Infinite I] (D : �
       have := kraftRank_lt_of_KraftOrder l e h_finite (KraftOrder_iff.mpr (Or.inl hnm))
       simp_all only
 
-/-- An infinite index type with summable Kraft sum can be reordered to make lengths monotone.
-
-This reduces the infinite case to the monotone case by using `kraftRank` to enumerate
-elements in increasing order of length. -/
-lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] (l : I → ℕ)
-    (h_summable : Summable (fun i => (1 / 2 : ℝ) ^ l i)) :
-    ∃ e : ℕ ≃ I, Monotone (l ∘ e) :=
-  exists_equiv_nat_monotone_of_infinite_gen 2 (by norm_num) l h_summable
-
 /-- Any finite type can be sorted by a function to ℕ.
 
 Given a fintype `I` and a function `l : I → ℕ`, produces an equivalence
@@ -1080,38 +1075,60 @@ Given a fintype `I` and a function `l : I → ℕ`, produces an equivalence
 indices to non-decreasing length values). Uses insertion sort internally. -/
 lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
     ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) := by
-      have h_order_iso : ∃ (e : Fin (Fintype.card I) ≃ I), ∀ i j, i ≤ j → l (e i) ≤ l (e j) := by
-        -- By definition of `Finset.sort`, we can obtain a sorted list of elements from `I` based on `l`.
-        obtain ⟨sorted_list, h_sorted⟩ : ∃ sorted_list : List I, List.Pairwise (fun x y => l x ≤ l y) sorted_list ∧ List.length sorted_list = Fintype.card I ∧ List.Nodup sorted_list ∧ ∀ x ∈ sorted_list, x ∈ Finset.univ := by
-          have h_insertion_sort : ∀ {xs : List I}, List.Nodup xs → ∃ sorted_list : List I, List.Pairwise (fun x y => l x ≤ l y) sorted_list ∧ List.length sorted_list = List.length xs ∧ List.Nodup sorted_list ∧ ∀ x ∈ sorted_list, x ∈ xs := by
-            have h_insertion_sort : ∀ {xs : List I}, List.Nodup xs → ∃ sorted_list : List I, List.Pairwise (fun x y => l x ≤ l y) sorted_list ∧ List.length sorted_list = List.length xs ∧ List.Nodup sorted_list ∧ ∀ x ∈ sorted_list, x ∈ xs := by
-              intro xs h_nodup
-              exact ⟨List.insertionSort (fun x y => l x ≤ l y) xs, by
-                convert List.pairwise_insertionSort _ _
-                · exact ⟨ fun x y => le_total _ _ ⟩
-                · exact ⟨ fun x y z hxy hyz => le_trans hxy hyz ⟩, by
-                exact List.length_insertionSort (fun x y ↦ l x ≤ l y) xs, by
-                exact List.Perm.nodup_iff (List.perm_insertionSort _ _) |>.2 h_nodup, by
-                exact fun x hx => List.mem_insertionSort (fun x y => l x ≤ l y) |>.1 hx⟩
-            assumption
-          simpa using h_insertion_sort (Finset.nodup_toList Finset.univ)
-        have h_equiv : ∃ e : Fin (Fintype.card I) ≃ I, ∀ i, e i = sorted_list[i] := by
-          have h_equiv : Function.Bijective (fun i : Fin (Fintype.card I) => sorted_list[i]) := by
-            have h_equiv : Function.Injective (fun i : Fin (Fintype.card I) => sorted_list[i]) := by
-              intro i j hij
-              have := List.nodup_iff_injective_get.mp h_sorted.2.2.1
-              exact Fin.ext <| by simpa [h_sorted.2.1] using this hij
-            have := Fintype.bijective_iff_injective_and_card (fun i : Fin (Fintype.card I) => sorted_list[i])
-            simp_all only [Fin.getElem_fin, Multiset.bijective_iff_map_univ_eq_univ, Fin.univ_val_map, Fintype.card_fin, and_self, iff_true]
-          exact ⟨ Equiv.ofBijective _ h_equiv, fun i => rfl ⟩
-        obtain ⟨ e, he ⟩ := h_equiv
-        refine' ⟨ e, fun i j hij => _ ⟩
-        have := List.pairwise_iff_get.mp h_sorted.1
-        cases lt_or_eq_of_le hij
-        · simp_all only []
-          exact this ⟨ i, by linarith [Fin.is_lt i, Fin.is_lt j] ⟩ ⟨ j, by linarith [Fin.is_lt i, Fin.is_lt j] ⟩ ‹_›
-        · simp_all only [Fin.getElem_fin, le_refl]
-      exact ⟨ h_order_iso.choose, fun i j hij => h_order_iso.choose_spec i j hij ⟩
+  -- sort relation by length
+  let r : I → I → Prop := fun x y => l x ≤ l y
+  have r_total : IsTotal I r := ⟨fun x y => le_total _ _⟩
+  have r_trans : IsTrans I r := ⟨fun _ _ _ => le_trans⟩
+
+  -- start from the canonical list of all elements
+  let xs : List I := (Finset.univ : Finset I).toList
+  have xs_nodup : xs.Nodup := Finset.nodup_toList (Finset.univ : Finset I)
+  have xs_len : xs.length = Fintype.card I := by simp [xs]
+
+  -- insertionSort it
+  let ys : List I := xs.insertionSort r
+  have ys_pairwise : ys.Pairwise r := by
+    -- `pairwise_insertionSort` needs total+trans packaged as instances
+    convert (List.pairwise_insertionSort r xs)
+  have ys_len : ys.length = Fintype.card I := by simp [ys, xs_len]
+  have ys_nodup : ys.Nodup := by
+    -- perm preserves nodup
+    exact (List.Perm.nodup_iff (List.perm_insertionSort r (l := xs))).2 xs_nodup
+
+  -- the "indexing function" into the sorted list
+  let f : Fin ys.length → I := fun i => ys.get i
+  have hf_inj : Function.Injective f := by
+    -- nodup ↔ get is injective
+    exact (List.nodup_iff_injective_get).1 ys_nodup
+
+  -- injective + same finite card ⇒ bijective
+  have hf_bij : Function.Bijective f := by
+    refine (Fintype.bijective_iff_injective_and_card f).2 ?_
+    refine ⟨hf_inj, ?_⟩
+    -- card (Fin ys.length) = ys.length = card I
+    simp [Fintype.card_fin, ys_len]
+
+  let e0 : Fin ys.length ≃ I := Equiv.ofBijective f hf_bij
+  -- cast domain from `Fin (card I)` to `Fin ys.length`
+  have hcast : Fintype.card I = ys.length := by simp [ys_len]
+  let cast : Fin (Fintype.card I) ≃ Fin ys.length := Fin.castOrderIso hcast
+
+  let e : Fin (Fintype.card I) ≃ I := cast.trans e0
+  refine ⟨e, ?_⟩
+
+  -- monotone: i ≤ j ⇒ l(e i) ≤ l(e j)
+  intro i j hij
+  have hij' : (cast i) ≤ (cast j) := by simpa [cast] using hij
+  rcases lt_or_eq_of_le hij' with hlt | heq
+  · -- strict case: use pairwise_iff_get
+    have hget :
+        l (ys.get (cast i)) ≤ l (ys.get (cast j)) := by
+      have hPW := List.pairwise_iff_get.1 ys_pairwise
+      exact hPW (cast i) (cast j) hlt
+    -- unfold e = cast.trans e0, and e0 is built from `f = get`
+    simpa [e, cast, e0, Equiv.ofBijective, f] using hget
+  · -- equal indices
+    simp [e, heq]
 
 variable {α : Type _} [DecidableEq α] [Fintype α] [Nontrivial α]
 
@@ -1130,7 +1147,8 @@ theorem kraft_inequality_tight_infinite_alpha
       Function.Injective w ∧
       PrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
-  have hcard : 1 < Fintype.card α := Fintype.one_lt_card
+  let D := Fintype.card α
+  have hcard : 1 < D := Fintype.one_lt_card
   by_cases h_finite : Finite I
   · haveI := Fintype.ofFinite I
     -- By `exists_equiv_fin_monotone`, there exists an equivalence `e : Fin (card I) ≃ I` such that `l ∘ e` is monotone.
@@ -1150,12 +1168,12 @@ theorem kraft_inequality_tight_infinite_alpha
       simp [hw'_len]
   · have h_equiv : ∃ e : ℕ ≃ I, Monotone (l ∘ e) := by
       have h_inf : Infinite I := not_finite_iff_infinite.mp h_finite
-      exact exists_equiv_nat_monotone_of_infinite_gen (Fintype.card α) hcard l h_summable
+      exact exists_equiv_nat_monotone_of_infinite D hcard l h_summable
     obtain ⟨e, he⟩ := h_equiv
-    have h_sum' : ∑' i : ℕ, (1 / Fintype.card α : ℝ) ^ l (e i) ≤ 1 := by
+    have h_sum' : ∑' i : ℕ, (1 / D : ℝ) ^ l (e i) ≤ 1 := by
       convert h_sum using 1
       conv_rhs => rw [← Equiv.tsum_eq e]
-    have h_summable' : Summable (fun i : ℕ => (1 / Fintype.card α : ℝ) ^ l (e i)) :=
+    have h_summable' : Summable (fun i : ℕ => (1 / D : ℝ) ^ l (e i)) :=
       h_summable.comp_injective e.injective
     obtain ⟨w, hw_inj, hw_pf, hw_len⟩ :=
       kraft_inequality_tight_nat_mono_alpha (fun i ↦ l (e i)) he h_summable' h_sum'
@@ -1201,7 +1219,7 @@ theorem kraft_tight_of_arity
 
     · -- Case 2: Infinite I
       haveI : Infinite I := not_finite_iff_infinite.mp h_finite
-      obtain ⟨e, he_mono⟩ := exists_equiv_nat_monotone_of_infinite_gen D hD l h_summable
+      obtain ⟨e, he_mono⟩ := exists_equiv_nat_monotone_of_infinite D hD l h_summable
       have h_sum_nat : ∑' i : ℕ, (1 / D : ℝ) ^ l (e i) ≤ 1 := by
          convert h_sum
          rw [<-Equiv.tsum_eq e]
