@@ -222,6 +222,33 @@ lemma kraft_numerator_lt_pow_of_sum_range_lt_one
   -- cast back to `ℕ`
   exact_mod_cast hlt_real
 
+lemma range_eq_Iio (n : ℕ) : (Finset.range n : Finset ℕ) = Finset.Iio n := by
+  ext k
+  simp [Finset.mem_Iio]  -- gives: k ∈ Iio n ↔ k < n, same as mem_range
+
+lemma kraft_numerator_bound {D : ℕ} {l : ℕ → ℕ} (h_mono : Monotone l) (hD : 1 < D)
+  (h_prefix_lt_one : ∀ n, (∑ k < n, (1 / D : ℝ) ^ l k) < 1) :
+    ∀ n, kraft_numerator D l n < D ^ l n := by
+  intro n
+  have h_range : (∑ k ∈ Finset.range n, (1 / (D : ℝ)) ^ l k) < 1 := by
+    simpa [range_eq_Iio] using h_prefix_lt_one n
+  exact kraft_numerator_lt_pow_of_sum_range_lt_one _ hD _ h_mono h_range
+
+/-- `kraft_numerator D l` is strictly increasing as soon as `D > 0`.
+
+In particular it is `StrictMono` under the standing assumption `1 < D`. -/
+lemma strictMono_kraft_numerator {D : ℕ} {l : ℕ → ℕ} (hD : 1 < D) :
+    StrictMono (kraft_numerator D l) := by
+  -- it suffices to show `A n < A (n+1)` for all `n`
+  refine strictMono_nat_of_lt_succ (fun n => ?_)
+  -- unfold the successor clause
+  simp [kraft_numerator]
+  -- let `p = D^(...)`, which is positive since `D>0`
+  have hDpos : 0 < D := Nat.zero_lt_of_lt hD
+  have hp : 0 < D ^ (l (n + 1) - l n) := Nat.pow_pos hDpos
+  -- `A n < A n + 1 ≤ (A n + 1) * p`
+  exact lt_of_lt_of_le (Nat.lt_add_one _) (Nat.le_mul_of_pos_right _ hp)
+
 end Numerator
 
 section KraftOrder
@@ -503,25 +530,47 @@ lemma sum_range_lt_one_of_sum_range_le_one
     (h_le : (∑ t ∈ Finset.range k, r ^ lNat t) ≤ 1) :
     (∑ t ∈ Finset.range n, r ^ lNat t) < 1 := by
   -- `S(n) < S(n+1) ≤ S(k) ≤ 1`
+  refine lt_of_lt_of_le ?_ h_le
+
   have hlt_succ : (∑ t ∈ Finset.range n, r ^ lNat t)
       < (∑ t ∈ Finset.range (n+1), r ^ lNat t) := by
     simp [Finset.sum_range_succ]
     have : 0 < r ^ lNat n := by
       exact pow_pos hr _
     linarith
-  have h_le_succ_k :
-      (∑ t ∈ Finset.range (n+1), r ^ lNat t)
-        ≤ (∑ t ∈ Finset.range k, r ^ lNat t) := by
-    have hsub : Finset.range (n+1) ⊆ Finset.range k :=
-      Finset.range_mono (Nat.succ_le_of_lt hnk)
-    refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
-    intro _ _ _
-    exact le_of_lt (pow_pos hr _)
 
-  have : (∑ t ∈ Finset.range n, r ^ lNat t)
-      < (∑ t ∈ Finset.range k, r ^ lNat t) := by
-    exact lt_of_lt_of_le hlt_succ (le_trans h_le_succ_k (le_rfl))
-  exact lt_of_lt_of_le this h_le
+  apply lt_of_lt_of_le hlt_succ
+
+  refine le_trans ?_ le_rfl
+
+  have hsub : Finset.range (n+1) ⊆ Finset.range k :=
+    Finset.range_mono (Nat.succ_le_of_lt hnk)
+  refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
+  intro _ _ _
+  exact le_of_lt (pow_pos hr _)
+
+/--
+The main consistency theorem for the Kraft construction.
+If an infinite sequence of lengths satisfies Kraft's inequality (sum ≤ 1),
+then the `kraft_numerator` construction stays strictly bounded by `D ^ l n`.
+-/
+lemma kraft_numerator_bound_of_tsum_le_one
+    {D : ℕ} (hD : 1 < D)
+    {l : ℕ → ℕ} (h_mono : Monotone l)
+    (h_summable : Summable (fun n => (1 / D : ℝ) ^ l n))
+    (h_sum_le_one : ∑' n, (1 / D : ℝ) ^ l n ≤ 1) :
+    ∀ n, kraft_numerator D l n < D ^ l n := by
+  -- This is exactly your snippet, adapted to call your existing bound lemma
+  have h_pos : (0 : ℝ) < 1 / D := one_div_pos.mpr (by exact_mod_cast Nat.zero_lt_of_lt hD)
+
+  apply kraft_numerator_bound h_mono hD
+  intro n
+  have h_le_tsum : ∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k ≤ ∑' k, (1 / D : ℝ) ^ l k :=
+    Summable.sum_le_tsum _ (fun _ _ => by positivity) h_summable
+  have h_prefix_le_one : ∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k ≤ 1 :=
+    le_trans h_le_tsum h_sum_le_one
+  -- Use your helper from the end of the file
+  simpa [range_eq_Iio] using sum_range_lt_one_of_sum_range_le_one h_pos (Nat.lt_succ_self n) l h_prefix_le_one
 
 end KraftOrder
 
