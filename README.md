@@ -55,11 +55,15 @@ Kraft/
 
 - **InequalityInfinite.lean**: Extends to infinite codes by showing any finite subset satisfies the bound, establishing summability
 
-- **KraftOrder.lean**: Defines the `KraftOrder` on indices and machinery for ranking elements in infinite index sets by their Kraft contributions
+- **KraftOrder.lean**: Two components: (1) `kraft_numerator`, which computes interval start positions for the canonical code construction, and (2) `KraftOrder`/`kraftRank`, which orders indices to make length functions monotone for infinite index sets
 
 - **McMillan.lean**: Proves Kraft's inequality and the Kraft-McMillan inequality using the exponential growth of C^r where C is the Kraft sum
 
 - **UniquelyDecodable.lean**: Shows prefix-free codes are uniquely decodable by induction on the decoded string length
+
+### Example
+
+- **Example.lean**: Demonstrates the library's usefulness with a source coding application. Defines Shannon-Fano lengths and proves `exists_prefix_code_near_entropy`: for any probability distribution, there exists a prefix-free code with expected length less than entropy + 1.
 
 ## Building
 
