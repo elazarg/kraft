@@ -17,7 +17,7 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 
 | Theorem | Statement |
 |---------|-----------|
-| `kraft_inequality` | For finite prefix-free S: `sum_{w in S} D^(-|w|) <= 1` |
+| `kraft_inequality` | For finite prefix-free S: `sum_{w in S} D^(-\|w\|) <= 1` |
 | `kraft_inequality_infinite` | Extension to infinite prefix-free codes (as a tsum) |
 | `kraft_mcmillan_inequality` | Same bound for uniquely decodable codes |
 | `Kraft.Converse.exists_code` | Converse: lengths with `sum D^(-l_i) <= 1` admit a prefix-free code |
@@ -55,7 +55,7 @@ Kraft/
 
 - **InequalityInfinite.lean**: Extends to infinite codes by showing any finite subset satisfies the bound, establishing summability
 
-- **KraftOrder.lean**: Two components: (1) `kraft_numerator`, which computes interval start positions for the canonical code construction, and (2) `KraftOrder`/`kraftRank`, which orders indices to make length functions monotone for infinite index sets
+- **KraftOrder.lean**: Two components: (1) `kraftNumerator`, which computes interval start positions for the canonical code construction, and (2) `KraftOrder`/`kraftRank`, which orders indices to make length functions monotone for infinite index sets
 
 - **McMillan.lean**: Proves Kraft's inequality and the Kraft-McMillan inequality using the exponential growth of C^r where C is the Kraft sum
 
