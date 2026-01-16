@@ -8,7 +8,7 @@ import Mathlib.Data.Fin.Basic
 
 import Kraft.Helpers
 
-namespace Digits
+namespace Kraft
 
 open Nat
 
@@ -16,11 +16,13 @@ open Nat
 Internal implementation: fixed-width digits built from `Nat.digits`.
 Public API at the bottom exposes only:
 
-* `natToDigitsBE`
-* `natToDigitsBE_length`
-* `natToDigitsBE_prefix_iff_div`
-* `natToDigitsBE_inj`
+* `kraftCodeword`
+* `kraftCodeword_length`
+* `kraftCodeword_prefix_iff_div`
+* `kraftCodeword_inj`
 -/
+
+section BE
 
 /-- Fixed-width little-endian digits: take low digits, pad with zeros. -/
 private def digitsLE_fixed (D n width : ℕ) : List ℕ :=
@@ -211,23 +213,25 @@ private lemma digitsBE_fixed_prefix_iff_div
       simpa [hdiv] using htake
     simpa [ht] using (List.take_append_drop w (digitsBE_fixed D m v))
 
+end BE
+
 /- ========== PUBLIC API ========== -/
 
 /-- Fixed-width, MSB-first digits of `n` base `D`, as `Fin D`. -/
-def natToDigitsBE {D: ℕ} (hD : 1 < D) (n width : ℕ) : List (Fin D) :=
+def kraftCodeword {D: ℕ} (hD : 1 < D) (n width : ℕ) : List (Fin D) :=
   (digitsBE_fixed D n width).pmap
     (fun d hd => ⟨d, hd⟩)
     (fun _ hd => digitsBE_fixed_lt_base hD hd)
 
 @[simp]
-lemma natToDigitsBE_length {D: ℕ} (hD : 1 < D) (n width : ℕ) :
-    (natToDigitsBE hD n width).length = width := by
-  simp [natToDigitsBE, digitsBE_fixed_length]
+lemma kraftCodeword_length {D: ℕ} (hD : 1 < D) (n width : ℕ) :
+    (kraftCodeword hD n width).length = width := by
+  simp [kraftCodeword, digitsBE_fixed_length]
 
 /-- Internal bridge: forgetting `Fin` gives the underlying Nat BE digits. -/
 @[simp]
-private lemma natToDigitsBE_map_val {D: ℕ} (n width : ℕ) (hD : 1 < D) :
-    (natToDigitsBE hD n width).map (fun x => x.val)
+private lemma kraftCodeword_map_val {D: ℕ} (n width : ℕ) (hD : 1 < D) :
+    (kraftCodeword hD n width).map (fun x => x.val)
       = digitsBE_fixed D n width := by
   -- general lemma: mapping `val` over `pmap (Fin.mk)` returns the original list
   have map_val_pmap_mk :
@@ -244,33 +248,33 @@ private lemma natToDigitsBE_map_val {D: ℕ} (n width : ℕ) (hD : 1 < D) :
           exact hx d (by simp [hd])
         simp [List.pmap, ih htl]
 
-  unfold natToDigitsBE
+  unfold kraftCodeword
   simpa using map_val_pmap_mk (digitsBE_fixed D n width)
     (by
       intro d hd
       exact digitsBE_fixed_lt_base hD hd)
 
 /-- Prefix characterization (MSB-first): prefix iff quotient agrees. -/
-lemma natToDigitsBE_prefix_iff_div
+lemma kraftCodeword_prefix_iff_div
   {D n m w v : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^v) :
-  natToDigitsBE hD n w <+: natToDigitsBE hD m v
+  kraftCodeword hD n w <+: kraftCodeword hD m v
     ↔ w ≤ v ∧ m / D^(v - w) = n := by
   -- reduce prefix on `Fin` lists to prefix on Nat lists
   rw [←List.IsPrefix.map_iff Fin.val_injective]
-  simp [natToDigitsBE_map_val]
+  simp [kraftCodeword_map_val]
   exact digitsBE_fixed_prefix_iff_div hD hn hm
 
 /-- Injectivity under the Kraft bound `n,m < D^w`. -/
-lemma natToDigitsBE_inj
+lemma kraftCodeword_inj
   {D n m w : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^w)
-  (h : natToDigitsBE hD n w = natToDigitsBE hD m w) :
+  (h : kraftCodeword hD n w = kraftCodeword hD m w) :
   n = m := by
   -- forget `Fin` and reduce to Nat BE equality
   have h_map := congrArg (List.map (fun x => x.val)) h
   have h_nat : digitsBE_fixed D n w = digitsBE_fixed D m w := by
-    simpa [natToDigitsBE_map_val] using h_map
+    simpa [kraftCodeword_map_val] using h_map
 
   -- cancel reverse to get LE equality
   have h_le : digitsLE_fixed D n w = digitsLE_fixed D m w := by
@@ -285,4 +289,4 @@ lemma natToDigitsBE_inj
     , ofDigits_digitsLE_fixed hD hm
     ] using h_of
 
-end Digits
+end Kraft

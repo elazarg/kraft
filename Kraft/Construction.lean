@@ -12,6 +12,11 @@ namespace Kraft
 
 open scoped BigOperators Real
 
+/-- a small helper -/
+lemma range_eq_Iio (n : ℕ) : (Finset.range n : Finset ℕ) = Finset.Iio n := by
+  ext k
+  simp [Finset.mem_Iio]  -- gives: k ∈ Iio n ↔ k < n, same as mem_range
+
 section Numerator
 /-- Generalized interval start function for constructing prefix-free codes over alphabet of size D.
 
@@ -221,10 +226,6 @@ lemma kraftNumerator.lt_pow_of_sum_range_lt_one
 
   -- cast back to `ℕ`
   exact_mod_cast hlt_real
-
-lemma range_eq_Iio (n : ℕ) : (Finset.range n : Finset ℕ) = Finset.Iio n := by
-  ext k
-  simp [Finset.mem_Iio]  -- gives: k ∈ Iio n ↔ k < n, same as mem_range
 
 lemma kraftNumerator.bound {D : ℕ} {l : ℕ → ℕ} (h_mono : Monotone l) (hD : 1 < D)
   (h_prefix_lt_one : ∀ n, (∑ k < n, (1 / D : ℝ) ^ l k) < 1) :
@@ -522,6 +523,10 @@ lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
   · -- equal indices
     simp [e, heq]
 
+end KraftOrder
+
+section Sum
+
 /-- Helper: if a nonnegative series of length `k` sums to `≤ 1`,
 then every proper prefix sum is `< 1`. -/
 lemma sum_range_lt_one_of_sum_range_le_one
@@ -549,6 +554,28 @@ lemma sum_range_lt_one_of_sum_range_le_one
   intro _ _ _
   exact le_of_lt (pow_pos hr _)
 
+/-- From `Summable` + `tsum ≤ 1`, every proper finite prefix sum is `< 1`. -/
+lemma prefix_sum_lt_one_of_tsum_le_one
+    {D : ℕ} (hD : 1 < D)
+    {l : ℕ → ℕ}
+    (h_summable : Summable (fun n => (1 / D : ℝ) ^ l n))
+    (h_sum_le_one : ∑' n, (1 / D : ℝ) ^ l n ≤ 1) :
+    ∀ n, (∑ k < n, (1 / D : ℝ) ^ l k) < 1 := by
+  intro n
+  have h_pos : (0 : ℝ) < 1 / D :=
+    one_div_pos.mpr (by exact_mod_cast Nat.zero_lt_of_lt hD)
+
+  have h_le : (∑ k ∈ Finset.range (n+1), (1 / D : ℝ) ^ l k) ≤ 1 := by
+    -- `range n ⊆ range (n+1)` and term is nonneg, so sum over n+1 ≥ sum over n,
+    -- but we need ≤1, so just prove directly via `sum_le_tsum` with `n+1`
+    have h_le_tsum' :
+        (∑ k ∈ Finset.range (n+1), (1 / D : ℝ) ^ l k) ≤ ∑' k, (1 / D : ℝ) ^ l k :=
+      Summable.sum_le_tsum _ (fun _ _ => by positivity) h_summable
+    exact le_trans h_le_tsum' h_sum_le_one
+
+  simpa [range_eq_Iio] using
+    sum_range_lt_one_of_sum_range_le_one h_pos (Nat.lt_succ_self n) l h_le
+
 /--
 The main consistency theorem for the Kraft construction.
 If an infinite sequence of lengths satisfies Kraft's inequality (sum ≤ 1),
@@ -560,18 +587,27 @@ lemma kraftNumerator.bound_of_tsum_le_one
     (h_summable : Summable (fun n => (1 / D : ℝ) ^ l n))
     (h_sum_le_one : ∑' n, (1 / D : ℝ) ^ l n ≤ 1) :
     ∀ n, kraftNumerator D l n < D ^ l n := by
-  -- This is exactly your snippet, adapted to call your existing bound lemma
-  have h_pos : (0 : ℝ) < 1 / D := one_div_pos.mpr (by exact_mod_cast Nat.zero_lt_of_lt hD)
+  -- core consumer
+  refine kraftNumerator.bound (D:=D) (l:=l) h_mono hD ?_
+  -- producer
+  exact prefix_sum_lt_one_of_tsum_le_one (D:=D) hD h_summable h_sum_le_one
 
-  apply kraftNumerator.bound h_mono hD
-  intro n
-  have h_le_tsum : ∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k ≤ ∑' k, (1 / D : ℝ) ^ l k :=
-    Summable.sum_le_tsum _ (fun _ _ => by positivity) h_summable
-  have h_prefix_le_one : ∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k ≤ 1 :=
-    le_trans h_le_tsum h_sum_le_one
-  -- Use your helper from the end of the file
-  simpa [range_eq_Iio] using sum_range_lt_one_of_sum_range_le_one h_pos (Nat.lt_succ_self n) l h_prefix_le_one
+lemma prefix_sum_lt_one_of_fin_sum_le_one
+    {D k : ℕ} (hD : 1 < D)
+    (l : ℕ → ℕ)
+    (h_sum : (∑ i : Fin k, (1 / (D : ℝ)) ^ l i.val) ≤ 1) :
+    ∀ i : Fin k,
+      (∑ t ∈ Finset.range i.val, (1 / D : ℝ) ^ l t) < 1 := by
+  intro i
+  refine sum_range_lt_one_of_sum_range_le_one ?_ i.isLt l ?_
+  · rw [one_div_pos]
+    exact_mod_cast Nat.zero_lt_of_lt hD
+  · -- rewrite `h_sum` from a `Fin`-sum to a `range`-sum
+    have h_eq : (∑ j : Fin k, (1 / (D : ℝ)) ^ l j)
+     = (∑ t ∈ Finset.range k, (1 / (D : ℝ)) ^ l t) := by
+      simpa using (Fin.sum_univ_eq_sum_range (n := k) (fun t : ℕ => (1 / (D : ℝ)) ^ l t))
+    simp_all only
 
-end KraftOrder
+end Sum
 
 end Kraft

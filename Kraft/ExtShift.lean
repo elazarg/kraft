@@ -37,4 +37,8 @@ lemma ext_shift_monotone (k : ℕ) (l : Fin k → ℕ) (hmono : Monotone l) (hk 
     -- goal is `i ≤ j - k + k`, rewrite RHS to `j`
     simpa [Nat.sub_add_cancel hk_le_j] using hij
 
+lemma ext_shift_apply_lt {k : ℕ} (Llast s : ℕ) (l : Fin k → ℕ) {n : ℕ} (hn : n < k) :
+  ext_shift Llast s l n = l ⟨n, hn⟩ := by
+  simp [ext_shift, hn]
+
 end Kraft

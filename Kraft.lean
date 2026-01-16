@@ -1,10 +1,10 @@
 import Kraft.Basic
 import Kraft.ConcatFn
+import Kraft.Codeword
+import Kraft.Construction
 import Kraft.Converse
-import Kraft.Digits
 import Kraft.ExtShift
 import Kraft.Helpers
 import Kraft.InequalityInfinite
-import Kraft.KraftOrder
 import Kraft.McMillan
 import Kraft.UniquelyDecodable
