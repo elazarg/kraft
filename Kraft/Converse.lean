@@ -67,7 +67,7 @@ private lemma prefixFree_of_div_separated {k : ℕ} {l : Fin k → ℕ} {A : ℕ
     (hD : 1 < D)
     (h_bound : ∀ i : Fin k, A i.val < D ^ l i)
     (h_sep : ∀ {i j : Fin k}, i ≠ j → ¬ (l i ≤ l j ∧ A j.val / D ^ (l j - l i) = A i.val)) :
-    PrefixFree (Set.range (fun i : Fin k => Digits.natToDigitsBE D (A i.val) (l i) (by omega))) := by
+    PrefixFree (Set.range (fun i : Fin k => Digits.natToDigitsBE hD (A i.val) (l i))) := by
   intro a ⟨i, qi⟩ b ⟨j, qj⟩ hpre
   by_cases hij : (i = j) <;> subst a b
   · subst i
@@ -85,21 +85,25 @@ theorem exists_code_of_strict_prefix_sum
       PrefixFree (Set.range w) ∧
       (∀ i, (w i).length = l i) := by
   -- Construct the starting integers A
-  let A := kraft_numerator D l
-  have hA_strict : StrictMono A := strictMono_kraft_numerator hD
-  have hA_bound : ∀ n, A n < D ^ l n := kraft_numerator_bound h_mono hD h_prefix_lt_one
+  let A := kraftNumerator D l
+  have hA_strict : StrictMono A := kraftNumerator.strictMono hD
+  have hA_bound : ∀ n, A n < D ^ l n := kraftNumerator.bound h_mono hD h_prefix_lt_one
 
   -- Define the code w using Base-D expansion
-  let w (n : ℕ) := Digits.natToDigitsBE D (A n) (l n) hD
+  let w (n : ℕ) := Digits.natToDigitsBE hD (A n) (l n)
   refine ⟨w, ?_, ?_, ?_⟩
 
   -- Injectivity
   · intro n m hnm
-    have hlen : l n = l m := by simpa [w, Digits.natToDigitsBE_length] using congrArg List.length hnm
+    have hlen : l n = l m := by
+      simpa [w, Digits.natToDigitsBE_length] using congrArg List.length hnm
     subst w
     simp at hnm
     -- rw [hlen] at hnm
-    have : A n = A m := Digits.natToDigitsBE_inj hD (hA_bound n) (by simpa [hlen] using hA_bound m) (by rw [<-hlen] at hnm; exact hnm)
+    have : A n = A m :=
+      Digits.natToDigitsBE_inj hD (hA_bound n)
+        (by simpa [hlen] using hA_bound m)
+        (by rw [<-hlen] at hnm; exact hnm)
     exact hA_strict.injective this
 
   · -- Prefix-freeness
@@ -115,13 +119,13 @@ theorem exists_code_of_strict_prefix_sum
         (Digits.natToDigitsBE_prefix_iff_div hD (hA_bound n) (hA_bound m)).1 hpre
 
       rcases lt_or_gt_of_ne hnm with hlt | hgt
-      · -- n < m: contradict the separation lemma for kraft_numerator
+      · -- n < m: contradict the separation lemma for kraftNumerator
         exfalso
         have hdiv' :
             l n ≤ l m ∧
-              kraft_numerator D l m / D ^ (l m - l n) = kraft_numerator D l n := by
+              kraftNumerator D l m / D ^ (l m - l n) = kraftNumerator D l n := by
           simpa [A] using hdiv
-        exact (kraft_numerator_div_separated_of_lt (D := D) (l := l) hD h_mono hlt) hdiv'
+        exact (kraftNumerator.div_separated_of_lt hD h_mono hlt) hdiv'
 
       · -- n > m: force equal lengths, hence A m = A n, contradict StrictMono
         exfalso
@@ -160,7 +164,7 @@ theorem exists_code_nat
   have h_pos : (0 : ℝ) < 1 / D := one_div_pos.mpr (by exact_mod_cast zero_lt_of_lt hD)
 
   -- Convert global "≤ 1" to strict prefix "< 1"
-  -- similar to kraft_numerator_bound_of_tsum_le_one
+  -- similar to kraftNumerator.bound_of_tsum_le_one
   have h_prefix : ∀ n, (∑ k < n, (1 / D : ℝ) ^ l k) < 1 := by
     intro n
     have h_le_tsum : (∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k) ≤ ∑' k, (1 / D : ℝ) ^ l k :=
@@ -198,11 +202,11 @@ theorem exists_code_fin
   have hmonoNat : Monotone lNat := ext_shift_monotone k l h_mono hk 0
 
   -- 2. Construct A on ℕ
-  let A := kraft_numerator D lNat
-  have hA_strict : StrictMono A := strictMono_kraft_numerator hD
+  let A := kraftNumerator D lNat
+  have hA_strict : StrictMono A := kraftNumerator.strictMono hD
 
   -- 3. Verify bounds for indices < k
-  -- fin k version of kraft_numerator_bound
+  -- fin k version of kraftNumerator.bound
   have hA_bound : ∀ i : Fin k, A i.val < D ^ l i := by
     intro i
     -- Map Fin sum to range sum
@@ -217,15 +221,15 @@ theorem exists_code_fin
     have h_pref_lt1 : (∑ t ∈ Finset.range i.val, (1 / D : ℝ) ^ lNat t) < 1 :=
       sum_range_lt_one_of_sum_range_le_one h_pos i.isLt lNat h_sum_range
     -- Result for lNat, then rewrite to l
-    have : kraft_numerator D lNat i.val < D ^ lNat i.val :=
-      kraft_numerator_lt_pow_of_sum_range_lt_one
+    have : kraftNumerator D lNat i.val < D ^ lNat i.val :=
+      kraftNumerator.lt_pow_of_sum_range_lt_one
         (hD := hD) (hmono := hmonoNat) (h_sum_lt1 := h_pref_lt1)
 
     -- rewrite `A` and `lNat i.val`
     simpa [A, lNat, ext_shift, i.isLt] using this
 
   -- 4. Define code
-  let w (i : Fin k) := Digits.natToDigitsBE D (A i.val) (l i) (by omega)
+  let w (i : Fin k) := Digits.natToDigitsBE hD (A i.val) (l i)
   refine ⟨w, ?_, ?_, ?_⟩
 
   -- Injectivity
@@ -235,11 +239,13 @@ theorem exists_code_fin
     subst w
     simp at hij
     -- A i = A j via digit injectivity
-    have hA_eq : A i.val = A j.val := Digits.natToDigitsBE_inj hD (hA_bound i) (by simpa [hlen] using hA_bound j) (by rw [<-hlen] at hij; exact hij)
+    have hA_eq : A i.val = A j.val := Digits.natToDigitsBE_inj hD (hA_bound i)
+      (by simpa [hlen] using hA_bound j)
+      (by rw [<-hlen] at hij; exact hij)
     exact hA_strict.injective hA_eq
 
   -- Prefix-freeness
-  · suffices PrefixFree (Set.range (fun i : Fin k => Digits.natToDigitsBE D (A i.val) (l i) (by omega))) by
+  · suffices PrefixFree (Set.range (fun i : Fin k => Digits.natToDigitsBE hD (A i.val) (l i))) by
       simpa [w] using this
     refine prefixFree_of_div_separated hD hA_bound ?_
     intro i j hij
@@ -249,8 +255,7 @@ theorem exists_code_fin
       have hsep :
         ¬ (lNat i.val ≤ lNat j.val ∧
             A j.val / D ^ (lNat j.val - lNat i.val) = A i.val) :=
-        kraft_numerator_div_separated_of_lt
-          (D := D) (l := lNat) (hmono := hmonoNat) (hD := hD) hlt
+        kraftNumerator.div_separated_of_lt hD hmonoNat hlt
 
       simpa [lNat, ext_shift, i.isLt, j.isLt] using hsep
     · exact (hij (Fin.ext heq)).elim

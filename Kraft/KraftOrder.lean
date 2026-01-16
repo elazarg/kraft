@@ -15,25 +15,25 @@ open scoped BigOperators Real
 section Numerator
 /-- Generalized interval start function for constructing prefix-free codes over alphabet of size D.
 
-For a monotone length sequence `l`, `kraft_numerator D l n` is chosen so that
-`kraft_numerator D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} D^{-l k}`. -/
-def kraft_numerator (D : ℕ) (l : ℕ → ℕ) : ℕ → ℕ
+For a monotone length sequence `l`, `kraftNumerator D l n` is chosen so that
+`kraftNumerator D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} D^{-l k}`. -/
+def kraftNumerator (D : ℕ) (l : ℕ → ℕ) : ℕ → ℕ
   | 0 => 0
-  | n + 1 => (kraft_numerator D l n + 1) * D ^ (l (n + 1) - l n)
+  | n + 1 => (kraftNumerator D l n + 1) * D ^ (l (n + 1) - l n)
 
-/-- `kraft_numerator D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} (1/D)^{l k}`.
+/-- `kraftNumerator D l n / D^{l n}` equals the partial Kraft sum `Σ_{k<n} (1/D)^{l k}`.
 
 This is the key invariant that ensures non-overlapping D-adic intervals. -/
-lemma kraft_numerator_div_pow_eq_sum (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ) (h_mono : Monotone l) (n : ℕ) :
-    (kraft_numerator D l n : ℝ) / D ^ l n = ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k := by
+lemma kraftNumerator.div_pow_eq_sum {D : ℕ} (hD : 1 < D) {l : ℕ → ℕ} (h_mono : Monotone l) (n : ℕ) :
+    (kraftNumerator D l n : ℝ) / D ^ l n = ∑ k ∈ Finset.range n, (1 / D : ℝ) ^ l k := by
   have hD_pos : (0 : ℝ) < D := by exact_mod_cast Nat.zero_lt_of_lt hD
   have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos
   induction n with
-  | zero => simp only [kraft_numerator, CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
+  | zero => simp only [kraftNumerator, CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
   | succ n ih =>
     simp only [one_div, inv_pow, Finset.sum_range_succ]
-    have h_sub : (kraft_numerator D l (n + 1) : ℝ) = (kraft_numerator D l n + 1) * D ^ (l (n + 1) - l n) := by
-      simp only [kraft_numerator, Nat.cast_mul, Nat.cast_add, Nat.cast_one, Nat.cast_pow]
+    have h_sub : (kraftNumerator D l (n + 1) : ℝ) = (kraftNumerator D l n + 1) * D ^ (l (n + 1) - l n) := by
+      simp only [kraftNumerator, Nat.cast_mul, Nat.cast_add, Nat.cast_one, Nat.cast_pow]
     rw [h_sub]
     simp_all only [one_div, inv_pow]
     rw [← ih]
@@ -42,14 +42,14 @@ lemma kraft_numerator_div_pow_eq_sum (D : ℕ) (hD : 1 < D) (l : ℕ → ℕ) (h
     field_simp
     simp only [add_tsub_cancel_left]
 
-/-- Closed form for `kraft_numerator` as a Nat sum of scaled powers. -/
-lemma kraft_numerator_eq_sum_pow_range
+/-- Closed form for `kraftNumerator` as a Nat sum of scaled powers. -/
+lemma kraftNumerator.eq_sum_pow_range
     (D : ℕ) (l : ℕ → ℕ) (hmono : Monotone l) :
-    ∀ n, kraft_numerator D l n = ∑ t ∈ Finset.range n, D ^ (l n - l t) := by
+    ∀ n, kraftNumerator D l n = ∑ t ∈ Finset.range n, D ^ (l n - l t) := by
   intro n
   induction n with
   | zero =>
-      simp [kraft_numerator]
+      simp [kraftNumerator]
   | succ n ih =>
       -- Notation
       have hln : l n ≤ l (n+1) := hmono (Nat.le_succ n)
@@ -57,7 +57,7 @@ lemma kraft_numerator_eq_sum_pow_range
 
       -- Start from the RHS for `n+1`
       -- split off last term, then factor out `D^a` from the prefix sum
-      simp [Finset.sum_range_succ, kraft_numerator, ih]
+      simp [Finset.sum_range_succ, kraftNumerator, ih]
 
       -- Goal after simp is essentially:
       --   (∑ t∈range n, D^(l(n+1)-l t)) + D^(l(n+1)-l n)
@@ -97,19 +97,19 @@ lemma kraft_numerator_eq_sum_pow_range
       simp [hfac, hlast, Nat.mul_add, Nat.mul_comm]
 
 /--
-Separation property for `A = kraft_numerator D l`:
+Separation property for `A = kraftNumerator D l`:
 if `i < j` then you cannot have `A j / D^(l j - l i) = A i` (even assuming `l i ≤ l j`).
 -/
-lemma kraft_numerator_div_separated_of_lt
+lemma kraftNumerator.div_separated_of_lt
     {D : ℕ} {l : ℕ → ℕ} (hD : 1 < D)
     (hmono : Monotone l) :
     ∀ {i j : ℕ}, i < j →
-      ¬ (l i ≤ l j ∧ kraft_numerator D l j / D ^ (l j - l i) = kraft_numerator D l i) := by
+      ¬ (l i ≤ l j ∧ kraftNumerator D l j / D ^ (l j - l i) = kraftNumerator D l i) := by
   intro i j hij
   rintro ⟨hij_len, hdiv⟩
 
   have hDpos : 0 < D := Nat.zero_lt_of_lt hD
-  set A : ℕ → ℕ := kraft_numerator D l
+  set A : ℕ → ℕ := kraftNumerator D l
   set d : ℕ := D ^ (l j - l i)
   have hdpos : 0 < d := by
     dsimp [d]
@@ -117,9 +117,9 @@ lemma kraft_numerator_div_separated_of_lt
 
   -- Closed forms for A i and A j
   have hAi : A i = ∑ t ∈  Finset.range i, D ^ (l i - l t) := by
-    simpa [A] using (kraft_numerator_eq_sum_pow_range D l hmono i)
+    simpa [A] using (kraftNumerator.eq_sum_pow_range D l hmono i)
   have hAj : A j = ∑ t ∈ Finset.range j, D ^ (l j - l t) := by
-    simpa [A] using (kraft_numerator_eq_sum_pow_range D l hmono j)
+    simpa [A] using (kraftNumerator.eq_sum_pow_range D l hmono j)
 
   -- The partial sum up to `i+1` sits inside the sum up to `j`
   have hsub : Finset.range (i+1) ⊆ Finset.range j := by
@@ -197,25 +197,25 @@ lemma kraft_numerator_div_separated_of_lt
   exact Nat.not_succ_le_self _ this
 
 /-- Helper: turn the invariant + `< 1` into the numeric bound `A n < D^(lNat n)`. -/
-lemma kraft_numerator_lt_pow_of_sum_range_lt_one
-    (D : ℕ) (hD : 1 < D) (lNat : ℕ → ℕ) (hmono : Monotone lNat)
+lemma kraftNumerator.lt_pow_of_sum_range_lt_one
+    {D : ℕ} (hD : 1 < D) {lNat : ℕ → ℕ} (hmono : Monotone lNat)
     {n : ℕ}
     (h_sum_lt1 : (∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t) < 1) :
-    kraft_numerator D lNat n < D ^ lNat n := by
+    kraftNumerator D lNat n < D ^ lNat n := by
   have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
   have hD_pos_real : (0 : ℝ) < D := by exact_mod_cast hD_pos
   have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos_real
 
   have h_eq :
-      (kraft_numerator D lNat n : ℝ) / (D : ℝ) ^ lNat n
+      (kraftNumerator D lNat n : ℝ) / (D : ℝ) ^ lNat n
         = ∑ t ∈ Finset.range n, (1 / D : ℝ) ^ lNat t :=
-    kraft_numerator_div_pow_eq_sum (D := D) hD lNat hmono n
+    kraftNumerator.div_pow_eq_sum hD hmono n
 
   have hden : 0 < (D : ℝ) ^ lNat n := by positivity
-  have hdivlt : (kraft_numerator D lNat n : ℝ) / (D : ℝ) ^ lNat n < 1 := by
+  have hdivlt : (kraftNumerator D lNat n : ℝ) / (D : ℝ) ^ lNat n < 1 := by
     simpa [h_eq] using h_sum_lt1
 
-  have hlt_real : (kraft_numerator D lNat n : ℝ) < (D : ℝ) ^ lNat n := by
+  have hlt_real : (kraftNumerator D lNat n : ℝ) < (D : ℝ) ^ lNat n := by
     -- `a/b < 1` with `0<b` gives `a < b`
     exact (div_lt_one hden).1 hdivlt
 
@@ -226,23 +226,23 @@ lemma range_eq_Iio (n : ℕ) : (Finset.range n : Finset ℕ) = Finset.Iio n := b
   ext k
   simp [Finset.mem_Iio]  -- gives: k ∈ Iio n ↔ k < n, same as mem_range
 
-lemma kraft_numerator_bound {D : ℕ} {l : ℕ → ℕ} (h_mono : Monotone l) (hD : 1 < D)
+lemma kraftNumerator.bound {D : ℕ} {l : ℕ → ℕ} (h_mono : Monotone l) (hD : 1 < D)
   (h_prefix_lt_one : ∀ n, (∑ k < n, (1 / D : ℝ) ^ l k) < 1) :
-    ∀ n, kraft_numerator D l n < D ^ l n := by
+    ∀ n, kraftNumerator D l n < D ^ l n := by
   intro n
   have h_range : (∑ k ∈ Finset.range n, (1 / (D : ℝ)) ^ l k) < 1 := by
     simpa [range_eq_Iio] using h_prefix_lt_one n
-  exact kraft_numerator_lt_pow_of_sum_range_lt_one _ hD _ h_mono h_range
+  exact kraftNumerator.lt_pow_of_sum_range_lt_one hD h_mono h_range
 
-/-- `kraft_numerator D l` is strictly increasing as soon as `D > 0`.
+/-- `kraftNumerator D l` is strictly increasing as soon as `D > 0`.
 
 In particular it is `StrictMono` under the standing assumption `1 < D`. -/
-lemma strictMono_kraft_numerator {D : ℕ} {l : ℕ → ℕ} (hD : 1 < D) :
-    StrictMono (kraft_numerator D l) := by
+lemma kraftNumerator.strictMono {D : ℕ} {l : ℕ → ℕ} (hD : 1 < D) :
+    StrictMono (kraftNumerator D l) := by
   -- it suffices to show `A n < A (n+1)` for all `n`
   refine strictMono_nat_of_lt_succ (fun n => ?_)
   -- unfold the successor clause
-  simp [kraft_numerator]
+  simp [kraftNumerator]
   -- let `p = D^(...)`, which is positive since `D>0`
   have hDpos : 0 < D := Nat.zero_lt_of_lt hD
   have hp : 0 < D ^ (l (n + 1) - l n) := Nat.pow_pos hDpos
@@ -552,18 +552,18 @@ lemma sum_range_lt_one_of_sum_range_le_one
 /--
 The main consistency theorem for the Kraft construction.
 If an infinite sequence of lengths satisfies Kraft's inequality (sum ≤ 1),
-then the `kraft_numerator` construction stays strictly bounded by `D ^ l n`.
+then the `kraftNumerator` construction stays strictly bounded by `D ^ l n`.
 -/
-lemma kraft_numerator_bound_of_tsum_le_one
+lemma kraftNumerator.bound_of_tsum_le_one
     {D : ℕ} (hD : 1 < D)
     {l : ℕ → ℕ} (h_mono : Monotone l)
     (h_summable : Summable (fun n => (1 / D : ℝ) ^ l n))
     (h_sum_le_one : ∑' n, (1 / D : ℝ) ^ l n ≤ 1) :
-    ∀ n, kraft_numerator D l n < D ^ l n := by
+    ∀ n, kraftNumerator D l n < D ^ l n := by
   -- This is exactly your snippet, adapted to call your existing bound lemma
   have h_pos : (0 : ℝ) < 1 / D := one_div_pos.mpr (by exact_mod_cast Nat.zero_lt_of_lt hD)
 
-  apply kraft_numerator_bound h_mono hD
+  apply kraftNumerator.bound h_mono hD
   intro n
   have h_le_tsum : ∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k ≤ ∑' k, (1 / D : ℝ) ^ l k :=
     Summable.sum_le_tsum _ (fun _ _ => by positivity) h_summable

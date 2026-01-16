@@ -78,15 +78,15 @@ private lemma ofDigits_digitsLE_fixed
   -- `ofDigits` ignores trailing zeros
   simp [ht, Nat.ofDigits_append_replicate_zero, Nat.ofDigits_digits]
 
- private lemma div_pow_lt_pow_of_lt {D m v w : ℕ} (hDpos : 0 < D) (hm : m < D^v) (hwv : w ≤ v) :
-     m / D^(v-w) < D^w := by
-   have hvpow : D^v = D^(v-w) * D^w := by
-     calc D^v = D^((v-w)+w) := by simp [Nat.sub_add_cancel hwv]
-       _ = D^(v-w) * D^w := by simp [Nat.pow_add]
-   have : m < D^(v-w) * D^w := by simpa [hvpow] using hm
-   have hpos : 0 < D^(v-w) := Nat.pow_pos hDpos
-   exact (Nat.div_lt_iff_lt_mul hpos).2
-     (by simpa [Nat.mul_comm, Nat.mul_left_comm, Nat.mul_assoc] using this)
+private lemma div_pow_lt_pow_of_lt {D m v w : ℕ} (hDpos : 0 < D) (hm : m < D^v) (hwv : w ≤ v) :
+    m / D^(v-w) < D^w := by
+  have hvpow : D^v = D^(v-w) * D^w := by
+    calc D^v = D^((v-w)+w) := by simp [Nat.sub_add_cancel hwv]
+      _ = D^(v-w) * D^w := by simp [Nat.pow_add]
+  have : m < D^(v-w) * D^w := by simpa [hvpow] using hm
+  have hpos : 0 < D^(v-w) := Nat.pow_pos hDpos
+  exact (Nat.div_lt_iff_lt_mul hpos).2
+    (by simpa [Nat.mul_comm, Nat.mul_left_comm, Nat.mul_assoc] using this)
 
 /-- LE bridge: dropping `(v-w)` low digits corresponds to dividing by `D^(v-w)`. -/
 private lemma digitsLE_fixed_drop_eq_div
@@ -214,20 +214,20 @@ private lemma digitsBE_fixed_prefix_iff_div
 /- ========== PUBLIC API ========== -/
 
 /-- Fixed-width, MSB-first digits of `n` base `D`, as `Fin D`. -/
-def natToDigitsBE (D n width : ℕ) (hD : 1 < D) : List (Fin D) :=
+def natToDigitsBE {D: ℕ} (hD : 1 < D) (n width : ℕ) : List (Fin D) :=
   (digitsBE_fixed D n width).pmap
     (fun d hd => ⟨d, hd⟩)
     (fun _ hd => digitsBE_fixed_lt_base hD hd)
 
 @[simp]
-lemma natToDigitsBE_length (D n width : ℕ) (hD : 1 < D) :
-    (natToDigitsBE D n width hD).length = width := by
+lemma natToDigitsBE_length {D: ℕ} (hD : 1 < D) (n width : ℕ) :
+    (natToDigitsBE hD n width).length = width := by
   simp [natToDigitsBE, digitsBE_fixed_length]
 
 /-- Internal bridge: forgetting `Fin` gives the underlying Nat BE digits. -/
 @[simp]
-private lemma natToDigitsBE_map_val (D n width : ℕ) (hD : 1 < D) :
-    (natToDigitsBE D n width hD).map (fun x => x.val)
+private lemma natToDigitsBE_map_val {D: ℕ} (n width : ℕ) (hD : 1 < D) :
+    (natToDigitsBE hD n width).map (fun x => x.val)
       = digitsBE_fixed D n width := by
   -- general lemma: mapping `val` over `pmap (Fin.mk)` returns the original list
   have map_val_pmap_mk :
@@ -254,7 +254,7 @@ private lemma natToDigitsBE_map_val (D n width : ℕ) (hD : 1 < D) :
 lemma natToDigitsBE_prefix_iff_div
   {D n m w v : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^v) :
-  natToDigitsBE D n w hD <+: natToDigitsBE D m v hD
+  natToDigitsBE hD n w <+: natToDigitsBE hD m v
     ↔ w ≤ v ∧ m / D^(v - w) = n := by
   -- reduce prefix on `Fin` lists to prefix on Nat lists
   rw [←List.IsPrefix.map_iff Fin.val_injective]
@@ -265,7 +265,7 @@ lemma natToDigitsBE_prefix_iff_div
 lemma natToDigitsBE_inj
   {D n m w : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^w)
-  (h : natToDigitsBE D n w hD = natToDigitsBE D m w hD) :
+  (h : natToDigitsBE hD n w = natToDigitsBE hD m w) :
   n = m := by
   -- forget `Fin` and reduce to Nat BE equality
   have h_map := congrArg (List.map (fun x => x.val)) h
