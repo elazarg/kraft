@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Elazar Gershuni. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Elazar Gershuni
+-/
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Topology.Algebra.InfiniteSum.Defs
 import Mathlib.Analysis.SpecialFunctions.Pow.Real

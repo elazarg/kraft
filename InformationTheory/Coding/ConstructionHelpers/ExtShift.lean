@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Elazar Gershuni. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Elazar Gershuni
+-/
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Fin.Basic
 import Mathlib.Order.Fin.Basic
