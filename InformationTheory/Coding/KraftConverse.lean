@@ -198,8 +198,6 @@ theorem exists_code_nat
       Function.Injective w ∧
       PrefixFree (Set.range w) ∧
       (∀ i, (w i).length = l i) := by
-  have h_pos : (0 : ℝ) < 1 / D := one_div_pos.mpr (by exact_mod_cast zero_lt_of_lt hD)
-
   have h_prefix := strict_prefix_of_tsum_le_one hD h_summable h_sum
 
   exact exists_code_of_strict_prefix_sum hD h_mono h_prefix
@@ -227,8 +225,8 @@ theorem exists_code_fin
       exact Fin.elim0 i
 
   -- 1) extend lengths to ℕ
-  let Llast := l ⟨k - 1, by omega⟩
-  let lNat := ext_shift Llast 0 l
+  let lastL := l ⟨k - 1, by omega⟩
+  let lNat := extShift lastL 0 l
   have hmonoNat : Monotone lNat := ext_shift_monotone k l h_mono hk 0
   have h_sumNat : (∑ i : Fin k, (1 / D : ℝ) ^ lNat i.val) ≤ 1 := by
     simpa [lNat] using h_sum
@@ -268,7 +266,7 @@ theorem exists_code_fin
               A0 j.val / D ^ (lNat j.val - lNat i.val) = A0 i.val) :=
         kraftNumerator.div_separated_of_lt (D:=D) (l:=lNat) hD hmonoNat hlt
       -- rewrite lNat back to l on indices < k, and AFin/A0
-      simpa [AFin, A0, lNat, ext_shift, i.isLt, j.isLt] using hsepNat
+      simpa [AFin, A0, lNat, extShift, i.isLt, j.isLt] using hsepNat
     · exact (hij (Fin.ext heq)).elim
     · -- i.val > j.val: monotone forces equal lengths, then strictMono contradicts i≠j
       rintro ⟨hle, hdiv⟩

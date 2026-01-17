@@ -24,16 +24,12 @@ The empty string is a prefix of every string, so prefix-freeness forces all elem
 lemma epsilon_prefix_singleton {S : Set (List α)} (hS : PrefixFree S) :
     [] ∈ S → S = {[]} := by
   intro h_nil
-  ext x
+  rw [Set.eq_singleton_iff_unique_mem]
   constructor
-  · -- Forward: x ∈ S → x = []
-    intro hx
+  · exact h_nil
+  · intro x hx
     -- Since [] is a prefix of x, and both are in S, they must be equal
-    have := hS _ h_nil _ hx List.nil_prefix
-    simp [this.symm]
-  · -- Backward: x = [] → x ∈ S
-    rintro rfl
-    exact h_nil
+    simp [hS _ h_nil x hx, List.nil_prefix]
 
 lemma PrefixFree.mono {α : Type _} {S T : Set (List α)} (hS : PrefixFree S) (hST : T ⊆ S) :
   PrefixFree T := by
