@@ -12,7 +12,7 @@ import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
-import Kraft.Basic
+import Kraft.PrefixFree
 import Kraft.McMillan
 
 namespace Kraft

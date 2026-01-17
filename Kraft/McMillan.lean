@@ -15,20 +15,13 @@ import Mathlib.Analysis.SpecificLimits.Normed
 import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.Linarith
 
-import Kraft.Basic
+import Kraft.PrefixFree
+import Kraft.Helpers.ConcatFn
 import Kraft.UniquelyDecodable
-import Kraft.ConcatFn
 
 namespace Kraft
 
 variable {α : Type _}
-
-lemma UniquelyDecodable.flatten_injective
-  {S : Set (List α)} (h : UniquelyDecodable S) :
-  Function.Injective (fun (L : {L : List (List α) // ∀ x ∈ L, x ∈ S}) => L.1.flatten) := by
-  intro L1 L2 hflat
-  apply Subtype.ext
-  exact h L1.1 L2.1 L1.2 L2.2 hflat
 
 /-- For uniquely decodable codes, the concatenation map is injective.
 
@@ -326,7 +319,7 @@ theorem kraft_inequality (S : Finset (List α)) (hpf : PrefixFree (S : Set (List
     subst h_eq
     simp
   · have hud : UniquelyDecodable (S : Set (List α)) :=
-      hpf.uniquelyDecodable he
+      hpf.uniquely_decodable he
     simpa using (kraft_mcmillan_inequality hud)
 
 end McMillan

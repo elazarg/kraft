@@ -9,7 +9,7 @@ open scoped Real BigOperators
 
 namespace Kraft.Examples
 
-variable {I : Type*} [Fintype I]
+variable {I : Type _} [Fintype I]
 variable {D : ℕ}
 
 section Entropy

@@ -47,7 +47,7 @@ Kraft/
 
 - **Converse.lean**: Constructs a prefix-free code for any length sequence satisfying the inequality, via D-adic interval allocation; handles both finite and infinite index sets
 
-- **Digits.lean**: Provides `natToDigitsBE` and related functions for converting numbers to fixed-width digit representations in arbitrary bases
+- **Digits.lean**: Provides `kraftCodeword` and related functions for converting numbers to fixed-width digit representations in arbitrary bases
 
 - **ExtShift.lean**: Utility for extending finite length sequences (over `Fin k`) to infinite sequences over `ℕ`, preserving monotonicity
 

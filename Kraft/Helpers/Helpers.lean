@@ -5,7 +5,7 @@ Authors: Elazar Gershuni
 -/
 import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Fin.Basic
+import Mathlib.Order.Interval.Finset.Nat
 
 /-- Mapping an injective function over lists is injective. -/
 lemma List.map_injective' {α β} {f : α → β} (hf : Function.Injective f) :
@@ -45,3 +45,8 @@ lemma List.IsPrefix.map_iff {α β : Type _} {f : α → β} (hf : Function.Inje
 
   · intro h
     exact List.IsPrefix.map f h
+
+/-- a small helper -/
+lemma range_eq_Iio (n : ℕ) : (Finset.range n : Finset ℕ) = Finset.Iio n := by
+  ext k
+  simp [Finset.mem_Iio]  -- gives: k ∈ Iio n ↔ k < n, same as mem_range

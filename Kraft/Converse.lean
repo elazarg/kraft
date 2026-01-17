@@ -13,11 +13,11 @@ import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Analysis.SpecificLimits.Normed
 
-import Kraft.Basic
-import Kraft.Codeword
-import Kraft.Construction
-import Kraft.ExtShift
-import Kraft.Helpers
+import Kraft.PrefixFree
+import Kraft.Helpers.Codeword
+import Kraft.Helpers.Construction
+import Kraft.Helpers.ExtShift
+import Kraft.Helpers.Helpers
 import Kraft.McMillan
 
 /-!
@@ -148,6 +148,39 @@ theorem exists_code_of_strict_prefix_sum
   simpa [A] using exists_code_from_A hD hA_bound hA_inj h_sep
 
 end Construction
+
+private lemma transport_code
+    {α β I J: Type _}
+    (e :J ≃ I)
+    (f : α ↪ β)
+    {w : I → List α}
+    (hw_inj : Function.Injective w)
+    (hw_pf : PrefixFree (Set.range w)) :
+    Function.Injective (fun j : J => (w (e j)).map f) ∧
+      PrefixFree (Set.range (fun j : J => (w (e j)).map f)) := by
+  constructor
+  · -- Injective
+    intro j1 j2 hj
+    -- cancel `List.map f`
+    have hw : w (e j1) = w (e j2) :=
+      (List.map_injective_iff.mpr f.injective) hj
+    -- cancel `w`
+    have he : e j1 = e j2 := hw_inj hw
+    -- cancel `e.symm`
+    exact e.injective he
+
+  · -- PrefixFree
+    intro x hx y hy hpre
+    rcases hx with ⟨j1, rfl⟩
+    rcases hy with ⟨j2, rfl⟩
+    -- pull prefix back through `map f`
+    have hpre' : w (e j1) <+: w (e j2) :=
+      (List.IsPrefix.map_iff f.injective).1 hpre
+    -- apply prefix-freeness of the original range
+    have hw_eq : w (e j1) = w (e j2) :=
+      hw_pf _ ⟨e j1, rfl⟩ _ ⟨e j2, rfl⟩ hpre'
+    -- push equality forward
+    simp [hw_eq]
 
 /-! ### 2. Concrete Theorems (Nat & Fin)
 Handling the "Sum ≤ 1" condition for specific index types. -/
@@ -281,87 +314,43 @@ theorem exists_code [Fintype α] [Nontrivial α]
   · -- Finite Case
     haveI := Fintype.ofFinite I
     obtain ⟨e, he_mono⟩ := exists_equiv_fin_monotone l
-    -- Transfer sum condition to Fin
+
     have h_sum_fin : ∑ i, (1 / D : ℝ) ^ l (e i) ≤ 1 := by
       convert h_sum using 1
       rw [tsum_fintype, ← Equiv.sum_comp e]
-    -- Get code over Fin D
-    obtain ⟨w_fin, h1, h2, h3⟩ := exists_code_fin hD he_mono h_sum_fin
-    -- Map Fin D to α and shuffle indices
-    let map_alpha := (Fintype.equivFin α).symm
-    refine ⟨fun i => (w_fin (e.symm i)).map map_alpha, ?_, ?_, ?_⟩
-    · -- Injectivity
-      intro x y h
-      apply e.symm.injective
-      apply h1
-      exact List.map_injective_iff.mpr map_alpha.injective h
-    · -- Prefix Free
-      intro a ha b hb hpre
-      obtain ⟨x, rfl⟩ := ha; obtain ⟨y, rfl⟩ := hb
-      simp only [Function.comp_apply] at *
-      rw [List.IsPrefix.map_iff map_alpha.injective] at hpre
-      have := h2 (w_fin (e.symm x)) ⟨_, rfl⟩ (w_fin (e.symm y)) ⟨_, rfl⟩ hpre
-      simp [this]
-    · intro i; simp [h3]
+
+    obtain ⟨w_fin, hw_inj, hw_pf, hw_len⟩ :=
+      exists_code_fin (D := D) hD he_mono h_sum_fin
+
+    let map_alpha : Fin D ↪ α :=
+      ⟨(Fintype.equivFin α).symm, (Fintype.equivFin α).symm.injective⟩
+
+    -- transport inj + prefixfree in one shot
+    have htp := transport_code (e := e.symm) (f := map_alpha) hw_inj hw_pf
+
+    rcases htp with ⟨h_inj', h_pf'⟩
+    refine ⟨fun i => (w_fin (e.symm i)).map map_alpha, h_inj', h_pf', ?_⟩
+    simp [hw_len]
 
   · -- Infinite Case
     haveI : Infinite I := not_finite_iff_infinite.mp h_finite
-    obtain ⟨e, he_mono⟩ := exists_equiv_nat_monotone_of_infinite D hD l h_summable
-    -- Transfer sum condition to Nat
+    obtain ⟨e, he_mono⟩ := exists_equiv_nat_monotone_of_infinite hD h_summable
+
     have h_sum_nat : ∑' i : ℕ, (1 / D : ℝ) ^ l (e i) ≤ 1 := by
       convert h_sum using 1
       rw [← Equiv.tsum_eq e]
-    -- Get code over Fin D
-    obtain ⟨w_nat, h1, h2, h3⟩ := exists_code_nat hD he_mono (h_summable.comp_injective e.injective) h_sum_nat
-    -- Map Fin D to α and shuffle indices
-    let map_alpha := (Fintype.equivFin α).symm
-    refine ⟨fun i => (w_nat (e.symm i)).map map_alpha, ?_, ?_, ?_⟩
-    · -- Injectivity
-      intro x y h
-      apply e.symm.injective
-      apply h1
-      exact List.map_injective_iff.mpr map_alpha.injective h
-    · -- Prefix Free
-      intro a ha b hb hpre
-      obtain ⟨x, rfl⟩ := ha; obtain ⟨y, rfl⟩ := hb
-      rw [List.IsPrefix.map_iff map_alpha.injective] at hpre
-      have := h2 (w_nat (e.symm x)) ⟨_, rfl⟩ (w_nat (e.symm y)) ⟨_, rfl⟩ hpre
-      simp [this]
-    · intro i
-      simp [h3]
 
-lemma transport_code
-    {I J α β : Type _}
-    (e : I ≃ J)
-    (f : α ↪ β)
-    {w : I → List α}
-    (hw_inj : Function.Injective w)
-    (hw_pf : PrefixFree (Set.range w)) :
-    Function.Injective (fun j : J => (w (e.symm j)).map f) ∧
-      PrefixFree (Set.range (fun j : J => (w (e.symm j)).map f)) := by
-  constructor
-  · -- Injective
-    intro j1 j2 hj
-    -- cancel `List.map f`
-    have hw : w (e.symm j1) = w (e.symm j2) :=
-      (List.map_injective_iff.mpr f.injective) hj
-    -- cancel `w`
-    have he : e.symm j1 = e.symm j2 := hw_inj hw
-    -- cancel `e.symm`
-    exact e.symm.injective he
+    obtain ⟨w_nat, hw_inj, hw_pf, hw_len⟩ :=
+      exists_code_nat hD he_mono (h_summable.comp_injective e.injective) h_sum_nat
 
-  · -- PrefixFree
-    intro x hx y hy hpre
-    rcases hx with ⟨j1, rfl⟩
-    rcases hy with ⟨j2, rfl⟩
-    -- pull prefix back through `map f`
-    have hpre' : w (e.symm j1) <+: w (e.symm j2) :=
-      (List.IsPrefix.map_iff f.injective).1 hpre
-    -- apply prefix-freeness of the original range
-    have hw_eq : w (e.symm j1) = w (e.symm j2) :=
-      hw_pf _ ⟨e.symm j1, rfl⟩ _ ⟨e.symm j2, rfl⟩ hpre'
-    -- push equality forward
-    simp [hw_eq]
+    let map_alpha : Fin D ↪ α :=
+      ⟨(Fintype.equivFin α).symm, (Fintype.equivFin α).symm.injective⟩
+
+    have htp := transport_code (e := e.symm) (f := map_alpha) hw_inj hw_pf
+
+    rcases htp with ⟨h_inj', h_pf'⟩
+    refine ⟨fun i => (w_nat (e.symm i)).map map_alpha, h_inj', h_pf', ?_⟩
+    simp [hw_len]
 
 /-- **Converse of Kraft's Inequality** (General Arity Embedding).
 Useful if you want to embed a code of arity `D` into a larger alphabet `α`. -/
@@ -395,27 +384,14 @@ theorem exists_code_of_embedding [DecidableEq α]
       (∑' i, (1 / (Fintype.card AlphaD : ℝ)) ^ l i) ≤ 1 := by
     simpa [hcard_eq] using h_sum
 
-  obtain ⟨w_D, h1, h2, h3⟩ := exists_code l h_summable' h_sum'
+  obtain ⟨w_D, hw_inj, hw_pf, hw_len⟩ := exists_code l h_summable' h_sum'
 
-  -- Embed results
-  refine ⟨fun i => (w_D i).map ι, ?_, ?_, ?_⟩
-  · intro x y h; apply h1; exact List.map_injective_iff.mpr ι.injective h
-  · -- PrefixFree
-    intro a ha b hb hpre
-    rcases ha with ⟨x, rfl⟩
-    rcases hb with ⟨y, rfl⟩
-    -- now goal is: map ι (w_D x) = map ι (w_D y)
+  have htp := transport_code (e := Equiv.refl I) (f := ι) hw_inj hw_pf
 
-    have hpre' : w_D x <+: w_D y := by
-      exact (List.IsPrefix.map_iff ι.injective).1 hpre
-
-    have hxy : w_D x = w_D y :=
-      h2 (w_D x) ⟨x, rfl⟩ (w_D y) ⟨y, rfl⟩ hpre'
-
-    -- finish
-    simp [hxy]
-  · intro i
-    simp [h3]
+  rcases htp with ⟨h_inj', h_pf'⟩
+  refine ⟨fun i => (w_D i).map ι, h_inj', ?_, ?_⟩
+  · simpa using h_pf'
+  · simp [hw_len]
 
 /-- **Converse of Kraft's Inequality** (Binary). -/
 theorem exists_code_binary
