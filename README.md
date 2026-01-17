@@ -97,4 +97,4 @@ See `kraft.tex` for the mathematical exposition of the theorems formalized here.
 
 ## License
 
-MIT License - see LICENSE file.
+Apache 2.0 License - see LICENSE file.
