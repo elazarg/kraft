@@ -10,7 +10,7 @@ import Mathlib.Data.Fin.Basic
 
 import InformationTheory.Coding.ConstructionHelpers.Helpers
 
-namespace Kraft
+namespace InformationTheory
 
 open Nat
 
@@ -291,4 +291,4 @@ lemma kraftCodeword_inj
     , ofDigits_digitsLE_fixed hD hm
     ] using h_of
 
-end Kraft
+end InformationTheory

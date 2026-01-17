@@ -10,9 +10,29 @@ import Mathlib.Data.Finset.Card
 
 import InformationTheory.Coding.UniquelyDecodable
 
-namespace Kraft
+/-!
+# Prefix-Free Codes
 
-variable {α : Type _}
+This file defines prefix-free codes and proves that they are uniquely decodable.
+
+## Main definitions
+
+* `PrefixFree`: A set of codewords is prefix-free if no codeword is a proper prefix of
+  another.
+
+## Main results
+
+* `PrefixFree.epsilon_singleton`: If a prefix-free code contains the empty string, it equals
+  `{[]}`.
+* `PrefixFree.uniquely_decodable`: Every prefix-free code (not containing the empty string)
+  is uniquely decodable.
+* `PrefixFree.is_uniquely_decodable_of_card_ge_two`: Prefix-free codes with at least two
+  codewords are uniquely decodable.
+-/
+
+namespace InformationTheory
+
+variable {α : Type*}
 
 /-- A set of lists is prefix-free if no element is a strict prefix of another. -/
 def PrefixFree (S : Set (List α)) : Prop :=
@@ -21,7 +41,7 @@ def PrefixFree (S : Set (List α)) : Prop :=
 /-- If a prefix-free set contains the empty string, it must be the singleton `{[]}`.
 
 The empty string is a prefix of every string, so prefix-freeness forces all elements to equal `[]`. -/
-lemma epsilon_prefix_singleton {S : Set (List α)} (hS : PrefixFree S) :
+lemma PrefixFree.epsilon_singleton {S : Set (List α)} (hS : PrefixFree S) :
     [] ∈ S → S = {[]} := by
   intro h_nil
   rw [Set.eq_singleton_iff_unique_mem]
@@ -31,7 +51,7 @@ lemma epsilon_prefix_singleton {S : Set (List α)} (hS : PrefixFree S) :
     -- Since [] is a prefix of x, and both are in S, they must be equal
     simp [hS _ h_nil x hx, List.nil_prefix]
 
-lemma PrefixFree.mono {α : Type _} {S T : Set (List α)} (hS : PrefixFree S) (hST : T ⊆ S) :
+lemma PrefixFree.mono {S T : Set (List α)} (hS : PrefixFree S) (hST : T ⊆ S) :
   PrefixFree T := by
   intro a ha b hb hpre
   exact hS a (hST ha) b (hST hb) hpre
@@ -42,9 +62,8 @@ If `S` is prefix-free (no codeword is a prefix of another) and does not contain 
 then any string formed by concatenating codewords from `S` can be parsed into those codewords
 in exactly one way.
 
-The proof proceeds by structural induction on the list of codewords `L₁`.. -/
+The proof proceeds by structural induction on the list of codewords `L₁`. -/
 theorem PrefixFree.uniquely_decodable
-    {α : Type _}
     {S : Set (List α)}
     (h0 : [] ∉ S)
     (hS : PrefixFree S) :
@@ -96,13 +115,14 @@ theorem PrefixFree.uniquely_decodable
       subst hw
       simp
       simp at hflatten
-
       -- Apply the induction hypothesis to the tails
       apply ih L₂'
       · -- Solve: ∀ w ∈ L₁', w ∈ S (using hL₁)
-        intros w hw; exact hL₁ w (.tail _ hw)
+        intros w hw
+        exact hL₁ w (.tail _ hw)
       · -- Solve: ∀ w ∈ L₂', w ∈ S (using hL₂)
-        intros w hw; exact hL₂ w (.tail _ hw)
+        intros w hw
+        exact hL₂ w (.tail _ hw)
       · -- Solve the flattened equality
         rcases hflatten with h | h <;> simp [h]
 
@@ -112,27 +132,21 @@ Prefix-free codes with at least two codewords are uniquely decodable.
 This variant avoids explicitly assuming `[] ∉ S` by deriving it from the cardinality
 constraint: if `|S| ≥ 2` and `S` is prefix-free, then `[]` cannot be in `S`
 (since `[]` is a prefix of every other string). -/
-theorem PrefixFree.is_uniquely_decodable_of_card_ge_two
-    {α : Type _}
-    (S : Finset (List α))
+theorem PrefixFree.nontrivial_is_uniquely_decodable
+    {S : Finset (List α)}
     (hS : PrefixFree (S: Set (List α)))
     (h_card : S.card ≥ 2) :
     UniquelyDecodable (S: Set (List α)) := by
-    -- We prove [] ∉ S by contradiction.
-  have h0 : [] ∉ S := by
-    intro h_nil
-    -- If [] ∈ S, then for any w ∈ S, [] is a prefix of w.
-    -- By prefix-freeness, this means w must be [].
-    have h_subset : S ⊆ {[]} := by
-      intro w hw
-      have := hS _ h_nil _ hw -- [] <+: w implies [] = w
-      simp [this]
+  apply hS.uniquely_decodable
 
-    -- If S ⊆ {[]}, then |S| ≤ 1, which contradicts |S| ≥ 2.
-    have : S.card ≤ 1 := Finset.card_le_card h_subset
-    omega
+  -- We need to prove [] ∉ S.
+  intro h_nil
+  have h_set_eq : (S : Set (List α)) = {[]} := hS.epsilon_singleton h_nil
 
-  -- Now delegate to the main theorem
-  exact hS.uniquely_decodable h0
+  -- Convert Set equality to Finset equality to contradict cardinality.
+  rw [Finset.coe_eq_singleton] at h_set_eq
+  rw [h_set_eq] at h_card
 
-end Kraft
+  simp at h_card
+
+end InformationTheory

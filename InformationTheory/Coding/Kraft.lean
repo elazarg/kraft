@@ -18,20 +18,36 @@ import Mathlib.Tactic.Linarith
 import InformationTheory.Coding.PrefixFree
 import InformationTheory.Coding.KraftMcMillan
 
-namespace Kraft
+/-!
+# Kraft's Inequality
 
-variable {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
+This file proves Kraft's inequality for prefix-free codes over finite alphabets.
+
+## Main results
+
+* `kraft_inequality`: For a finite prefix-free code `S` over an alphabet of size `D`,
+  `∑_{w ∈ S} D^{-|w|} ≤ 1`.
+* `kraft_inequality_infinite`: Extension to infinite prefix-free codes via `tsum`.
+
+## References
+
+* Cover & Thomas, *Elements of Information Theory*, Chapter 5
+-/
+
+namespace InformationTheory
+
+variable {α : Type*} [DecidableEq α] [Fintype α] [Nonempty α]
 
 /-- **Kraft's Inequality**: If `S` is a finite prefix-free code over an alphabet of size `D`,
 then `∑_{w ∈ S} D^{-|w|} ≤ 1`.
 
 This follows from the Kraft-McMillan inequality since prefix-free codes are uniquely decodable. -/
-theorem kraft_inequality (S : Finset (List α)) (hpf : PrefixFree (S : Set (List α))) :
+theorem kraft_inequality {S : Finset (List α)} (hpf : PrefixFree (S : Set (List α))) :
     ∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length ≤ 1 := by
   by_cases he : [] ∈ S
   · simp
     have h_eq : S = {[]} := by
-      exact_mod_cast epsilon_prefix_singleton hpf he
+      exact_mod_cast hpf.epsilon_singleton he
     subst h_eq
     simp
   · have hud : UniquelyDecodable (S : Set (List α)) :=
@@ -44,7 +60,7 @@ then the series `∑ D^{-|w|}` converges and its sum is at most 1.
 
 The proof shows that every finite subset satisfies the bound (by the finite Kraft inequality),
 which implies summability. The tsum bound then follows from summability. -/
-theorem kraft_inequality_infinite (S : Set (List α)) (h : PrefixFree S) :
+theorem kraft_inequality_infinite {S : Set (List α)} (h : PrefixFree S) :
     HasSum (fun w : S => (1 / (Fintype.card α) : ℝ) ^ (w : List α).length) (∑' w : S, (1 / (Fintype.card α) : ℝ) ^ (w : List α).length) ∧
     (∑' w : S, (1 / (Fintype.card α) : ℝ) ^ (w : List α).length) ≤ 1 := by
   let D := (Fintype.card α)
@@ -52,8 +68,8 @@ theorem kraft_inequality_infinite (S : Set (List α)) (h : PrefixFree S) :
   have h_finite_subset : ∀ (F : Finset (List α)), SetLike.coe F ⊆ S → (∑ w ∈ F, (1 / D : ℝ) ^ w.length) ≤ 1 := by
     -- Apply the finite Kraft inequality to the finite subset F.
     intro F hF
-    apply kraft_inequality F (fun x hx y hy hxy => h x (hF hx) y (hF hy) hxy)
-  refine' ⟨ _, _ ⟩
+    apply kraft_inequality (fun x hx y hy hxy => h x (hF hx) y (hF hy) hxy)
+  refine' ⟨_, _⟩
   · have h_summable : Summable (fun w : S => (1 / D : ℝ) ^ w.val.length) := by
       refine summable_of_sum_le (c := 1) ?_ ?_
       · intro _
@@ -73,4 +89,4 @@ theorem kraft_inequality_infinite (S : Set (List α)) (h : PrefixFree S) :
     use F.image Subtype.val
     simp_all only [Finset.coe_image, Set.image_subset_iff, Subtype.coe_preimage_self, Set.subset_univ, Subtype.forall, Subtype.mk.injEq, implies_true, Set.injOn_of_eq_iff_eq, Finset.sum_image, and_self]
 
-end Kraft
+end InformationTheory

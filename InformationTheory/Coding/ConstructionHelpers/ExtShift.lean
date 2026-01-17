@@ -8,7 +8,21 @@ import Mathlib.Data.Fin.Basic
 import Mathlib.Order.Fin.Basic
 import Mathlib.Order.Monotone.Defs
 
-namespace Kraft
+/-!
+# Extension of Finite Sequences
+
+This file provides utilities for extending finite length sequences to infinite ones.
+
+## Main definitions
+
+* `extShift`: Extends a length sequence on `Fin k` to a monotone sequence on `ℕ`.
+
+## Main results
+
+* `extShift_monotone`: The extended sequence is monotone if the original is.
+-/
+
+namespace InformationTheory
 
 def extShift {k: ℕ} (lastL s : ℕ) (l : Fin k → ℕ) (n : ℕ) : ℕ :=
   if h : n < k then l ⟨n,h⟩ else lastL + s + (n - k + 1)
@@ -46,4 +60,4 @@ lemma ext_shift_apply_lt {k : ℕ} (lastL s : ℕ) (l : Fin k → ℕ) {n : ℕ}
   extShift lastL s l n = l ⟨n, hn⟩ := by
   simp [extShift, hn]
 
-end Kraft
+end InformationTheory

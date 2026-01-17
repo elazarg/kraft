@@ -15,24 +15,24 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 
 ## Main Results
 
-| Theorem | Statement |
-|---------|-----------|
-| `kraft_inequality` | For finite prefix-free S: `sum_{w in S} D^(-\|w\|) <= 1` |
-| `kraft_inequality_infinite` | Extension to infinite prefix-free codes (as a tsum) |
-| `kraft_mcmillan_inequality` | Same bound for uniquely decodable codes |
-| `Kraft.Converse.exists_code` | Converse: lengths with `sum D^(-l_i) <= 1` admit a prefix-free code |
+| Theorem                        |          Statement            |
+|--------------------------------|----------------------|
+| `kraft_inequality`             | For finite prefix-free S: `sum_{w in S} D^(-\|w\|) <= 1` |
+| `kraft_inequality_infinite`    | Extension to infinite prefix-free codes (as a tsum) |
+| `kraft_mcmillan_inequality`    | Same bound for uniquely decodable codes |
+| `exists_code`                  | Converse: lengths with `sum D^(-l_i) <= 1` admit a prefix-free code |
 | `PrefixFree.uniquelyDecodable` | Prefix-free codes are uniquely decodable |
 
 ## Project Structure
 
 ```
-Kraft.lean                          -- Root import file
+lean                          -- Root import file
 
 InformationTheory/
   Coding/
     PrefixFree.lean                 -- Definition of prefix-free codes
     UniquelyDecodable.lean          -- Definition of uniquely decodable codes
-    Kraft.lean                      -- Kraft's inequality (main theorem)
+    lean                      -- Kraft's inequality (main theorem)
     KraftConverse.lean              -- Converse of Kraft's inequality
     KraftMcMillan.lean              -- Kraft-McMillan inequality
     Example.lean                    -- Shannon-Fano coding application
@@ -51,7 +51,7 @@ InformationTheory/
 
 - **UniquelyDecodable.lean**: Defines `UniquelyDecodable` (distinct concatenations yield distinct strings) and `concatFn` for codeword concatenation
 
-- **Kraft.lean**: Proves Kraft's inequality for finite prefix-free codes, deriving it from the Kraft-McMillan inequality
+- **lean**: Proves Kraft's inequality for finite prefix-free codes, deriving it from the Kraft-McMillan inequality
 
 - **KraftConverse.lean**: Constructs a prefix-free code for any length sequence satisfying the Kraft condition, via D-adic interval allocation; handles both finite (`Fin k`) and infinite (`ℕ`) index sets
 
@@ -94,7 +94,7 @@ Significant portions of this formalization were developed by AI systems:
 
 ## References
 
-See `kraft.tex` for the mathematical exposition of the theorems formalized here.
+See `tex` for the mathematical exposition of the theorems formalized here.
 
 ### Background Reading
 

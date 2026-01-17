@@ -10,11 +10,31 @@ import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
 
 import InformationTheory.Coding.KraftConverse
 
+/-!
+# Shannon-Fano Coding Example
+
+This file demonstrates an application of Kraft's inequality to source coding.
+
+## Main definitions
+
+* `Examples.entropy`: Shannon entropy in base `D`.
+* `Examples.shannonFanoLength`: The Shannon-Fano length assignment `⌈-log_D p(i)⌉`.
+
+## Main results
+
+* `Examples.exists_prefix_code_near_entropy`: For any probability distribution, there exists
+  a prefix-free code with expected length less than `H_D(p) + 1`.
+
+## References
+
+* Cover & Thomas, *Elements of Information Theory*, Chapter 5
+-/
+
 open scoped Real BigOperators
 
-namespace Kraft.Examples
+namespace InformationTheory
 
-variable {I : Type _} [Fintype I]
+variable {I : Type*} [Fintype I]
 variable {D : ℕ}
 
 section Entropy
@@ -59,11 +79,11 @@ noncomputable def shannonFanoLength (p : I → ℝ) (i : I) : ℕ :=
 variable [Nonempty I]
 
 /--
-A source-coding use case of Kraft.Converse:
+A source-coding use case of Converse:
 there exists a prefix-free code with expected length `< H_D(p) + 1`,
 where `H_D` is entropy in base `D`.
 
-This is intentionally placed under `Kraft.Examples` rather than the core library.
+This is intentionally placed under `Examples` rather than the core library.
 -/
 theorem exists_prefix_code_near_entropy
     {hD : 1 < D} (p : I → ℝ)
@@ -119,7 +139,7 @@ theorem exists_prefix_code_near_entropy
   have htsum : (∑' i : I, (1 / (Fintype.card (Fin D)) : ℝ) ^ l i) ≤ 1 := by
     simpa using (show (∑ i : I, (1 / D : ℝ) ^ l i) ≤ 1 from h_kraft)
 
-  obtain ⟨w, h_inj, h_pf, h_len⟩ := Kraft.Converse.exists_code l hs htsum
+  obtain ⟨w, h_inj, h_pf, h_len⟩ := exists_code l hs htsum
   use w
 
   --------------------------------------------------------------------
@@ -188,9 +208,6 @@ theorem exists_prefix_code_near_entropy
       _ = (∑ x, - p x * Real.logb (D : ℝ) (p x)) + (∑ x, p x) := by
             simp [ha]
       _ = (entropy D p) + 1 := by
-            -- rewrite the entropy sum and use hp_sum
-            -- your lemma: entropy_eq_sum_neg_logb hD p
-            -- be careful about `logb` expecting `ℝ` base: you used `(D:ℝ)` above.
             simp [entropy_eq_sum_neg_logb hD p, hp_sum]
 
   -- If you are okay with `≤` instead of `<`, you can finish right here:
@@ -221,4 +238,4 @@ theorem exists_prefix_code_near_entropy
 
 end SourceCoding
 
-end Kraft.Examples
+end InformationTheory

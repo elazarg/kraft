@@ -18,7 +18,7 @@ import Mathlib.Tactic.Linarith
 import InformationTheory.Coding.ConstructionHelpers.Helpers
 import InformationTheory.Coding.ConstructionHelpers.Sum
 
-namespace Kraft
+namespace InformationTheory
 
 open scoped BigOperators Real
 
@@ -261,16 +261,16 @@ section KraftOrder
 /-- A strict total order on indices: first by length, then by an auxiliary embedding.
 
 This is used to enumerate elements in an order that makes the length function monotone. -/
-def KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ) (i j : I) : Prop :=
+def KraftOrder {I : Type*} (l : I → ℕ) (e : I ↪ ℕ) (i j : I) : Prop :=
   Prod.Lex (· < ·) (· < ·) (l i, e i) (l j, e j)
 
 /-- `KraftOrder` is equivalent to: `l i < l j` or (`l i = l j` and `e i < e j`). -/
-lemma KraftOrder_iff {I : Type _} {l : I → ℕ} {e : I ↪ ℕ} {i j : I} :
+lemma KraftOrder_iff {I : Type*} {l : I → ℕ} {e : I ↪ ℕ} {i j : I} :
     KraftOrder l e i j ↔ l i < l j ∨ (l i = l j ∧ e i < e j) :=
   Prod.lex_iff
 
 /-- `KraftOrder` is a strict total order. -/
-lemma KraftOrder_isStrictTotalOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ) :
+lemma KraftOrder_isStrictTotalOrder {I : Type*} (l : I → ℕ) (e : I ↪ ℕ) :
     IsStrictTotalOrder I (KraftOrder l e) where
   trichotomous a b := by
     simp only [KraftOrder_iff]
@@ -305,7 +305,7 @@ lemma KraftOrder_isStrictTotalOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
 
 Since each length has only finitely many indices (by summability), the set of
 indices smaller than any given index is finite. -/
-lemma KraftOrder_finite_initial_segment {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
+lemma KraftOrder_finite_initial_segment {I : Type*} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) (i : I) :
     {j | KraftOrder l e j i}.Finite := by
   have h_subset : {j | KraftOrder l e j i} ⊆ {j | l j < l i} ∪ {j | l j = l i} := by
@@ -335,12 +335,12 @@ lemma KraftOrder_finite_initial_segment {I : Type _} (l : I → ℕ) (e : I ↪ 
 /-- The rank of an element is the number of elements strictly smaller in `KraftOrder`.
 
 This gives a bijection between `I` and `ℕ` that makes `l` monotone. -/
-noncomputable def kraftRank {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
+noncomputable def kraftRank {I : Type*} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) (i : I) : ℕ :=
   (KraftOrder_finite_initial_segment l e h_finite i).toFinset.card
 
 /-- `kraftRank` is strictly monotone with respect to `KraftOrder`. -/
-lemma kraftRank_lt_of_KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
+lemma kraftRank_lt_of_KraftOrder {I : Type*} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) {i j : I} (h : KraftOrder l e i j) :
     kraftRank l e h_finite i < kraftRank l e h_finite j := by
   apply Finset.card_lt_card
@@ -361,7 +361,7 @@ lemma kraftRank_lt_of_KraftOrder {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
     omega
 
 /-- `kraftRank` is surjective onto ℕ when `I` is infinite. -/
-lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ ℕ)
+lemma kraftRank_surjective {I : Type*} [Infinite I] (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) :
     Function.Surjective (kraftRank l e h_finite) := by
   have hsto := KraftOrder_isStrictTotalOrder l e
@@ -406,7 +406,7 @@ lemma kraftRank_surjective {I : Type _} [Infinite I] (l : I → ℕ) (e : I ↪ 
   exact h_initial val_i ⟨witness_i, h_rank_eq⟩ n h_n_lt_i
 
 /-- `kraftRank` is injective (distinct elements have distinct ranks). -/
-lemma kraftRank_injective {I : Type _} (l : I → ℕ) (e : I ↪ ℕ)
+lemma kraftRank_injective {I : Type*} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) :
     Function.Injective (kraftRank l e h_finite) := by
   intro i j hij
@@ -437,7 +437,7 @@ This reduces the infinite case to the monotone case by using `kraftRank` to enum
 elements in increasing order of length.
 
 Generalized to any base D > 1. -/
-lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] {D : ℕ} (hD : 1 < D) {l : I → ℕ}
+lemma exists_equiv_nat_monotone_of_infinite {I : Type*} [Infinite I] {D : ℕ} (hD : 1 < D) {l : I → ℕ}
     (h_summable : Summable (fun i => (1 / D : ℝ) ^ l i)) :
     ∃ e : ℕ ≃ I, Monotone (l ∘ e) := by
       have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
@@ -487,7 +487,7 @@ lemma exists_equiv_nat_monotone_of_infinite {I : Type _} [Infinite I] {D : ℕ} 
 Given a fintype `I` and a function `l : I → ℕ`, produces an equivalence
 `e : Fin (card I) ≃ I` such that `l ∘ e` is monotone (i.e., maps increasing
 indices to non-decreasing length values). Uses insertion sort internally. -/
-lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
+lemma exists_equiv_fin_monotone {I : Type*} [Fintype I] (l : I → ℕ) :
     ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) := by
   -- sort relation by length
   let r : I → I → Prop := fun x y => l x ≤ l y
@@ -546,4 +546,4 @@ lemma exists_equiv_fin_monotone {I : Type _} [Fintype I] (l : I → ℕ) :
 
 end KraftOrder
 
-end Kraft
+end InformationTheory

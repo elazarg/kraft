@@ -9,6 +9,18 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
 import InformationTheory.Coding.ConstructionHelpers.Helpers
 
+/-!
+# Kraft Sum Helpers
+
+This file provides helper lemmas for working with Kraft sums.
+
+## Main results
+
+* `sum_range_lt_one_of_sum_range_le_one`: If a sum over `k` terms is `≤ 1`, then proper prefix
+  sums are `< 1`.
+* `tsum_lt_one_of_partial_lt_one`: If all partial sums are `< 1`, so is the infinite sum.
+-/
+
 section Sum
 
 /-- Helper: if a nonnegative series of length `k` sums to `≤ 1`,

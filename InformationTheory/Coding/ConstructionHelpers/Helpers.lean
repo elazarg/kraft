@@ -7,6 +7,17 @@ import Mathlib.Data.List.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Order.Interval.Finset.Nat
 
+/-!
+# List and Finset Helpers
+
+This file provides utility lemmas for lists, prefixes, and injective mappings.
+
+## Main results
+
+* `List.map_injective'`: Mapping an injective function over lists is injective.
+* `List.prefix_map_iff`: Mapping preserves prefix relationships.
+-/
+
 /-- Mapping an injective function over lists is injective. -/
 lemma List.map_injective' {α β} {f : α → β} (hf : Function.Injective f) :
     Function.Injective (List.map f) := by
@@ -28,7 +39,7 @@ lemma List.map_injective' {α β} {f : α → β} (hf : Function.Injective f) :
           simp [hf h1, ih h2]
 
 /-- Mapping an injective function over lists preserves prefix relationships in both directions. -/
-lemma List.IsPrefix.map_iff {α β : Type _} {f : α → β} (hf : Function.Injective f)
+lemma List.IsPrefix.map_iff {α β : Type*} {f : α → β} (hf : Function.Injective f)
     {l₁ l₂ : List α} :
     l₁.map f <+: l₂.map f ↔ l₁ <+: l₂ := by
   constructor
