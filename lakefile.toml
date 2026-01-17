@@ -12,10 +12,8 @@ name = "mathlib"
 scope = "leanprover-community"
 rev = "v4.26.0"
 
-# Target for your main Kraft.lean file
 [[lean_lib]]
 name = "Kraft"
 
-# Target for your InformationTheory/Coding folder
 [[lean_lib]]
 name = "InformationTheory"
