@@ -26,44 +26,50 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 ## Project Structure
 
 ```
-Kraft/
-  Basic.lean              -- Core definitions: PrefixFree, UniquelyDecodable
-  ConcatFn.lean           -- Concatenation function for code construction
-  Converse.lean           -- Converse of Kraft's inequality (main construction)
-  Digits.lean             -- Number-to-digit representation (arbitrary base)
-  ExtShift.lean           -- Helper for extending finite sequences to infinite
-  Helpers.lean            -- Utility lemmas
-  InequalityInfinite.lean -- Extension to infinite codes via tsum
-  KraftOrder.lean         -- Ordering machinery for infinite index sets
-  McMillan.lean           -- Kraft-McMillan inequality and finite Kraft inequality
-  UniquelyDecodable.lean  -- Prefix-free implies uniquely decodable
+Kraft.lean                          -- Root import file
+
+InformationTheory/
+  Coding/
+    PrefixFree.lean                 -- Definition of prefix-free codes
+    UniquelyDecodable.lean          -- Definition of uniquely decodable codes
+    Kraft.lean                      -- Kraft's inequality (main theorem)
+    KraftConverse.lean              -- Converse of Kraft's inequality
+    KraftMcMillan.lean              -- Kraft-McMillan inequality
+    Example.lean                    -- Shannon-Fano coding application
+
+    ConstructionHelpers/
+      Codeword.lean                 -- Fixed-width digit codeword construction
+      Construction.lean             -- Core prefix-free code construction algorithm
+      ExtShift.lean                 -- Extension of finite sequences to infinite
+      Helpers.lean                  -- Utility lemmas for lists and arithmetic
+      Sum.lean                      -- Helper lemmas for Kraft sums
 ```
 
 ### File Descriptions
 
-- **Basic.lean**: Defines `PrefixFree` (no codeword is a prefix of another) and `UniquelyDecodable` (distinct concatenations yield distinct strings)
+- **PrefixFree.lean**: Defines `PrefixFree` (no codeword is a prefix of another) and proves prefix-free codes are uniquely decodable
 
-- **ConcatFn.lean**: Defines the concatenation function mapping tuples of codewords to their concatenation, used in the McMillan proof
+- **UniquelyDecodable.lean**: Defines `UniquelyDecodable` (distinct concatenations yield distinct strings) and `concatFn` for codeword concatenation
 
-- **Converse.lean**: Constructs a prefix-free code for any length sequence satisfying the inequality, via D-adic interval allocation; handles both finite and infinite index sets
+- **Kraft.lean**: Proves Kraft's inequality for finite prefix-free codes, deriving it from the Kraft-McMillan inequality
 
-- **Digits.lean**: Provides `kraftCodeword` and related functions for converting numbers to fixed-width digit representations in arbitrary bases
+- **KraftConverse.lean**: Constructs a prefix-free code for any length sequence satisfying the Kraft condition, via D-adic interval allocation; handles both finite (`Fin k`) and infinite (`ℕ`) index sets
+
+- **KraftMcMillan.lean**: Proves the Kraft-McMillan inequality for uniquely decodable codes using the exponential growth of C^r where C is the Kraft sum
+
+- **Example.lean**: Demonstrates the library with a source coding application. Defines Shannon-Fano lengths and proves `exists_prefix_code_near_entropy`: for any probability distribution, there exists a prefix-free code with expected length less than entropy + 1
+
+### Construction Helpers
+
+- **Codeword.lean**: Provides `kraftCodeword` and related functions for converting numbers to fixed-width digit representations in arbitrary bases
+
+- **Construction.lean**: Core algorithmic engine for the converse proof. Defines `kraftNumerator` which computes interval start positions for the canonical code construction
 
 - **ExtShift.lean**: Utility for extending finite length sequences (over `Fin k`) to infinite sequences over `ℕ`, preserving monotonicity
 
-- **Helpers.lean**: Utility lemmas for working with finite sets, sums, and real arithmetic
+- **Helpers.lean**: Utility lemmas for working with lists, prefixes, and injective mappings
 
-- **InequalityInfinite.lean**: Extends to infinite codes by showing any finite subset satisfies the bound, establishing summability
-
-- **KraftOrder.lean**: Two components: (1) `kraftNumerator`, which computes interval start positions for the canonical code construction, and (2) `KraftOrder`/`kraftRank`, which orders indices to make length functions monotone for infinite index sets
-
-- **McMillan.lean**: Proves Kraft's inequality and the Kraft-McMillan inequality using the exponential growth of C^r where C is the Kraft sum
-
-- **UniquelyDecodable.lean**: Shows prefix-free codes are uniquely decodable by induction on the decoded string length
-
-### Example
-
-- **Example.lean**: Demonstrates the library's usefulness with a source coding application. Defines Shannon-Fano lengths and proves `exists_prefix_code_near_entropy`: for any probability distribution, there exists a prefix-free code with expected length less than entropy + 1.
+- **Sum.lean**: Helper lemmas for Kraft sum bounds, including that proper prefix sums are strictly less than 1
 
 ## Building
 
