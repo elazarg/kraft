@@ -8,7 +8,7 @@ import Mathlib.Data.Set.Basic
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Finset.Card
 
-import Kraft.UniquelyDecodable
+import InformationTheory.Coding.UniquelyDecodable
 
 namespace Kraft
 

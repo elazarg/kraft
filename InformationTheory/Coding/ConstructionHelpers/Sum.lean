@@ -2,7 +2,7 @@ import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Topology.Algebra.InfiniteSum.Defs
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 
-import Kraft.Helpers.Helpers
+import InformationTheory.Coding.ConstructionHelpers.Helpers
 
 section Sum
 

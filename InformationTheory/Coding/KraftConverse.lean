@@ -13,12 +13,12 @@ import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Analysis.SpecificLimits.Normed
 
-import Kraft.PrefixFree
-import Kraft.Helpers.Codeword
-import Kraft.Helpers.Construction
-import Kraft.Helpers.ExtShift
-import Kraft.Helpers.Helpers
-import Kraft.McMillan
+import InformationTheory.Coding.PrefixFree
+import InformationTheory.Coding.ConstructionHelpers.Codeword
+import InformationTheory.Coding.ConstructionHelpers.Construction
+import InformationTheory.Coding.ConstructionHelpers.ExtShift
+import InformationTheory.Coding.ConstructionHelpers.Helpers
+import InformationTheory.Coding.KraftMcMillan
 
 /-!
 # Constructive Converse of Kraft's Inequality

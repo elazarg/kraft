@@ -10,8 +10,8 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.Linarith
 
-import Kraft.Helpers.Helpers
-import Kraft.Helpers.Sum
+import InformationTheory.Coding.ConstructionHelpers.Helpers
+import InformationTheory.Coding.ConstructionHelpers.Sum
 
 namespace Kraft
 

@@ -6,7 +6,7 @@ import Mathlib.Data.Nat.Digits.Lemmas
 import Mathlib.Data.List.Basic
 import Mathlib.Data.Fin.Basic
 
-import Kraft.Helpers.Helpers
+import InformationTheory.Coding.ConstructionHelpers.Helpers
 
 namespace Kraft
 

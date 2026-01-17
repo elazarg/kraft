@@ -1,11 +1,5 @@
-import Kraft.PrefixFree
-import Kraft.Helpers.ConcatFn
-import Kraft.Helpers.Codeword
-import Kraft.Helpers.Construction
-import Kraft.Helpers.ExtShift
-import Kraft.Helpers.Helpers
-import Kraft.Helpers.Sum
-import Kraft.Converse
-import Kraft.InequalityInfinite
-import Kraft.McMillan
-import Kraft.UniquelyDecodable
+import InformationTheory.Coding.PrefixFree
+import InformationTheory.Coding.UniquelyDecodable
+import InformationTheory.Coding.Kraft
+import InformationTheory.Coding.KraftConverse
+import InformationTheory.Coding.KraftMcMillan

@@ -3,7 +3,7 @@ import Mathlib.Analysis.SpecialFunctions.Log.Basic
 import Mathlib.Analysis.SpecialFunctions.Log.Base
 import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
 
-import Kraft.Converse
+import InformationTheory.Coding.KraftConverse
 
 open scoped Real BigOperators
 

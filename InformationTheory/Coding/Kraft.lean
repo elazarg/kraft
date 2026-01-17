@@ -4,21 +4,40 @@ Released under MIT license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
 import Mathlib.Data.List.Basic
-import Mathlib.Data.Real.Basic
-import Mathlib.Data.Set.Basic
 import Mathlib.Data.Finset.Basic
+import Mathlib.Data.Real.Basic
 
-import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Algebra.BigOperators.Field
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
+import Mathlib.Order.Filter.Tendsto
+import Mathlib.Order.Filter.AtTopBot.Archimedean
+import Mathlib.Algebra.BigOperators.Pi
+import Mathlib.Analysis.SpecificLimits.Normed
 
-import Kraft.PrefixFree
-import Kraft.McMillan
+import Mathlib.Tactic.NormNum
+import Mathlib.Tactic.Linarith
+
+import InformationTheory.Coding.PrefixFree
+import InformationTheory.Coding.KraftMcMillan
 
 namespace Kraft
-open scoped BigOperators Real
 
 variable {α : Type _} [DecidableEq α] [Fintype α] [Nonempty α]
+
+/-- **Kraft's Inequality**: If `S` is a finite prefix-free code over an alphabet of size `D`,
+then `∑_{w ∈ S} D^{-|w|} ≤ 1`.
+
+This follows from the Kraft-McMillan inequality since prefix-free codes are uniquely decodable. -/
+theorem kraft_inequality (S : Finset (List α)) (hpf : PrefixFree (S : Set (List α))) :
+    ∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length ≤ 1 := by
+  by_cases he : [] ∈ S
+  · simp
+    have h_eq : S = {[]} := by
+      exact_mod_cast epsilon_prefix_singleton hpf he
+    subst h_eq
+    simp
+  · have hud : UniquelyDecodable (S : Set (List α)) :=
+      hpf.uniquely_decodable he
+    simpa using (kraft_mcmillan_inequality hud)
+
 
 /-- **Kraft's Inequality (Infinite)**: If `S` is a prefix-free code (possibly infinite),
 then the series `∑ D^{-|w|}` converges and its sum is at most 1.
