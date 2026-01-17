@@ -126,7 +126,7 @@ lemma kraftNumerator.div_separated_of_lt
     exact Nat.pow_pos hDpos
 
   -- Closed forms for A i and A j
-  have hAi : A i = ∑ t ∈  Finset.range i, D ^ (l i - l t) := by
+  have hAi : A i = ∑ t ∈ Finset.range i, D ^ (l i - l t) := by
     simpa [A] using (kraftNumerator.eq_sum_pow_range D l hmono i)
   have hAj : A j = ∑ t ∈ Finset.range j, D ^ (l j - l t) := by
     simpa [A] using (kraftNumerator.eq_sum_pow_range D l hmono j)
@@ -137,31 +137,31 @@ lemma kraftNumerator.div_separated_of_lt
     exact Finset.range_mono (Nat.succ_le_of_lt hij)
 
   have hle_part :
-      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
-        ≤ (∑ t ∈  Finset.range j, D ^ (l j - l t)) := by
+      (∑ t ∈ Finset.range (i+1), D ^ (l j - l t))
+        ≤ (∑ t ∈ Finset.range j, D ^ (l j - l t)) := by
     refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
     intro x hx _hx'
     exact Nat.zero_le _
 
   have hle_part' :
-      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t)) ≤ A j := by
+      (∑ t ∈ Finset.range (i+1), D ^ (l j - l t)) ≤ A j := by
     simpa [hAj] using hle_part
 
   -- Rewrite the `range (i+1)` sum as (range i) + last
   have hsplit :
-      (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
-        = (∑ t ∈  Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
+      (∑ t ∈ Finset.range (i+1), D ^ (l j - l t))
+        = (∑ t ∈ Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
     simp [Finset.sum_range_succ]
 
   -- Show the prefix sum is a multiple of `d` with coefficient `A i`
   have hmul_prefix :
-      (∑ t ∈  Finset.range i, D ^ (l j - l t))
-        = d * (∑ t ∈  Finset.range i, D ^ (l i - l t)) := by
+      (∑ t ∈ Finset.range i, D ^ (l j - l t))
+        = d * (∑ t ∈ Finset.range i, D ^ (l i - l t)) := by
     -- each term: D^(l j - l t) = D^(l j - l i) * D^(l i - l t)
     -- because l t ≤ l i ≤ l j
     calc
-      (∑ t ∈  Finset.range i, D ^ (l j - l t))
-          = ∑ t ∈  Finset.range i, d * (D ^ (l i - l t)) := by
+      (∑ t ∈ Finset.range i, D ^ (l j - l t))
+          = ∑ t ∈ Finset.range i, d * (D ^ (l i - l t)) := by
               refine Finset.sum_congr rfl ?_
               intro t ht
               have ht' : t < i := Finset.mem_range.mp ht
@@ -172,7 +172,7 @@ lemma kraftNumerator.div_separated_of_lt
                 omega
               -- unfold d and finish
               simp [d, hexp, pow_add, mul_comm]
-      _   = d * (∑ t ∈  Finset.range i, D ^ (l i - l t)) := by
+      _   = d * (∑ t ∈ Finset.range i, D ^ (l i - l t)) := by
               simp [Finset.mul_sum]
 
   -- Now assemble: sum_{t≤i} = d*(A i + 1)
@@ -182,12 +182,12 @@ lemma kraftNumerator.div_separated_of_lt
     -- LHS = (prefix over range i) + d
     -- prefix = d * (sum range i ...)
     -- sum range i ... = A i
-    have : (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
+    have : (∑ t ∈ Finset.range (i+1), D ^ (l j - l t))
               = d * (A i + 1) := by
       -- rewrite using hsplit, hmul_prefix, hAi
       calc
-        (∑ t ∈  Finset.range (i+1), D ^ (l j - l t))
-            = (∑ t ∈  Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
+        (∑ t ∈ Finset.range (i+1), D ^ (l j - l t))
+            = (∑ t ∈ Finset.range i, D ^ (l j - l t)) + D ^ (l j - l i) := by
                 exact hsplit
         _   = d * (∑ t ∈ Finset.range i, D ^ (l i - l t)) + d := by
                 simp [hmul_prefix, d]
