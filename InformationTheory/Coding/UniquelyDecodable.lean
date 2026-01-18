@@ -37,7 +37,7 @@ variable {S : Set (List α)}
 
 /-- If a code is uniquely decodable, it does not contain the empty string.
 
-The empty string ε can be "decoded" as either zero or two copies of itself,
+The empty string can be "decoded" as either zero or two copies of itself,
 violating unique decodability. -/
 lemma UniquelyDecodable.epsilon_not_mem
     (h : UniquelyDecodable S) :

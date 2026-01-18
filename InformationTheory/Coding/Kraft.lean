@@ -48,17 +48,17 @@ noncomputable def kraftWeight (w : List α) : ℝ :=
 then `∑_{w ∈ S} D^{-|w|} ≤ 1`.
 
 This follows from the Kraft-McMillan inequality since prefix-free codes are uniquely decodable. -/
-theorem kraft_inequality {S : Finset (List α)} (hpf : PrefixFree (S : Set (List α))) :
+theorem kraft_inequality {S : Finset (List α)} (h : PrefixFree (S : Set (List α))) :
     ∑ w ∈ S, kraftWeight w ≤ 1 := by
   unfold kraftWeight
   by_cases he : [] ∈ S
   · simp
     have h_eq : S = {[]} := by
-      exact_mod_cast hpf.epsilon_singleton he
+      exact_mod_cast h.epsilon_singleton he
     subst h_eq
     simp
   · have hud : UniquelyDecodable (S : Set (List α)) :=
-      hpf.uniquely_decodable he
+      h.uniquely_decodable he
     simpa using (kraft_mcmillan_inequality hud)
 
 /-- **Kraft's Inequality (Infinite)**: If `S` is a prefix-free code (possibly infinite),

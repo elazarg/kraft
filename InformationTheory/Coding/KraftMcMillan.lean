@@ -54,17 +54,17 @@ private def concatFn (w : Fin r → S) : List α :=
   (List.ofFn (fun i : Fin r => (w i).val)).flatten
 
 @[simp]
-private lemma concatFn_def (w : Fin r → S):
+private lemma concatFn.def (w : Fin r → S):
   concatFn w = (List.ofFn (fun i : Fin r => (w i).val)).flatten :=
   rfl
 
 /-- The length of a concatenation is the sum of the codeword lengths. -/
-private lemma concatFn_length (w : Fin r → S):
+private lemma concatFn.length (w : Fin r → S):
   (concatFn w).length = ∑ i : Fin r, (w i).val.length := by
   simp [List.sum_ofFn]
 
 /-- The concatenation length is at most `r` times the maximum codeword length. -/
-private lemma concatFn_length_le_mul_sup {Sf : Finset (List α)} {r : ℕ}
+private lemma concatFn.length_le_mul_sup {Sf : Finset (List α)} {r : ℕ}
     (ws : Fin r → Sf) :
   (concatFn ws).length ≤ r * (Sf.sup List.length) := by
   have h_each : ∀ i : Fin r, (ws i).val.length ≤ Sf.sup List.length := by
@@ -80,18 +80,18 @@ private lemma concatFn_length_le_mul_sup {Sf : Finset (List α)} {r : ℕ}
         (fun i _ => h_each i))
 
   calc
-    (concatFn ws).length = ∑ i, (ws i).val.length := concatFn_length ws
+    (concatFn ws).length = ∑ i, (ws i).val.length := concatFn.length ws
     _ ≤ ∑ _i, Sf.sup List.length := Finset.sum_le_sum (fun i _ => Finset.le_sup (by simp))
     _ = r * Sf.sup List.length := by simp
 
 /-- If `S` contains no empty string, then concatenating `r` codewords yields length at least `r`. -/
-private lemma le_concatFn_length_of_no_empty (w : Fin r → S) (hε : ([] : List α) ∉ S):
+private lemma concatFn.le_length_of_no_empty (w : Fin r → S) (h_nil : ([] : List α) ∉ S):
   r ≤ (concatFn w).length := by
   have h_each : ∀ i : Fin r, 1 ≤ (w i).val.length := by
     intro i
     have hne : (w i).val ≠ ([] : List α) := by
       intro h0
-      apply hε
+      apply h_nil
       simpa [h0] using (w i).property
     -- `0 < length` -> `1 ≤ length`
     have : 0 < (w i).val.length := List.length_pos_iff.2 hne
@@ -105,7 +105,7 @@ private lemma le_concatFn_length_of_no_empty (w : Fin r → S) (hε : ([] : List
           (s := (Finset.univ : Finset (Fin r)))
           (fun i _ => h_each i))
     _ = (concatFn w).length := by
-      simpa using (concatFn_length w).symm
+      simpa using (concatFn.length w).symm
 
 end concatFn
 
@@ -128,7 +128,7 @@ private lemma uniquely_decodable_concatFn_injective
 
   have hpack : pack w1 = pack w2 := by
     apply (UniquelyDecodable.flatten_injective h)
-    simpa [pack] using hflat
+    simpa using hflat
 
   have hOf :
       List.ofFn (fun j : Fin r => (w1 j).val)
@@ -230,7 +230,7 @@ private lemma kraft_sum_pow_eq_sum_concatFn
           (f := fun i : Fin r => (w i).val.length))
     have hsum :
         (∑ i : Fin r, (w i).val.length) = (concatFn w).length := by
-      simpa using (concatFn_length w).symm
+      simpa using (concatFn.length w).symm
 
     simpa [hsum] using hprod
 
@@ -262,7 +262,7 @@ private lemma card_filter_length_eq_le
 
   have hcard_all : all_words.card = D ^ s := by
     -- `List.ofFn` is injective, so the image has the same cardinality as the domain.
-    simpa [all_words, D] using
+    simpa using
       (Finset.card_image_of_injective
         (s := (Finset.univ : Finset (Fin s → α)))
         (f := (List.ofFn : (Fin s → α) → List α))
@@ -305,10 +305,10 @@ lemma kraft_mcmillan_inequality_aux {S : Finset (List α)} [DecidableEq α] [Fin
       refine Finset.sum_bij (fun w _ => concatFn w) ?_ ?_ (by simp [T]) (by simp)
       · intro a _
         simp only [T, Finset.mem_biUnion, Finset.mem_Icc, Finset.mem_filter, Finset.mem_image, Finset.mem_univ, true_and]
-        refine ⟨(concatFn a).length, ?_⟩
+        use (concatFn a).length
         refine ⟨⟨?_, ?_⟩, ⟨a, rfl⟩, rfl⟩
-        · simpa using (le_concatFn_length_of_no_empty a h.epsilon_not_mem)
-        · simpa [maxLen] using (concatFn_length_le_mul_sup a)
+        · simpa using (concatFn.le_length_of_no_empty a h.epsilon_not_mem)
+        · simpa using (concatFn.length_le_mul_sup a)
       · intro a₁ _ a₂ _ h_eq
         exact uniquely_decodable_concatFn_injective h r h_eq
     · intro _ _ _ _ hst
@@ -319,9 +319,9 @@ lemma kraft_mcmillan_inequality_aux {S : Finset (List α)} [DecidableEq α] [Fin
       ∀ s ∈ Finset.Icc r (r * maxLen),
         ∑ x ∈ T.filter (fun x => x.length = s), (1 / D : ℝ) ^ x.length ≤ 1 := by
     intro s _
-    simpa [D] using
+    simpa using
       (sum_pow_len_filter_le_one_of_card_le (T := T) (s := s)
-        (by simpa [D] using (card_filter_length_eq_le (T := T) (s := s))))
+        (by simpa using (card_filter_length_eq_le (T := T) (s := s))))
 
   refine le_trans h_sum.le <| h_injective.trans <| le_trans (Finset.sum_le_sum h_sum_one) ?_
   rcases r with (_ | _ | r) <;> rcases maxLen with (_ | _ | maxLen) <;> norm_num at *
