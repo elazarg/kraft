@@ -6,6 +6,7 @@ Authors: Elazar Gershuni
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Topology.Algebra.InfiniteSum.Defs
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
+import Mathlib.Order.Interval.Finset.Nat
 
 import InformationTheory.Coding.ConstructionHelpers.Helpers
 
@@ -69,7 +70,7 @@ lemma prefix_sum_lt_one_of_tsum_le_one
       Summable.sum_le_tsum _ (fun _ _ => by positivity) h_summable
     exact le_trans h_le_tsum' h_sum_le_one
 
-  simpa [range_eq_Iio] using
+  simpa [Nat.Iio_eq_range] using
     sum_range_lt_one_of_sum_range_le_one h_pos (Nat.lt_succ_self n) h_le
 
 lemma prefix_sum_lt_one_of_fin_sum_le_one
@@ -103,6 +104,6 @@ lemma strict_prefix_of_tsum_le_one
     have h_le_one : (∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k) ≤ 1 :=
       le_trans h_le_tsum h_sum
 
-    simpa [range_eq_Iio] using sum_range_lt_one_of_sum_range_le_one h_pos (Nat.lt_succ_self n) h_le_one
+    simpa [<-Nat.Iio_eq_range] using sum_range_lt_one_of_sum_range_le_one h_pos (Nat.lt_succ_self n) h_le_one
 
 end Sum

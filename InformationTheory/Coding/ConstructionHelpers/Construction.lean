@@ -11,6 +11,7 @@ import Mathlib.Order.Hom.Basic
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Topology.Algebra.InfiniteSum.Defs
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
+import Mathlib.Order.Interval.Finset.Nat
 
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.Linarith
@@ -237,7 +238,7 @@ lemma kraftNumerator.bound {D : ℕ} {l : ℕ → ℕ} (h_mono : Monotone l) (hD
     ∀ n, kraftNumerator D l n < D ^ l n := by
   intro n
   have h_range : (∑ k ∈ Finset.range n, (1 / (D : ℝ)) ^ l k) < 1 := by
-    simpa [range_eq_Iio] using h_prefix_lt_one n
+    simpa [<-Nat.Iio_eq_range] using h_prefix_lt_one n
   exact kraftNumerator.lt_pow_of_sum_range_lt_one hD h_mono h_range
 
 /-- `kraftNumerator D l` is strictly increasing as soon as `D > 0`.
