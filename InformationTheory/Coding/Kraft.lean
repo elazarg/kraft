@@ -21,6 +21,10 @@ import InformationTheory.Coding.KraftMcMillan
 
 This file proves Kraft's inequality for prefix-free codes over finite alphabets.
 
+## Main definitions
+
+* `kraftWeight`: The Kraft weight of a word `w` is `D^{-|w|}` where `D` is the alphabet size.
+
 ## Main results
 
 * `kraft_inequality`: For a finite prefix-free code `S` over an alphabet of size `D`,
