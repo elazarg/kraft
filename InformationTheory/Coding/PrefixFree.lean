@@ -145,8 +145,6 @@ theorem PrefixFree.nontrivial_is_uniquely_decodable
 
   -- Convert Set equality to Finset equality to contradict cardinality.
   rw [Finset.coe_eq_singleton] at h_set_eq
-  rw [h_set_eq] at h_card
-
-  simp at h_card
+  simp [h_set_eq] at h_card
 
 end InformationTheory
