@@ -36,12 +36,17 @@ namespace InformationTheory
 
 variable {α : Type*} [DecidableEq α] [Fintype α] [Nonempty α]
 
+/-- The Kraft weight of a word `w` is `D^{-|w|}` where `D` is the alphabet size. -/
+noncomputable def kraftWeight (w : List α) : ℝ :=
+  (1 / (Fintype.card α : ℝ)) ^ w.length
+
 /-- **Kraft's Inequality**: If `S` is a finite prefix-free code over an alphabet of size `D`,
 then `∑_{w ∈ S} D^{-|w|} ≤ 1`.
 
 This follows from the Kraft-McMillan inequality since prefix-free codes are uniquely decodable. -/
 theorem kraft_inequality {S : Finset (List α)} (hpf : PrefixFree (S : Set (List α))) :
-    ∑ w ∈ S, (1 / (Fintype.card α) : ℝ) ^ w.length ≤ 1 := by
+    ∑ w ∈ S, kraftWeight w ≤ 1 := by
+  unfold kraftWeight
   by_cases he : [] ∈ S
   · simp
     have h_eq : S = {[]} := by
@@ -52,42 +57,39 @@ theorem kraft_inequality {S : Finset (List α)} (hpf : PrefixFree (S : Set (List
       hpf.uniquely_decodable he
     simpa using (kraft_mcmillan_inequality hud)
 
-
 /-- **Kraft's Inequality (Infinite)**: If `S` is a prefix-free code (possibly infinite),
-then the series `∑ D^{-|w|}` converges and its sum is at most 1.
+then the series `∑ D^{-|w|}` (a) converges and (b) its sum is at most 1.
 
 The proof shows that every finite subset satisfies the bound (by the finite Kraft inequality),
 which implies summability. The tsum bound then follows from summability. -/
 theorem kraft_inequality_infinite {S : Set (List α)} (h : PrefixFree S) :
-    HasSum (fun w : S => (1 / (Fintype.card α) : ℝ) ^ (w : List α).length) (∑' w : S, (1 / (Fintype.card α) : ℝ) ^ (w : List α).length)
-    ∧ (∑' w : S, (1 / (Fintype.card α) : ℝ) ^ (w : List α).length) ≤ 1 := by
-  let D : ℝ := Fintype.card α
-
-  -- 1) bound every finite partial sum
+    HasSum (fun w : S => kraftWeight (w : List α))
+              (∑' w : S, kraftWeight (w : List α))
+            ∧ (∑' w : S, kraftWeight (w : List α)) ≤ 1 := by
+  -- Bound every finite partial sum
   have h_bound :
-      ∀ (F : Finset S), (∑ w ∈ F, (1 / D) ^ (w : List α).length) ≤ 1 := by
+      ∀ (F : Finset S), (∑ w ∈ F, kraftWeight (w : List α)) ≤ 1 := by
     intro F
+
     let F_val : Finset (List α) := F.image Subtype.val
+
     have h_subset : (F_val : Set (List α)) ⊆ S := by
       intro x hx
       rcases Finset.mem_image.mp hx with ⟨y, _, rfl⟩
       exact y.property
 
-    -- rewrite the sum over subtypes as a sum over values
-    have hsum :
-        (∑ w ∈ F, (1 / D) ^ (w : List α).length)
-          =
-        ∑ x ∈ F_val, (1 / D) ^ x.length := by
+    -- Rewrite the sum over subtypes as a sum over values
+    have hsum : (∑ w ∈ F, kraftWeight (w : List α)) = ∑ x ∈ F_val, kraftWeight x := by
       simp [F_val]
-    -- combine
+
     rw [hsum]
-    simpa [D] using (kraft_inequality (h.mono h_subset))
+    exact kraft_inequality (h.mono h_subset)
 
-  -- 2. Prove summability using the finite bound
-  have h_summable : Summable (fun w : S => (1 / D) ^ (w : List α).length) :=
-    summable_of_sum_le (fun _ => by positivity) h_bound
+  -- Prove summability using the finite bound
+  have h_summable : Summable (fun w : S => kraftWeight (w : List α)) :=
+    summable_of_sum_le (fun _ => by unfold kraftWeight; positivity) h_bound
 
-  -- 3. Return HasSum (convergence) and the bound
+  -- Return HasSum (convergence) and the bound
   exact ⟨h_summable.hasSum, h_summable.tsum_le_of_sum_le h_bound⟩
 
 end InformationTheory
