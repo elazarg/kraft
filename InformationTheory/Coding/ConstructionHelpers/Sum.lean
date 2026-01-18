@@ -8,8 +8,6 @@ import Mathlib.Topology.Algebra.InfiniteSum.Defs
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Order.Interval.Finset.Nat
 
-import InformationTheory.Coding.ConstructionHelpers.Helpers
-
 /-!
 # Kraft Sum Helpers
 

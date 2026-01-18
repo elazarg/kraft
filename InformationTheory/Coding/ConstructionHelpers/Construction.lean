@@ -16,7 +16,6 @@ import Mathlib.Order.Interval.Finset.Nat
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.Linarith
 
-import InformationTheory.Coding.ConstructionHelpers.Helpers
 import InformationTheory.Coding.ConstructionHelpers.Sum
 
 namespace InformationTheory
