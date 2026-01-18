@@ -14,29 +14,8 @@ This file provides utility lemmas for lists, prefixes, and injective mappings.
 
 ## Main results
 
-* `List.map_injective'`: Mapping an injective function over lists is injective.
 * `List.prefix_map_iff`: Mapping preserves prefix relationships.
 -/
-
-/-- Mapping an injective function over lists is injective. -/
-lemma List.map_injective' {α β} {f : α → β} (hf : Function.Injective f) :
-    Function.Injective (List.map f) := by
-  intro a b hab
-  revert b
-  induction a with
-  | nil =>
-      intro b hab
-      cases b with
-      | nil => rfl
-      | cons b bs => contradiction
-  | cons a as ih =>
-      intro b hab
-      cases b with
-      | nil => contradiction
-      | cons b bs =>
-          -- (f a :: ...) = (f b :: ...) → f a = f b and tails equal
-          injection hab with h1 h2
-          simp [hf h1, ih h2]
 
 /-- Mapping an injective function over lists preserves prefix relationships in both directions. -/
 lemma List.IsPrefix.map_iff {α β : Type*} {f : α → β} (hf : Function.Injective f)
@@ -52,7 +31,7 @@ lemma List.IsPrefix.map_iff {α β : Type*} {f : α → β} (hf : Function.Injec
 
     refine ⟨l₂.drop l₁.length, ?_⟩
     -- `take_append_drop` says: take n l₂ ++ drop n l₂ = l₂
-    simpa [List.map_injective' hf htake'] using (List.take_append_drop l₁.length l₂)
+    simpa [Function.Injective.list_map hf htake'] using (List.take_append_drop l₁.length l₂)
 
   · intro h
     exact List.IsPrefix.map f h
