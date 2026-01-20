@@ -20,6 +20,7 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 | `kraft_inequality` | For finite prefix-free S: `∑_{w ∈ S} D^{-\|w\|} ≤ 1` |
 | `kraft_inequality_infinite` | Extension to infinite prefix-free codes (as a tsum) |
 | `kraft_mcmillan_inequality` | Same bound for uniquely decodable codes |
+| `kraft_inequality_of_fiberBound_exponential` | If fiber sizes grow as `C^r`, then `∑ D^{-ℓ(x)} ≤ C` |
 | `kraft_inequality_of_injective` | Abstract version for monoids with injective products |
 | `exists_code` | Converse: lengths with `∑ D^{-l_i} ≤ 1` admit a prefix-free code |
 | `PrefixFree.uniquely_decodable` | Prefix-free codes are uniquely decodable |
@@ -59,7 +60,7 @@ InformationTheory/
 
 - **KraftMcMillan.lean**: Proves the Kraft-McMillan inequality for uniquely decodable codes over lists
 
-- **KraftGeneralized.lean**: Abstract version of Kraft-McMillan for monoids with a length function; proves the inequality holds when r-fold products are injective
+- **KraftGeneralized.lean**: Abstract Kraft-McMillan for monoids with a length function. Generalizes beyond injectivity: if `r`-fold product fiber sizes grow at most as `C^r`, then `∑ D^{-ℓ(x)} ≤ C`. The classical injective case (`C=1`) is a corollary
 
 - **Example.lean**: Demonstrates the library with a source coding application. Defines Shannon-Fano lengths and proves `exists_prefix_code_near_entropy`: for any probability distribution, there exists a prefix-free code with expected length less than entropy + 1
 
