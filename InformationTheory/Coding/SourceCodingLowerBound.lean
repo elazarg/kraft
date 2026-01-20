@@ -216,7 +216,6 @@ theorem source_coding_lower_bound
     (hud : UniquelyDecodable (Set.range w)) :
     entropy D p ≤ expLength p w := by
   classical
-  -- Setup lengths and Kraft sum
   let L : I → ℕ := fun i => (w i).length
   let K : ℝ := ∑ i, (1 / (D : ℝ)) ^ (L i)
 
@@ -264,16 +263,187 @@ theorem source_coding_lower_bound
       0 ≤ ∑ i, p i * Real.log (p i / q i) := by
     simpa using (gibbs_sum_log_ratio_nonneg hp_pos hp_sum hq_pos hq_sum)
 
-  -- Convert hgibbs into entropy ≤ expected length via algebra
-  -- Main rewrite: q i = (1/K) * (1/D)^(L i)
-  -- So: -logb D (q i) = (L i : ℝ) + logb D K.
-  -- Then use logb monotonicity and K ≤ 1 to drop the `logb D K` term.
+  have hD0 : (0 : ℝ) < (D : ℝ) := by
+    exact_mod_cast (lt_trans Nat.zero_lt_one hD)
 
-  -- STUB: the rest is algebra; do it in three helper lemmas:
-  --   (1) rewrite hgibbs into: ∑ -p*logb p ≤ ∑ -p*logb q
-  --   (2) rewrite RHS using q-definition into expLength + logb D K
-  --   (3) show logb D K ≤ 0 from hK_le_one, then conclude
-  sorry
+  have hlogD_pos : 0 < Real.log (D : ℝ) := by
+    -- `log` is positive for arguments > 1
+    have : (1 : ℝ) < (D : ℝ) := by exact_mod_cast hD
+    simpa using Real.log_pos this
+
+  have hK0 : 0 < K := hK_pos
+
+  -- Key pointwise rewrite: p/q = p * K * D^(L i)
+  have h_log_p_div_q :
+      ∀ i : I, Real.log (p i / q i)
+        = Real.log (p i) + Real.log K + (L i : ℝ) * Real.log (D : ℝ) := by
+    intro i
+    have hp0 : 0 < p i := hp_pos i
+    have hq0 : 0 < q i := hq_pos i
+    have : p i / q i = p i * K * (D : ℝ) ^ (L i) := by
+      simp [q, div_eq_mul_inv, mul_left_comm, mul_comm]  -- usually enough
+    -- Now log of product
+    -- log(p*K*D^L) = log p + log K + log(D^L) = log p + log K + L*log D
+    -- use positivity to justify `log_mul` etc.
+    -- (Most of these simp-lemmas are in `Mathlib.Analysis.SpecialFunctions.Log.*` which you imported.)
+    have hpos : 0 < K * (↑D : ℝ) ^ (L i) := by
+      exact mul_pos hK0 (pow_pos hD0 _)
+    have hpow_pos : 0 < (↑D : ℝ) ^ (L i) := by
+      exact pow_pos hD0 _
+
+    have hK_ne : K ≠ 0 := ne_of_gt hK0
+    have hpow_ne : (↑D : ℝ) ^ (L i) ≠ 0 := ne_of_gt hpow_pos
+
+    calc
+      Real.log (p i / q i)
+          = Real.log (p i * K * (D : ℝ) ^ (L i)) := by simp [this]
+      _ = Real.log (p i * (K * (↑D : ℝ) ^ (L i))) := by simp [mul_assoc]
+      _ = Real.log (p i) + Real.log (K * (↑D : ℝ) ^ (L i)) := Real.log_mul (by positivity) (by positivity)
+      _ = Real.log (p i) + (Real.log K + Real.log ((D : ℝ) ^ (L i))) := by
+            have hlog : Real.log (K * (↑D : ℝ) ^ (L i))
+                = Real.log K + Real.log ((↑D : ℝ) ^ (L i)) := by
+                  simpa using (Real.log_mul hK_ne hpow_ne)
+            simp [hlog]
+      _ = Real.log (p i) + Real.log K + (L i : ℝ) * Real.log (D : ℝ) := by
+            simp [Real.log_pow, add_left_comm, add_comm]
+
+  have hgibbs' :
+      0 ≤ ∑ i, p i * log (p i) + log K * ∑ i, p i + log ↑D * ∑ i, p i * (L i : ℝ) := by
+    have := hgibbs
+    simp_rw [h_log_p_div_q] at this
+    have :
+        0 ≤ ∑ i, (p i * log (p i) + p i * log K + p i * ((L i : ℝ) * log (↑D : ℝ))) := by
+      simpa [mul_add, add_mul, add_assoc, add_left_comm, add_comm, mul_assoc] using this
+    calc
+      0 ≤ (∑ i, p i * log (p i))
+          + (∑ i, p i * log K)
+          + (∑ i, p i * ((L i : ℝ) * log (↑D : ℝ))) :=
+            by simpa [Finset.sum_add_distrib, add_assoc] using this
+      _ = (∑ i, p i * log (p i))
+          + (log K * ∑ i, p i)
+          + (log (↑D : ℝ) * ∑ i, p i * (L i : ℝ)) := by
+            -- middle term
+            have hmul_logK : (Real.log K) * (∑ i, p i) = ∑ i, (Real.log K) * p i := by
+              -- Finset.mul_sum : a * (∑ x in s, f x) = ∑ x in s, a * f x
+              simpa using
+                (Finset.mul_sum (s := (Finset.univ : Finset I))
+                  (a := Real.log K) (f := fun i : I => p i))
+
+            have h2 : (∑ i, p i * Real.log K) = Real.log K * ∑ i, p i := by
+              calc
+                (∑ i, p i * Real.log K)
+                    = ∑ i, (Real.log K) * p i := by simp [mul_comm]
+                _   = (Real.log K) * (∑ i, p i) := by simpa using hmul_logK.symm
+            have hmul_logD :
+                Real.log (↑D : ℝ) * (∑ i, p i * (L i : ℝ))
+                  = ∑ i, Real.log (↑D : ℝ) * (p i * (L i : ℝ)) := by
+              simpa using
+                (Finset.mul_sum (s := (Finset.univ : Finset I))
+                  (a := Real.log (↑D : ℝ)) (f := fun i : I => p i * (L i : ℝ)))
+
+            have h3 :
+                (∑ i, p i * ((L i : ℝ) * Real.log (↑D : ℝ)))
+                  = Real.log (↑D : ℝ) * ∑ i, p i * (L i : ℝ) := by
+              calc
+                (∑ i, p i * ((L i : ℝ) * Real.log (↑D : ℝ)))
+                    = ∑ i, Real.log (↑D : ℝ) * (p i * (L i : ℝ)) := by
+                        simp [mul_assoc, mul_comm]
+                _   = Real.log (↑D : ℝ) * (∑ i, p i * (L i : ℝ)) := by
+                        simpa using hmul_logD.symm
+            simp [h2, h3, add_assoc]
+
+  -- Convert to the usual `∑ -p log p ≤ logD * E[L] + logK`
+  have h_negMulLog_le :
+      (∑ i, Real.negMulLog (p i))
+        ≤ Real.log (D : ℝ) * expLength p w + Real.log K := by
+    have hp_sum' : (∑ i, p i) = 1 := hp_sum
+    have : -(∑ i, p i * Real.log (p i))
+            ≤ Real.log K + Real.log (D : ℝ) * (∑ i, p i * (L i : ℝ)) := by
+      simp_all only
+      linarith [hgibbs', hp_sum']
+    have hEL : expLength p w = ∑ i, p i * (L i : ℝ) := by
+      simp [expLength, L]
+    have hneg :
+        (∑ i, Real.negMulLog (p i)) = - (∑ i, p i * Real.log (p i)) := by
+      have hpt : ∀ i, Real.negMulLog (p i) = - (p i * Real.log (p i)) := by
+        intro i
+        have hp : 0 < p i := hp_pos i
+        simp [Real.negMulLog]
+      simp [hpt, Finset.sum_neg_distrib]
+    calc
+      ∑ i, Real.negMulLog (p i)
+          = - (∑ i, p i * Real.log (p i)) := by simp [hneg]
+      _ ≤ Real.log K + Real.log (D : ℝ) * (∑ i, p i * (L i : ℝ)) := by simpa using this
+      _ = Real.log (D : ℝ) * expLength p w + Real.log K := by simp [hEL, add_comm]
+
+  -- log K ≤ 0 from K ≤ 1 and K > 0
+  have hlogK_le0 : Real.log K ≤ 0 := by
+    simpa [Real.log_one] using Real.log_le_log hK0 hK_le_one
+
+  -- Finish: divide by log D > 0, and drop the (log K)/(log D) ≤ 0 term
+  have h_entropy_le :
+      entropy D p ≤ expLength p w + Real.log K / Real.log (D : ℝ) := by
+    -- entropy = (∑ negMulLog p)/logD
+    -- use h_negMulLog_le then divide
+    have : (∑ i, Real.negMulLog (p i)) / Real.log (D : ℝ)
+            ≤ (Real.log (D : ℝ) * expLength p w + Real.log K) / Real.log (D : ℝ) := by
+      exact (div_le_div_of_nonneg_right h_negMulLog_le (le_of_lt hlogD_pos))
+    -- simplify RHS
+    -- (logD * EL)/logD = EL, and logK/logD stays
+    ring_nf
+    -- Step A: divide by log D
+    have h_entropy_le' :
+        entropy D p ≤ (Real.log (D : ℝ) * expLength p w + Real.log K) / Real.log (D : ℝ) := by
+      -- entropy is exactly the LHS
+      dsimp [entropy]
+      exact (div_le_div_of_nonneg_right h_negMulLog_le (le_of_lt hlogD_pos))
+
+    -- Step B: simplify the RHS into expLength + logK/logD
+    have h_simp :
+        (Real.log (D : ℝ) * expLength p w + Real.log K) / Real.log (D : ℝ)
+          = expLength p w + Real.log K / Real.log (D : ℝ) := by
+      -- do it by hand; no ring_nf needed
+      -- (a*b + c)/a = b + c/a, assuming a ≠ 0
+      have hlogD_ne : (Real.log (D : ℝ)) ≠ 0 := ne_of_gt hlogD_pos
+      -- `div_add_div` then `mul_div_cancel_left` is robust
+      calc
+        (Real.log (D : ℝ) * expLength p w + Real.log K) / Real.log (D : ℝ)
+            = (Real.log (D : ℝ) * expLength p w) / Real.log (D : ℝ)
+                + (Real.log K) / Real.log (D : ℝ) := by
+                  simp [add_div]
+        _ = expLength p w + Real.log K / Real.log (D : ℝ) := by
+              -- cancel logD in the first term
+              simp [mul_div_cancel_left₀, hlogD_ne]
+
+    -- Step C: show logK/logD ≤ 0
+    have hlogK_div_le0 : Real.log K / Real.log (D : ℝ) ≤ 0 := by
+      -- divide a ≤ 0 by positive => still ≤ 0
+      have : Real.log K ≤ 0 := hlogK_le0
+      have hlogD0 : 0 ≤ Real.log (D : ℝ) := le_of_lt hlogD_pos
+      calc
+        Real.log K / Real.log (D : ℝ) ≤ 0 / Real.log (D : ℝ) := by
+          exact (div_le_div_of_nonneg_right this hlogD0)
+        _ = 0 := by simp
+
+    -- Finish: chain and drop the nonpositive term
+    have h_entropy_le :
+        entropy D p ≤ expLength p w + Real.log K / Real.log (D : ℝ) := by
+      -- combine A and B
+      exact le_trans h_entropy_le' (by simp [h_simp])
+
+    -- drop logK/logD
+    have : expLength p w + Real.log K / Real.log (D : ℝ) ≤ expLength p w := by
+      -- add_le_add_left then simp
+      have : Real.log K / Real.log (D : ℝ) ≤ 0 := hlogK_div_le0
+      linarith
+    exact h_entropy_le
+
+  -- Now show `Real.log K / Real.log D ≤ 0` and conclude
+  have hlogK_div_le0 : Real.log K / Real.log (D : ℝ) ≤ 0 :=
+    div_nonpos_of_nonpos_of_nonneg hlogK_le0 (by positivity)
+
+  linarith [hlogK_div_le0]
+
 
 end SourceCodingLower
 
