@@ -43,8 +43,18 @@ namespace InformationTheory
 
 variable {α : Type*}
 
-private def concatFn {S : Finset (List α)} {r : ℕ} (w : Fin r → S) : List α :=
+section concatFn
+
+variable {S : Finset (List α)} {r : ℕ}
+
+private def concatFn (w : Fin r → S) : List α :=
   (List.ofFn (fun i => (w i).val)).flatten
+
+private lemma concatFn.length (w : Fin r → S) :
+    (concatFn w).length = ∑ i : Fin r, ((w i).val).length := by
+  simp [List.sum_ofFn, concatFn]
+
+end concatFn
 
 private instance : Monoid (List α) := listMonoid α
 
@@ -57,7 +67,8 @@ private lemma flatten_eq_prod (L : List (List α)) : L.flatten = L.prod := by
   | cons x xs ih => simp [ih]
 
 private lemma concatFn_eq_prod {S : Finset (List α)} {r : ℕ} (w : Fin r → S) :
-    concatFn w = (List.ofFn (fun i => (w i).val)).prod := by
+    concatFn (S := S) (r := r) w = (List.ofFn (fun i => (w i).val)).prod := by
+  -- concatFn is flatten of that ofFn list
   simpa using flatten_eq_prod (List.ofFn (fun i => (w i).val))
 
 /-- For uniquely decodable codes, the concatenation map is injective.
@@ -70,8 +81,9 @@ private lemma uniquely_decodable_concatFn_injective {S : Finset (List α)}
   have hprod :
       (List.ofFn (fun i => (w₁ i).val)).prod =
       (List.ofFn (fun i => (w₂ i).val)).prod := by
-    simpa [concatFn_eq_prod w₁,
-           concatFn_eq_prod w₂] using hflat
+    -- turn prods into concatFn
+    simpa [concatFn_eq_prod (S := S) (r := r) w₁,
+           concatFn_eq_prod (S := S) (r := r) w₂] using hflat
   have : (fun i : Fin r => (w₁ i).val) = fun i => (w₂ i).val :=
     List.ofFn_injective (h _ _ (by simp) (by simp) hprod)
   funext i
@@ -79,7 +91,7 @@ private lemma uniquely_decodable_concatFn_injective {S : Finset (List α)}
 
 /-- The number of strings of length `s` in any set is at most `D^s`
 (the total number of such strings). -/
-private lemma card_filter_length_eq_le [Fintype α] {T : Finset (List α)} {s : ℕ} :
+private lemma card_filter_length_eq_le [Fintype α] (T : Finset (List α)) (s : ℕ) :
     (T.filter (fun x => x.length = s)).card ≤ (Fintype.card α) ^ s := by
   classical
   let all_words := (Finset.univ : Finset (Fin s → α)).image List.ofFn
@@ -102,40 +114,61 @@ private lemma card_filter_length_eq_le [Fintype α] {T : Finset (List α)} {s : 
         ≤ all_words.card := Finset.card_le_card hsub
     _ = Fintype.card α ^ s := hcard_all
 
-private lemma one_le_length_of_mem {S : Finset (List α)} (hε : [] ∉ S) :
+/-- `S` has no empty word. -/
+private def NoEpsilon (S : Finset (List α)) : Prop :=
+  ([] : List α) ∉ (S : Set (List α))
+
+private lemma one_le_length_of_mem {S : Finset (List α)} (hε : NoEpsilon S) :
     ∀ x ∈ S, 1 ≤ x.length := by
   intro x hx
-  have hxne : x ≠ [] := fun h => (by simp [hε, h] at hx)
-  exact Nat.one_le_iff_ne_zero.mpr (by simpa using hxne)
+  have : x.length ≠ 0 := by
+    intro hx0
+    have : x = [] := by simpa [List.length_eq_zero_iff] using hx0
+    exact hε (by simpa [this] using hx)
+  exact Nat.succ_le_iff.mpr (Nat.pos_of_ne_zero this)
 
+-- Adapter: growth axiom packaged for lists
 private lemma lengthGrowth_list [Fintype α]:
     lengthGrowth (M := List α) (ℓ := List.length) (D_nat := Fintype.card α) := by
   intro T s
-  simpa using card_filter_length_eq_le
+  simpa using card_filter_length_eq_le (T := T) (s := s)
 
-private lemma tupleProduct_eq_concatFn {S : Finset (List α)} {r : ℕ} (w : Fin r → S) :
-    tupleProduct w = concatFn w :=
-  (flatten_eq_prod (List.ofFn (fun i : Fin r => (w i).val))).symm
+private lemma concatFn_succ_mul {S : Finset (List α)} {r : ℕ}
+    (w : Fin (r + 1) → S) :
+    concatFn (S := S) (r := r + 1) w
+      = (w 0).val * concatFn (S := S) (r := r) (fun i : Fin r => w i.succ) := by
+  -- reduce `*` to `++` just once, inside the proof
+  change (List.ofFn (fun i : Fin (r + 1) => (w i).val)).flatten
+      = (w 0).val ++ (List.ofFn (fun i : Fin r => (w i.succ).val)).flatten
+  simp
+
+-- Adapter: tupleProduct = concatFn for lists (monoid product = concatenation)
+private lemma tupleProduct_eq_concatFn {S : Finset (List α)} {r : ℕ} {w : Fin r → S} :
+    tupleProduct w = concatFn w := by
+  induction r with
+  | zero => rfl
+  | succ r ih => simp [tupleProduct, concatFn_succ_mul, ih]
 
 private lemma injective_tupleProduct_of_injective_concatFn
     {S : Finset (List α)} {r : ℕ}
     (hinj : Function.Injective (concatFn (S := S) (r := r))) :
     Function.Injective (tupleProduct (S := S) (r := r)) := by
-  intro w₁ w₂ hprod
-  apply hinj
-  simpa [tupleProduct_eq_concatFn w₁,
-         tupleProduct_eq_concatFn w₂] using hprod
+  have hfc : tupleProduct (S := S) (r := r)
+        = concatFn (S := S) (r := r) := by
+    funext w
+    simpa using tupleProduct_eq_concatFn
+  simpa [hfc]
 
 public theorem kraft_mcmillan_inequality {S : Finset (List α)} [Fintype α] [Nonempty α]
     (h : UniquelyDecodable (S : Set (List α))) :
     ∑ w ∈ S, (1 / Fintype.card α : ℝ) ^ w.length ≤ 1 := by
-  refine kraft_inequality_of_injective
+  refine kraft_inequality_of_injective (M := List α) (ℓ := List.length) (S := S)
     (D_nat := Fintype.card α)
     (D_pos := Fintype.card_pos)
-    (h_add := by simp)
-    (h_pos := one_le_length_of_mem (by simpa using h.one_not_mem))
+    (h_add := by simp [List.length_append])
+    (h_pos := one_le_length_of_mem (S := S) (by simpa using h.one_not_mem))
     (h_count := lengthGrowth_list)
     (h_inj := fun r => injective_tupleProduct_of_injective_concatFn
-              (hinj := uniquely_decodable_concatFn_injective h r))
+              (hinj := uniquely_decodable_concatFn_injective (S := S) h r))
 
 end InformationTheory
