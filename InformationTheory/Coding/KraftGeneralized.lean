@@ -1,42 +1,15 @@
-/-
-Copyright (c) 2026 Elazar Gershuni. All rights reserved.
-Released under Apache 2.0 license as described in the file LICENSE.
-Authors: Elazar Gershuni
--/
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.Real.Basic
 import Mathlib.Algebra.BigOperators.Pi
+import Mathlib.Data.List.OfFn
 import Mathlib.Analysis.SpecificLimits.Normed
-import Mathlib.Order.Filter.Tendsto
+import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.NormNum
 
-import InformationTheory.Coding.UniquelyDecodable
-
-/-!
-# Abstract Kraft-McMillan Inequality
-
-This file proves a generalized version of the Kraft-McMillan inequality for abstract monoids
-with a length function.
-
-## Main definitions
-
-* `lengthGrowth`: The growth axiom stating that elements of length `s` are bounded by `D^s`.
-* `tupleProduct`: The `r`-fold product of elements from a finite set.
-
-## Main results
-
-* `kraft_inequality_of_injective`: If a finite set `S` in a monoid satisfies additive lengths,
-  positive lengths, the counting bound, and injectivity of `r`-fold products, then
-  `∑ D^{-ℓ(x)} ≤ 1`.
--/
-
 namespace InformationTheory
 
-variable {M : Type*}
-variable (ℓ : M → ℕ)
-
-private lemma sum_weight_filter_le_one_of_card_le
+private lemma sum_weight_filter_le_one_of_card_le {M : Type*} {ℓ : M → ℕ}
     {T : Finset M} {s : ℕ} {D_nat : ℕ} (dPos: D_nat > 0)
     (h_card : (T.filter (fun x => ℓ x = s)).card ≤ D_nat ^ s) :
     (∑ x ∈ T.filter (fun x => ℓ x = s), (1 / (D_nat : ℝ)) ^ ℓ x) ≤ 1 := by
@@ -56,66 +29,80 @@ private lemma sum_weight_filter_le_one_of_card_le
             exact_mod_cast h_card
     _ = 1 := by simp [D, hD0]
 
-variable [Monoid M]
+variable {M : Type*}
 
-/-- Growth axiom: in any finite `T`, the number of elements of length `s` is ≤ (D_nat)^s. -/
-def lengthGrowth (D_nat : ℕ) : Prop :=
+/-- Growth axiom: in any finite `T`, the number of elements of length `s` is ≤ D^s. -/
+def lengthGrowth (ℓ : M → ℕ) (D_nat : ℕ) : Prop :=
   ∀ (T : Finset M) (s : ℕ), (T.filter (fun x => ℓ x = s)).card ≤ D_nat ^ s
 
--- recursive r-fold product
-def tupleProduct {S : Finset M} : ∀ {r : ℕ}, (Fin r → S) → M
-  | 0,     _ => 1
-  | r + 1, w => (w 0).1 * tupleProduct (fun i : Fin r => w i.succ)
+variable [Monoid M]
 
-private lemma len_one (hlen_mul : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
-    ℓ (1 : M) = 0 := by
-  apply Nat.add_left_cancel
-  calc
-    ℓ (1 : M) + ℓ (1 : M) = ℓ (1 : M) := by simpa using hlen_mul (1 : M) (1 : M)
-    _ = ℓ (1 : M) + 0 := by simp
+/-- The r-fold product of elements from a finite set, defined via Lists. -/
+def tupleProduct {S : Finset M} {r : ℕ} (w : Fin r → S) : M :=
+  (List.ofFn (fun i => (w i).1)).prod
 
-private lemma tupleProduct_len {S : Finset M} {r : ℕ}
-    (hlen_mul : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) (w : Fin r → S) :
+noncomputable def μHom (μ : M → ℝ)
+    (μ_one : μ 1 = 1)
+    (μ_mul : ∀ a b, μ (a*b) = μ a * μ b) : M →* ℝ :=
+  { toFun := μ
+  , map_one' := μ_one
+  , map_mul' := μ_mul }
+
+/-- The "weight" function (1/D)^ℓ(x) is a Monoid Homomorphism to (ℝ, *). -/
+noncomputable def weightHom (ℓ : M → ℕ) {D : ℝ} (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) :
+    M →* ℝ where
+  toFun x := (1 / D) ^ (ℓ x)
+  map_one' := by
+    have := by simpa using h_add 1 1
+    simp [this]
+  map_mul' x y := by simp [h_add, pow_add]
+
+variable {ℓ : M → ℕ}
+
+lemma tupleProduct_map {S : Finset M} {r : ℕ} {μ : M →* ℝ} {w : Fin r → S} :
+    μ (tupleProduct (S := S) (r := r) w) = ∏ i : Fin r, μ (w i) := by
+  simp [tupleProduct, MonoidHom.map_list_prod, List.map_ofFn, List.prod_ofFn, Function.comp_def]
+
+noncomputable def lenHom (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) : M →* Multiplicative ℕ :=
+  { toFun := fun m => Multiplicative.ofAdd (ℓ m)
+    map_one' := by
+      have h : ℓ 1 = ℓ 1 + ℓ 1 := by simpa using h_add 1 1
+      have : ℓ 1 = 0 := by grind
+      simp [this]
+    map_mul' := by simp [h_add] }
+
+private lemma len_one (h_add : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
+    ℓ 1 = 0 := by
+  have h : ℓ 1 + ℓ 1 = ℓ 1 := by simpa using (h_add 1 1)
+  exact (Nat.add_left_cancel h)
+
+private lemma len_list_prod
+    (h_add : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
+    ∀ xs : List M, ℓ xs.prod = (xs.map ℓ).sum := by
+  intro xs
+  induction xs with
+  | nil => simp [len_one h_add]
+  | cons a xs ih => simp [h_add, ih]
+
+lemma tupleProduct_len {S : Finset M} {r : ℕ}
+    (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) (w : Fin r → S) :
     ℓ (tupleProduct w) = ∑ i : Fin r, ℓ ((w i).val) := by
-  induction r with
-  | zero => simp [tupleProduct, len_one (ℓ := ℓ) hlen_mul]
-  | succ r ih => simp [tupleProduct, hlen_mul, ih, Fin.sum_univ_succ]
+  classical
+  -- unfold tupleProduct, turn length(prod) into sum(map length), then convert List.sum_ofFn to Fin-sum
+  simp [tupleProduct, len_list_prod (ℓ := ℓ) h_add, List.map_ofFn, List.sum_ofFn]
 
 private lemma kraft_sum_pow_eq_sum_tupleProduct
-    {S : Finset M} {r : ℕ} (μ : M → ℝ)
-    (μ_one : μ 1 = 1)
-    (μ_mul : ∀ a b, μ (a*b) = μ a * μ b) :
+    {S : Finset M} {r : ℕ} (μ : M →* ℝ) :
     (∑ x ∈ S, μ x) ^ r = ∑ w : Fin r → S, μ (tupleProduct w) := by
-  have h_expand :
-      (∏ _i : Fin r, (∑ x ∈ S, μ x)) =
-        ∑ w : Fin r → S, ∏ i : Fin r, μ ((w i).1) := by
-    rw [Finset.prod_sum, Finset.sum_bij]
-    · intro a ha i
-      exact ⟨a i (Finset.mem_univ i), (Finset.mem_pi.mp ha i (Finset.mem_univ i))⟩
-    · simp
-    · intro a₁ ha₁ a₂ ha₂
-      simp [funext_iff]
-    · intro b hb
-      refine ⟨(fun i _ => (b i).1), ?_, ?_⟩
-      · exact Finset.mem_pi.mpr (by simp)
-      · rfl
-    · simp
-  have h_mu_tupleProduct :
-      ∀ {r : ℕ} (w : Fin r → S),
-        (∏ i : Fin r, μ ((w i).1)) = μ (tupleProduct w) := by
-    intro r
-    induction r with
-    | zero =>
-        intro w
-        simp [tupleProduct, μ_one]
-    | succ r ih =>
-        intro w
-        simp [Fin.prod_univ_succ, tupleProduct, μ_mul, ih]
+  have hS : (∑ x ∈ S, μ x) = ∑ x : S, μ x := (Finset.sum_coe_sort S μ).symm
   calc
     (∑ x ∈ S, μ x) ^ r
-        = ∏ _i : Fin r, (∑ x ∈ S, μ x) := by simp
-    _ = ∑ w : Fin r → S, ∏ i : Fin r, μ ((w i).1) := h_expand
-    _ = ∑ w : Fin r → S, μ (tupleProduct w) := Finset.sum_congr rfl (fun w _ => h_mu_tupleProduct w)
+        = (∑ x : S, μ x) ^ r := by simp [hS]
+    _ = ∑ w : Fin r → S, ∏ i : Fin r, μ (w i) :=
+          Fintype.sum_pow (f := fun x : S => μ x) r
+    _ = ∑ w : Fin r → S, μ (tupleProduct w) := by
+          rw [Fintype.sum_congr]
+          exact fun _ => tupleProduct_map.symm
 
 lemma pow_sum_le_linear_bound_of_inj
     {S : Finset M} {D_nat : ℕ} (dPos: D_nat > 0)
@@ -144,7 +131,7 @@ lemma pow_sum_le_linear_bound_of_inj
         exact ⟨a, ha, rfl⟩
       ) (by simp)
       · intro a _
-        have hlen := tupleProduct_len ℓ hlen_mul a
+        have hlen := tupleProduct_len hlen_mul a
         simp only [T, Finset.mem_biUnion, Finset.mem_Icc, Finset.mem_filter, Finset.mem_image,
                    Finset.mem_univ, true_and]
         use ℓ (tupleProduct a)
@@ -177,17 +164,12 @@ lemma pow_sum_le_linear_bound_of_inj
         ∑ x ∈ T.filter (fun x => ℓ x = s), (1 / D) ^ (ℓ x) ≤ 1 := by
     intro s _
     exact sum_weight_filter_le_one_of_card_le (ℓ := ℓ) dPos (by simpa using hgrowth (T := T) (s := s))
-  have μ_mul : ∀ a b, ((1 / D) ^ (ℓ (a * b))) = ((1 / D) ^ (ℓ a)) * ((1 / D) ^ (ℓ b)) := by
-    intro a b
-    simp [hlen_mul a b, pow_add]
-  have μ_one : (fun x : M => (1 / D) ^ ℓ x) 1 = 1 := by
-    have hℓ1 : ℓ (1 : M) = 0 := len_one (ℓ := ℓ) hlen_mul
-    simp [hℓ1]
   have h_pow :
       (∑ x ∈ S, (1 / D) ^ ℓ x) ^ r
-        = ∑ w : Fin r → S, (1 / D) ^ ℓ (tupleProduct w) :=
-    kraft_sum_pow_eq_sum_tupleProduct (M := M) (S := S) (r := r)
-      (μ := fun x => (1 / D) ^ ℓ x) μ_one μ_mul
+        = ∑ w : Fin r → S, (1 / D) ^ ℓ (tupleProduct w) := by
+    simpa [weightHom] using
+      (kraft_sum_pow_eq_sum_tupleProduct (μ := weightHom (ℓ := ℓ) hlen_mul))
+
   refine le_trans h_pow.le
     <| h_injective.trans
     <| le_trans (Finset.sum_le_sum h_sum_one) ?_
@@ -196,18 +178,6 @@ lemma pow_sum_le_linear_bound_of_inj
   · positivity
   · rw [Nat.cast_sub] <;> push_cast <;> nlinarith only
 
-open Filter
-/--
-**Abstract Kraft-McMillan Inequality**
-
-If a finite set `S` in a monoid `M` satisfies:
-1. Elements have additive lengths (logarithmic weight).
-2. `S` contains no "empty" (length 0) elements.
-3. The ambient space satisfies the counting bound `D^s`.
-4. The product map from `S^r` to `M` is injective for all `r`.
-
-Then `∑ D^{-ℓ(x)} ≤ 1`.
--/
 theorem kraft_inequality_of_injective
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
@@ -223,7 +193,7 @@ theorem kraft_inequality_of_injective
   -- 2. Use the auxiliary bound: K^r ≤ r * maxLen
   let maxLen := S.sup ℓ
   have h_bound (r: ℕ) (hr: 1 ≤ r) : K ^ r ≤ r * maxLen :=
-    pow_sum_le_linear_bound_of_inj ℓ D_pos h_add h_pos h_count h_inj r hr
+    pow_sum_le_linear_bound_of_inj D_pos h_add h_pos h_count h_inj r hr
   -- 3. Algebraic limit argument
   -- If K > 1, then K^r grows exponentially, while r * maxLen grows linearly.
   -- We prove (r * maxLen) / K^r tends to 0, implying eventually (r * maxLen) < K^r.
