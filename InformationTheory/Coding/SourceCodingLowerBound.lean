@@ -117,14 +117,9 @@ lemma gibbs_sum_log_ratio_nonneg
     0 ≤ ∑ i, p i * Real.log (p i / q i) := by
   let μ : Measure I := pmfMeasure (I := I) p
   let ν : Measure I := pmfMeasure (I := I) q
-
   have hμν : μ ≪ ν := pmfMeasure_ac hq_pos
-
   have hmass : μ univ = ν univ := by
-    -- μ univ = ofReal(∑ p) = ofReal 1 = 1
     have hμ : μ univ = (1 : ℝ≥0∞) := by
-      -- μ univ = ∑ ofReal p
-      -- then use ofReal_sum_of_nonneg to replace sum-of-ofReal with ofReal(sum)
       calc
         μ univ = ∑ i, ENNReal.ofReal (p i) := by simp [μ, pmfMeasure_univ]
         _ = ENNReal.ofReal (∑ i, p i) := by
@@ -137,40 +132,21 @@ lemma gibbs_sum_log_ratio_nonneg
         _ = ENNReal.ofReal (∑ i, q i) := by
               simpa using (ENNReal.ofReal_sum_of_nonneg (by grind)).symm
         _ = 1 := by simp [hq_sum]
-
     simp [hμ, hν]
-
   have h_toReal :
       (klDiv μ ν).toReal = ∫ x, llr μ ν x ∂μ := toReal_klDiv_of_measure_eq hμν hmass
-
-  -- And `klDiv` is ≥ 0 in ℝ≥0∞ so its `toReal` is ≥ 0.
   have h_nonneg : 0 ≤ (klDiv μ ν).toReal := by simp
-
-  -- Now rewrite the integral into the finite sum.
-  -- This is the second “hard” stub: express `llr` pointwise as `log(p/q)` and integrate w.r.t μ.
   have h_integral :
       (∫ x, llr μ ν x ∂μ) = ∑ i, p i * Real.log (p i / q i) := by
-    classical
-
-    -- We'll prove: llr μ ν = log(p/q) μ-a.e., then use integral_congr_ae,
-    -- then apply integral_pmfMeasure to turn the integral into a finite sum.
-
-    -- Notation for the base counting measure
     let ρ : Measure I := Measure.count
     have hμ_def : μ = ρ.withDensity (fun i => ENNReal.ofReal (p i)) := by rfl
     have hν_def : ν = ρ.withDensity (fun i => ENNReal.ofReal (q i)) := by rfl
-
-    -- 1) Compute rnDeriv μ ρ (a.e. w.r.t ρ): it's the density
     have h_rn_μρ :
         μ.rnDeriv ρ =ᶠ[ae ρ] (fun i : I => ENNReal.ofReal (p i)) := by
-      -- rewrite μ as ρ.withDensity ...
-      -- and apply rnDeriv_withDensity
       simpa [hμ_def] using
         (Measure.rnDeriv_withDensity (ν := ρ)
           (f := fun i : I => ENNReal.ofReal (p i))
           (by exact fun _ _ ↦ trivial))
-    -- 2) Compute rnDeriv μ (ρ.withDensity q) (a.e. w.r.t ρ):
-    --    μ.rnDeriv (ρ.withDensity q) = (q)⁻¹ * (μ.rnDeriv ρ)
     have h_rn_μν_ρ :
         μ.rnDeriv ν =ᵐ[ρ] fun i =>
           (ENNReal.ofReal (q i))⁻¹ * (ENNReal.ofReal (p i)) := by
@@ -188,49 +164,32 @@ lemma gibbs_sum_log_ratio_nonneg
         hμρ hmeas.aemeasurable hf_ne0 hf_neTop
       filter_upwards [h, h_rn_μρ] with i hi hμρi
       simpa [hν_def, hμρi, mul_assoc] using hi
-
-    -- 3) Turn that into an μ-a.e statement (since μ ≪ ρ)
     have h_rn_μν_μ :
         μ.rnDeriv ν =ᵐ[μ] fun i =>
           (ENNReal.ofReal (q i))⁻¹ * (ENNReal.ofReal (p i)) := by
-      -- from μ ≪ ρ, ρ-a.e. implies μ-a.e.
       have hμρ : μ ≪ ρ := by
         simpa [hμ_def] using (withDensity_absolutelyContinuous (μ := ρ)
           (f := fun i : I => ENNReal.ofReal (p i)))
       exact hμρ h_rn_μν_ρ
-
-    -- 4) Rewrite llr pointwise μ-a.e. (llr_def is just log of rnDeriv.toReal)
     have h_llr_ae :
         (fun i => llr μ ν i) =ᵐ[μ] fun i =>
           Real.log (p i / q i) := by
       filter_upwards [h_rn_μν_μ] with i hi
-      -- llr_def: llr μ ν i = log (μ.rnDeriv ν i).toReal
-      -- and simplify the RHS using toReal/ofReal and hp_pos/hq_pos (positivity avoids edge cases)
-      -- We do it in small steps so simp can close it.
       have hp0 : 0 ≤ p i := le_of_lt (hp_pos i)
       have hq0 : 0 ≤ q i := le_of_lt (hq_pos i)
-      -- rewrite the rnDeriv value
-      -- then compute toReal
-      -- (simp knows (ofReal r).toReal = r when r ≥ 0)
-      -- and (ofReal (q i))⁻¹ is fine since q i > 0 ⇒ ofReal (q i) ≠ 0
       have h_toReal :
-          (( (ENNReal.ofReal (q i))⁻¹ * (ENNReal.ofReal (p i)) )).toReal = p i / q i := by
-        -- push toReal through mul, and simplify inv/ofReal
+          (((ENNReal.ofReal (q i))⁻¹ * (ENNReal.ofReal (p i)))).toReal = p i / q i := by
         simp [div_eq_mul_inv, hp0, hq0]
         exact CommMonoid.mul_comm (q i)⁻¹ (p i)
-      -- conclude llr
       simp [MeasureTheory.llr_def, hi, h_toReal]
-
-    -- 5) Now do the integral rewrite + your finite-sum lemma
     calc
       (∫ x, llr μ ν x ∂μ)
           = ∫ x, Real.log (p x / q x) ∂μ := by
               refine integral_congr_ae ?_
               simpa using h_llr_ae
       _ = ∑ i, p i * Real.log (p i / q i) := by
-            -- your lemma (with nonneg from hp_pos)
             simpa [μ, pmfMeasure] using
-              (integral_pmfMeasure (I := I) p (fun i => le_of_lt (hp_pos i))
+              (integral_pmfMeasure p (fun i => le_of_lt (hp_pos i))
                 (fun i => Real.log (p i / q i)))
   simpa [h_toReal, h_integral] using (le_trans h_nonneg (le_of_eq h_toReal))
 
@@ -253,39 +212,52 @@ theorem source_coding_lower_bound
     (hp_pos : ∀ i, 0 < p i)
     (hp_sum : ∑ i, p i = 1)
     (w : I → List (Fin D))
+    (hw : Function.Injective w)
     (hud : UniquelyDecodable (Set.range w)) :
-    entropy D p ≤ expLength (D := D) p w := by
+    entropy D p ≤ expLength p w := by
   classical
   -- Setup lengths and Kraft sum
   let L : I → ℕ := fun i => (w i).length
   let K : ℝ := ∑ i, (1 / (D : ℝ)) ^ (L i)
 
   have hK_pos : 0 < K := by positivity
+  have hD_pos : 0 < D := by positivity
 
   have hK_le_one : K ≤ 1 := by
-    -- Apply your Kraft-McMillan inequality to the finite set `S = Finset.univ.image w`
-    -- and rewrite to `K`.
-    -- STUB: same plumbing you already did in your infinite Kraft proof.
-    sorry
+    let S : Finset (List (Fin D)) := (Finset.univ : Finset I).image w
+    have hS_coe : (S : Set (List (Fin D))) = Set.range w := by
+      ext x
+      constructor
+      · intro hx
+        rcases Finset.mem_image.mp hx with ⟨i, hi, rfl⟩
+        exact ⟨i, rfl⟩
+      · rintro ⟨i, rfl⟩
+        exact Finset.mem_image.mpr ⟨i, Finset.mem_univ _, rfl⟩
+    have hudS : UniquelyDecodable (S : Set (List (Fin D))) := by
+      simpa [hS_coe] using hud
+    have hS_kraft :
+        (∑ c ∈ S, (1 / (D : ℝ)) ^ c.length) ≤ 1 := by
+      haveI : Nonempty (Fin D) := ⟨⟨0, by positivity⟩⟩
+      simpa using (kraft_mcmillan_inequality hudS)
+    have hK_eq : K = ∑ c ∈ S, (1 / (D : ℝ)) ^ c.length := by
+      simp_all only [Finset.coe_univ, injOn_univ, Finset.sum_image, K, L, S]
+    simpa [hK_eq] using hS_kraft
 
   -- Define q = normalized Kraft weights
   let q : I → ℝ := fun i => (1 / K) * (1 / (D : ℝ)) ^ (L i)
 
   have hq_pos : ∀ i, 0 < q i := by
     intro i
-    have : 0 < (1 / (D : ℝ)) ^ (L i) := by
-      have : 0 < (1 / (D : ℝ)) := by
-        have : 0 < (D : ℝ) := by exact_mod_cast (lt_trans Nat.zero_lt_one hD)
-        positivity
-      exact pow_pos this _
-    have : 0 < (1 / K) := by positivity [hK_pos]
+    have : 0 < (1 / (D : ℝ)) ^ (L i) := by positivity
+    have : 0 < (1 / K) := by positivity
     nlinarith
 
   have hq_sum : ∑ i, q i = 1 := by
-    -- pull out 1/K and cancel with K
-    -- STUB: `simp [q, K, Finset.mul_sum, div_eq_mul_inv, hK_pos.ne']`
-    simp [q, K, div_eq_mul_inv]
-    sorry
+    calc
+      (∑ i, q i)
+          = (1 / K) * (∑ i, (1 / (D : ℝ)) ^ (L i)) := by simp [q, Finset.mul_sum]
+      _ = (1 / K) * K := by simp [K]
+      _ = 1 := by simp [ne_of_gt hK_pos]
 
   -- Apply discrete Gibbs inequality to p,q
   have hgibbs :
