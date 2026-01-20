@@ -23,7 +23,7 @@ private lemma sum_weight_filter_le_one_of_card_le {M : Type*} {ℓ : M → ℕ}
             have : ℓ x = s := (Finset.mem_filter.mp hx).right
             simp [this]
     _ = (T.filter (fun x => ℓ x = s)).card * (1 / D) ^ s := by
-            simp_all only [Finset.sum_const, nsmul_eq_mul]
+            simp only [Finset.sum_const, nsmul_eq_mul]
     _ ≤ (D_nat ^ s : ℝ) * (1 / D) ^ s := by
             gcongr
             exact_mod_cast h_card
@@ -41,15 +41,8 @@ variable [Monoid M]
 def tupleProduct {S : Finset M} {r : ℕ} (w : Fin r → S) : M :=
   (List.ofFn (fun i => (w i).1)).prod
 
-noncomputable def μHom (μ : M → ℝ)
-    (μ_one : μ 1 = 1)
-    (μ_mul : ∀ a b, μ (a*b) = μ a * μ b) : M →* ℝ :=
-  { toFun := μ
-  , map_one' := μ_one
-  , map_mul' := μ_mul }
-
 /-- The "weight" function (1/D)^ℓ(x) is a Monoid Homomorphism to (ℝ, *). -/
-noncomputable def weightHom (ℓ : M → ℕ) {D : ℝ} (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) :
+noncomputable def weightHom {ℓ : M → ℕ} {D : ℝ} (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) :
     M →* ℝ where
   toFun x := (1 / D) ^ (ℓ x)
   map_one' := by
@@ -60,16 +53,8 @@ noncomputable def weightHom (ℓ : M → ℕ) {D : ℝ} (h_add : ∀ a b, ℓ (a
 variable {ℓ : M → ℕ}
 
 lemma tupleProduct_map {S : Finset M} {r : ℕ} {μ : M →* ℝ} {w : Fin r → S} :
-    μ (tupleProduct (S := S) (r := r) w) = ∏ i : Fin r, μ (w i) := by
-  simp [tupleProduct, MonoidHom.map_list_prod, List.map_ofFn, List.prod_ofFn, Function.comp_def]
-
-noncomputable def lenHom (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) : M →* Multiplicative ℕ :=
-  { toFun := fun m => Multiplicative.ofAdd (ℓ m)
-    map_one' := by
-      have h : ℓ 1 = ℓ 1 + ℓ 1 := by simpa using h_add 1 1
-      have : ℓ 1 = 0 := by grind
-      simp [this]
-    map_mul' := by simp [h_add] }
+    μ (tupleProduct w) = ∏ i : Fin r, μ (w i) := by
+  simp [tupleProduct, MonoidHom.map_list_prod, List.prod_ofFn]
 
 private lemma len_one (h_add : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
     ℓ 1 = 0 := by
@@ -87,9 +72,7 @@ private lemma len_list_prod
 lemma tupleProduct_len {S : Finset M} {r : ℕ}
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) (w : Fin r → S) :
     ℓ (tupleProduct w) = ∑ i : Fin r, ℓ ((w i).val) := by
-  classical
-  -- unfold tupleProduct, turn length(prod) into sum(map length), then convert List.sum_ofFn to Fin-sum
-  simp [tupleProduct, len_list_prod (ℓ := ℓ) h_add, List.map_ofFn, List.sum_ofFn]
+  simp [tupleProduct, len_list_prod h_add, List.sum_ofFn]
 
 private lemma kraft_sum_pow_eq_sum_tupleProduct
     {S : Finset M} {r : ℕ} (μ : M →* ℝ) :
@@ -98,8 +81,7 @@ private lemma kraft_sum_pow_eq_sum_tupleProduct
   calc
     (∑ x ∈ S, μ x) ^ r
         = (∑ x : S, μ x) ^ r := by simp [hS]
-    _ = ∑ w : Fin r → S, ∏ i : Fin r, μ (w i) :=
-          Fintype.sum_pow (f := fun x : S => μ x) r
+    _ = ∑ w : Fin r → S, ∏ i : Fin r, μ (w i) := Fintype.sum_pow (f := fun x : S => μ x) r
     _ = ∑ w : Fin r → S, μ (tupleProduct w) := by
           rw [Fintype.sum_congr]
           exact fun _ => tupleProduct_map.symm
@@ -139,11 +121,8 @@ lemma pow_sum_le_linear_bound_of_inj
         · -- r ≤ (tupleProduct a).length
           -- Each selected codeword has positive length (since [] ∉ S).
           -- Sum of r ones ≤ sum of the lengths.
-          have hsum : (∑ _ : Fin r, 1) ≤ ∑ i, ℓ ((a i).val) := by
-            refine Finset.sum_le_sum fun i _ ↦ ?_
-            refine Nat.succ_le_iff.mpr (Nat.pos_of_ne_zero fun h' ↦ ?_)
-            have hi_pos : 1 ≤ ℓ ((a i).val) := hpos _ (a i).prop
-            exact Nat.ne_of_gt (Nat.lt_of_lt_of_le Nat.zero_lt_one hi_pos) h'
+          have hsum : (∑ _ : Fin r, 1) ≤ ∑ i, ℓ ((a i).val) :=
+            Finset.sum_le_sum (fun i _ => hpos _ (a i).prop)
           simpa [hlen] using hsum
         · -- Upper bound: |w| ≤ r * maxLen
           -- length of r-fold product
@@ -163,13 +142,12 @@ lemma pow_sum_le_linear_bound_of_inj
       ∀ s ∈ Finset.Icc r (r * maxLen),
         ∑ x ∈ T.filter (fun x => ℓ x = s), (1 / D) ^ (ℓ x) ≤ 1 := by
     intro s _
-    exact sum_weight_filter_le_one_of_card_le (ℓ := ℓ) dPos (by simpa using hgrowth (T := T) (s := s))
+    exact sum_weight_filter_le_one_of_card_le dPos (by simpa using hgrowth (T := T) (s := s))
   have h_pow :
       (∑ x ∈ S, (1 / D) ^ ℓ x) ^ r
         = ∑ w : Fin r → S, (1 / D) ^ ℓ (tupleProduct w) := by
     simpa [weightHom] using
-      (kraft_sum_pow_eq_sum_tupleProduct (μ := weightHom (ℓ := ℓ) hlen_mul))
-
+      (kraft_sum_pow_eq_sum_tupleProduct (μ := weightHom hlen_mul))
   refine le_trans h_pow.le
     <| h_injective.trans
     <| le_trans (Finset.sum_le_sum h_sum_one) ?_
@@ -201,17 +179,16 @@ theorem kraft_inequality_of_injective
     rw [abs_of_pos (by positivity)]
     exact (div_lt_one (by linarith)).mpr hK_gt_one
   have h_tendsto : Filter.Tendsto (fun r : ℕ => (maxLen : ℝ) * r / K ^ r) Filter.atTop (nhds 0) := by
-    simpa [mul_comm, mul_left_comm, mul_assoc, mul_div_assoc] using
+    simpa [mul_comm, mul_left_comm, mul_div_assoc] using
       ((tendsto_self_mul_const_pow_of_abs_lt_one hAbs).const_mul (maxLen : ℝ))
   -- 4. Derive contradiction
   obtain ⟨r, hr_tendsto⟩ := Filter.eventually_atTop.mp <| h_tendsto.eventually <| gt_mem_nhds zero_lt_one
   -- Pick a large enough r (must be ≥ 1)
   let r_large := max r 1
-  have hr_ge_1 : 1 ≤ r_large := le_max_right _ _
   have h_strict : (maxLen : ℝ) * r_large / K ^ r_large < 1 := hr_tendsto r_large (le_max_left _ _)
   rw [div_lt_iff₀ (pow_pos (by linarith) _)] at h_strict
   -- But our bound says K^r ≤ r * maxLen
-  have h_le := h_bound r_large hr_ge_1
+  have h_le := h_bound r_large (le_max_right _ _)
   -- K^r ≤ r * maxLen < K^r => Contradiction
   linarith
 

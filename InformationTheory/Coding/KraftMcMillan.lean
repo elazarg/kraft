@@ -91,7 +91,7 @@ private lemma uniquely_decodable_concatFn_injective {S : Finset (List α)}
 
 /-- The number of strings of length `s` in any set is at most `D^s`
 (the total number of such strings). -/
-private lemma card_filter_length_eq_le [Fintype α] (T : Finset (List α)) (s : ℕ) :
+private lemma card_filter_length_eq_le [Fintype α] {T : Finset (List α)} {s : ℕ} :
     (T.filter (fun x => x.length = s)).card ≤ (Fintype.card α) ^ s := by
   classical
   let all_words := (Finset.univ : Finset (Fin s → α)).image List.ofFn
@@ -131,7 +131,7 @@ private lemma one_le_length_of_mem {S : Finset (List α)} (hε : NoEpsilon S) :
 private lemma lengthGrowth_list [Fintype α]:
     lengthGrowth (M := List α) (ℓ := List.length) (D_nat := Fintype.card α) := by
   intro T s
-  simpa using card_filter_length_eq_le (T := T) (s := s)
+  simpa using card_filter_length_eq_le
 
 private lemma concatFn_succ_mul {S : Finset (List α)} {r : ℕ}
     (w : Fin (r + 1) → S) :
@@ -142,13 +142,6 @@ private lemma concatFn_succ_mul {S : Finset (List α)} {r : ℕ}
       = (w 0).val ++ (List.ofFn (fun i : Fin r => (w i.succ).val)).flatten
   simp
 
--- Adapter: tupleProduct = concatFn for lists (monoid product = concatenation)
-private lemma tupleProduct_eq_concatFn {S : Finset (List α)} {r : ℕ} {w : Fin r → S} :
-    tupleProduct w = concatFn w := by
-  induction r with
-  | zero => rfl
-  | succ r ih => simp [tupleProduct, concatFn_succ_mul, ih]
-
 private lemma injective_tupleProduct_of_injective_concatFn
     {S : Finset (List α)} {r : ℕ}
     (hinj : Function.Injective (concatFn (S := S) (r := r))) :
@@ -156,19 +149,19 @@ private lemma injective_tupleProduct_of_injective_concatFn
   have hfc : tupleProduct (S := S) (r := r)
         = concatFn (S := S) (r := r) := by
     funext w
-    simpa using tupleProduct_eq_concatFn
+    simpa [tupleProduct] using (concatFn_eq_prod w).symm
   simpa [hfc]
 
 public theorem kraft_mcmillan_inequality {S : Finset (List α)} [Fintype α] [Nonempty α]
     (h : UniquelyDecodable (S : Set (List α))) :
     ∑ w ∈ S, (1 / Fintype.card α : ℝ) ^ w.length ≤ 1 := by
-  refine kraft_inequality_of_injective (M := List α) (ℓ := List.length) (S := S)
+  refine kraft_inequality_of_injective
     (D_nat := Fintype.card α)
     (D_pos := Fintype.card_pos)
     (h_add := by simp [List.length_append])
-    (h_pos := one_le_length_of_mem (S := S) (by simpa using h.one_not_mem))
+    (h_pos := one_le_length_of_mem (by simpa using h.one_not_mem))
     (h_count := lengthGrowth_list)
     (h_inj := fun r => injective_tupleProduct_of_injective_concatFn
-              (hinj := uniquely_decodable_concatFn_injective (S := S) h r))
+              (hinj := uniquely_decodable_concatFn_injective h r))
 
 end InformationTheory
