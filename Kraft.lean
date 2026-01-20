@@ -7,4 +7,5 @@ import InformationTheory.Coding.PrefixFree
 import InformationTheory.Coding.UniquelyDecodable
 import InformationTheory.Coding.Kraft
 import InformationTheory.Coding.KraftConverse
+import InformationTheory.Coding.KraftGeneralized
 import InformationTheory.Coding.KraftMcMillan

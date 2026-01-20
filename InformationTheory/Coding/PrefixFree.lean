@@ -56,6 +56,10 @@ lemma PrefixFree.mono {S T : Set (List α)} (hS : PrefixFree S) (hST : T ⊆ S) 
   intro a ha b hb hpre
   exact hS a (hST ha) b (hST hb) hpre
 
+private instance : Monoid (List α) := listMonoid α
+@[simp] private lemma one_list : (1 : List α) = [] := rfl
+@[simp] private lemma mul_list (a b : List α) : a * b = a ++ b := rfl
+
 /-- Prefix-free codes are uniquely decodable.
 
 If `S` is prefix-free (no codeword is a prefix of another) and does not contain the empty string,
@@ -93,8 +97,7 @@ theorem PrefixFree.uniquely_decodable
       exact h0 (hL₁ _ (.head ..))
     | cons w₂ L₂' =>
       -- Case: L₂ = w₂ :: L₂'. We have w₁ ++ ... = w₂ ++ ...
-      simp only [List.flatten_cons] at hflatten
-
+      simp [List.prod_cons] at hflatten
       -- Key Step: Use the fact that one head must be a prefix of the other.
       -- List.append_eq_append_iff splits this into two cases: w₁ = w₂ ++ t  OR  w₂ = w₁ ++ t
       rw [List.append_eq_append_iff] at hflatten
