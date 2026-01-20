@@ -23,6 +23,7 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 | `kraft_inequality_of_injective` | Abstract version for monoids with injective products |
 | `exists_code` | Converse: lengths with `∑ D^{-l_i} ≤ 1` admit a prefix-free code |
 | `PrefixFree.uniquely_decodable` | Prefix-free codes are uniquely decodable |
+| `source_coding_lower_bound` | Entropy is a lower bound on expected length: `H_D(p) ≤ E[L]` |
 
 ## Project Structure
 
@@ -37,6 +38,7 @@ InformationTheory/
     KraftConverse.lean              -- Converse of Kraft's inequality
     KraftMcMillan.lean              -- Kraft-McMillan inequality for lists
     KraftGeneralized.lean           -- Abstract Kraft-McMillan for monoids
+    SourceCodingLowerBound.lean     -- Source coding lower bound (entropy ≤ E[L])
     Example.lean                    -- Shannon-Fano coding application
 
     ConstructionHelpers/
@@ -60,6 +62,8 @@ InformationTheory/
 - **KraftMcMillan.lean**: Proves the Kraft-McMillan inequality for uniquely decodable codes over lists
 
 - **KraftGeneralized.lean**: Abstract version of Kraft-McMillan for monoids with a length function; proves the inequality holds when r-fold products are injective
+
+- **SourceCodingLowerBound.lean**: Proves the source coding lower bound: Shannon entropy is a lower bound on expected codeword length for uniquely decodable codes. Uses the Gibbs inequality (non-negativity of KL divergence) applied to the probability distribution and normalized Kraft weights
 
 - **Example.lean**: Demonstrates the library with a source coding application. Defines Shannon-Fano lengths and proves `exists_prefix_code_near_entropy`: for any probability distribution, there exists a prefix-free code with expected length less than entropy + 1
 

@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Elazar Gershuni. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Elazar Gershuni
+-/
 import Mathlib.InformationTheory.KullbackLeibler.Basic
 import Mathlib.MeasureTheory.Measure.Count
 import Mathlib.MeasureTheory.Measure.WithDensity
@@ -6,6 +11,38 @@ import Mathlib.Analysis.SpecialFunctions.Log.Base
 import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
 
 import InformationTheory.Coding.Kraft
+
+/-!
+# Source Coding Lower Bound
+
+This file proves that Shannon entropy is a lower bound on the expected codeword length
+for any uniquely decodable code. This is the converse direction of Shannon's source
+coding theorem.
+
+## Main definitions
+
+* `pmfMeasure`: Converts a probability mass function `p : I → ℝ` to a finite measure.
+* `entropy`: Shannon entropy `H(p) = -∑ p(i) log p(i)` in base `D`.
+* `expLength`: Expected codeword length `E[L] = ∑ p(i) * |w(i)|`.
+
+## Main results
+
+* `gibbs_sum_log_ratio_nonneg`: The discrete Gibbs inequality: for probability distributions
+  `p` and `q`, we have `∑ p(i) log(p(i)/q(i)) ≥ 0` (non-negativity of KL divergence).
+* `source_coding_lower_bound`: For any uniquely decodable code over an alphabet of size `D`,
+  the expected codeword length is at least the entropy: `H_D(p) ≤ E[L]`.
+
+## Implementation notes
+
+The proof uses the Gibbs inequality applied to the probability distribution `p` and the
+normalized Kraft weights `q(i) = D^{-|w(i)|} / K` where `K = ∑ D^{-|w(i)|}` is the Kraft sum.
+The Kraft-McMillan inequality ensures `K ≤ 1`, which makes `log K ≤ 0` and allows us to
+drop this term in the final inequality.
+
+## References
+
+* Cover & Thomas, *Elements of Information Theory*, Chapter 5
+-/
 
 namespace InformationTheory
 
@@ -215,7 +252,6 @@ theorem source_coding_lower_bound
     (hw : Function.Injective w)
     (hud : UniquelyDecodable (Set.range w)) :
     entropy D p ≤ expLength p w := by
-  classical
   let L : I → ℕ := fun i => (w i).length
   let K : ℝ := ∑ i, (1 / (D : ℝ)) ^ (L i)
 
