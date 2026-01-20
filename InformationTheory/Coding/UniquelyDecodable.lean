@@ -20,7 +20,7 @@ This file defines uniquely decodable codes and proves basic properties.
 
 * `UniquelyDecodable.epsilon_not_mem`: Uniquely decodable codes cannot contain the empty
   string.
-* `UniquelyDecodable.flatten_injective`: The flatten function is injective on lists of
+* `UniquelyDecodable.prod_injective`: The flatten function is injective on lists of
   codewords from a uniquely decodable code.
 -/
 

@@ -13,6 +13,24 @@ import Mathlib.Tactic.NormNum
 
 import InformationTheory.Coding.UniquelyDecodable
 
+/-!
+# Abstract Kraft-McMillan Inequality
+
+This file proves a generalized version of the Kraft-McMillan inequality for abstract monoids
+with a length function.
+
+## Main definitions
+
+* `lengthGrowth`: The growth axiom stating that elements of length `s` are bounded by `D^s`.
+* `tupleProduct`: The `r`-fold product of elements from a finite set.
+
+## Main results
+
+* `kraft_inequality_of_injective`: If a finite set `S` in a monoid satisfies additive lengths,
+  positive lengths, the counting bound, and injectivity of `r`-fold products, then
+  `∑ D^{-ℓ(x)} ≤ 1`.
+-/
+
 namespace InformationTheory
 
 variable {M : Type*}
