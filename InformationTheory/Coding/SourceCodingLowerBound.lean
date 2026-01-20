@@ -243,6 +243,23 @@ noncomputable def entropy (D : ℕ) (p : I → ℝ) : ℝ :=
 noncomputable def expLength (p : I → ℝ) (w : I → List (Fin D)) : ℝ :=
   ∑ i, p i * ((w i).length : ℝ)
 
+/-
+We assume hp_pos : ∀ i, 0 < p i. That's stronger than what source coding typically needs
+(usually 0 ≤ p i, sum=1, plus convention 0*log 0 = 0).
+The route via pmfMeasure_ac and the llr algebra is what forces the strict positivity.
+
+TODO:
+Relax strict positivity by
+(1) keeping p i ≥ 0, ∑ p = 1, and using the convention Real.negMulLog 0 = 0 (already true), and
+(2) handling the KL/Gibbs step with an a.e. statement:
+prove llr μ ν = log(p/q) only on the set {i | p i > 0 ∧ q i > 0},
+and show the complement is μ-null (because μ {i | p i = 0} = 0).
+
+Practically, we either truncate to the support s := {i | p i > 0} (work on s as a finite type)
+or regularize with q_ε := (1-ε) q + ε r for a strictly positive r,
+prove the bound for q_ε, then take ε → 0 using continuity/monotone convergence
+to recover the non-strict case.
+-/
 theorem source_coding_lower_bound
     (hD : 1 < D)
     (p : I → ℝ)
@@ -321,7 +338,6 @@ theorem source_coding_lower_bound
     -- Now log of product
     -- log(p*K*D^L) = log p + log K + log(D^L) = log p + log K + L*log D
     -- use positivity to justify `log_mul` etc.
-    -- (Most of these simp-lemmas are in `Mathlib.Analysis.SpecialFunctions.Log.*` which you imported.)
     have hpos : 0 < K * (↑D : ℝ) ^ (L i) := by
       exact mul_pos hK0 (pow_pos hD0 _)
     have hpow_pos : 0 < (↑D : ℝ) ^ (L i) := by
