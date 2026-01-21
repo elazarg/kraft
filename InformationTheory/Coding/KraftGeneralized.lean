@@ -1,27 +1,30 @@
 import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Real.Basic
-import Mathlib.Algebra.BigOperators.Pi
 import Mathlib.Data.List.OfFn
+import Mathlib.Data.Real.Basic
+import Mathlib.Data.NNReal.Basic
+import Mathlib.Algebra.BigOperators.Pi
 import Mathlib.Analysis.SpecificLimits.Normed
 import Mathlib.Analysis.SpecialFunctions.Pow.Real
+
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.NormNum
 
 namespace InformationTheory
+open NNReal
 
 /-- A `WeightModel` packages the hypotheses needed for Kraft-style bounds in a graded monoid.
 
 It consists of:
 * a cost function `cost : M → ℕ` that is additive under multiplication (`cost_mul`),
-* a multiplicative weight `μ : M →* ℝ`,
+* a multiplicative weight `μ : M →* ℝ≥0`,
 * and a pointwise domination condition `μ x ≤ (1 / D)^cost x`.
 
 This abstracts the usual "weight = D^{-length}" setup: the theorem only needs a multiplicative
 weight bounded by the canonical exponential weight induced by the cost. -/
 structure WeightModel (M : Type*) [Monoid M] (D : ℕ) where
   cost : M → ℕ
-  μ : M →* ℝ
-  μ_le : ∀ x, μ x ≤ (1 / (D : ℝ)) ^ cost x
+  μ : M →* ℝ≥0
+  μ_le : ∀ x, μ x ≤ ( (1 / (D : ℝ≥0)) ^ cost x : ℝ≥0 )
   cost_mul : ∀ a b, cost (a * b) = cost a + cost b
 
 variable {M : Type*}
@@ -43,20 +46,19 @@ private lemma sum_mu_filter_le_one_of_card_le
     (m : WeightModel M D_nat)
     (h_card : (T.filter (fun x => m.cost x = s)).card ≤ D_nat ^ s) :
     (∑ x ∈ T.filter (fun x => m.cost x = s), m.μ x) ≤ 1 := by
-  let D : ℝ := (D_nat : ℝ)
+  let D : ℝ≥0 := D_nat
   have hD0 : D ≠ 0 := by positivity
   calc
     ∑ x ∈ T.filter (fun x => m.cost x = s), m.μ x
-      ≤ ∑ x ∈ T.filter (fun x => m.cost x = s), (1 / D) ^ s := by
-          apply Finset.sum_le_sum
+      ≤ ∑ x ∈ T.filter (fun x => m.cost x = s), ((1 / D) ^ s) := by
+          refine Finset.sum_le_sum ?_
           intro x hx
           have hx' : m.cost x = s := (Finset.mem_filter.mp hx).right
           simpa [D, hx'] using (m.μ_le x)
-    _ = ((T.filter (fun x => m.cost x = s)).card : ℝ) * (1 / D) ^ s := by
+    _ = ((T.filter (fun x => m.cost x = s)).card) * ((1 / D) ^ s) := by
           simp [Finset.sum_const, nsmul_eq_mul]
-    _ ≤ (D_nat ^ s) * (1 / D) ^ s := by
+    _ ≤ ((D_nat ^ s : ℕ) ) * ((1 / D) ^ s) := by
           gcongr
-          exact_mod_cast h_card
     _ = 1 := by
           simp [D, hD0]
 
@@ -65,18 +67,14 @@ def tupleProduct {S : Finset M} {r : ℕ} (w : Fin r → S) : M :=
   (List.ofFn (fun i => (w i).1)).prod
 
 /-- The "weight" function (1/D)^ℓ(x) is a Monoid Homomorphism to (ℝ, *). -/
-noncomputable def weightHom {ℓ : M → ℕ} {D : ℝ} (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) :
-    M →* ℝ where
-  toFun x := (1 / D) ^ (ℓ x)
-  map_one' := by
-    have := by simpa using h_add 1 1
-    simp [this]
-  map_mul' x y := by simp [h_add, pow_add]
-
-
-lemma tupleProduct_map {S : Finset M} {r : ℕ} {μ : M →* ℝ} {w : Fin r → S} :
-    μ (tupleProduct w) = ∏ i : Fin r, μ (w i) := by
-  simp [tupleProduct, MonoidHom.map_list_prod, List.prod_ofFn]
+noncomputable def weightHom {ℓ : M → ℕ} (D_nat : ℕ)
+    (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) : M →* ℝ≥0 :=
+  { toFun := fun x => (( (D_nat : ℝ≥0) )⁻¹) ^ ℓ x
+    map_one' := by
+      have : ℓ 1 + ℓ 1 = ℓ 1 := by simpa using (h_add 1 1)
+      have h1 : ℓ 1 = 0 := Nat.add_left_cancel this
+      simp [h1]
+    map_mul' := by intro a b; simp [h_add, pow_add] }
 
 private lemma len_one {ℓ : M → ℕ} (h_add : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
     ℓ 1 = 0 := by
@@ -97,7 +95,7 @@ lemma tupleProduct_len {ℓ : M → ℕ} {S : Finset M} {r : ℕ}
   simp [tupleProduct, len_list_prod h_add, List.sum_ofFn]
 
 private lemma kraft_sum_pow_eq_sum_tupleProduct
-    {S : Finset M} {r : ℕ} (μ : M →* ℝ) :
+    {S : Finset M} {r : ℕ} (μ : M →* ℝ≥0) :
     (∑ x ∈ S, μ x) ^ r = ∑ w : Fin r → S, μ (tupleProduct w) := by
   have hS : (∑ x ∈ S, μ x) = ∑ x : S, μ x := (Finset.sum_coe_sort S μ).symm
   calc
@@ -106,7 +104,8 @@ private lemma kraft_sum_pow_eq_sum_tupleProduct
     _ = ∑ w : Fin r → S, ∏ i : Fin r, μ (w i) := Fintype.sum_pow (f := fun x : S => μ x) r
     _ = ∑ w : Fin r → S, μ (tupleProduct w) := by
           rw [Fintype.sum_congr]
-          exact fun _ => tupleProduct_map.symm
+          intro i
+          simp [tupleProduct, MonoidHom.map_list_prod, List.prod_ofFn]
 
 lemma pow_sum_le_linear_bound_of_inj
     {S : Finset M} {D_nat : ℕ} (dPos : 0 < D_nat)
@@ -173,8 +172,6 @@ lemma pow_sum_le_linear_bound_of_inj
     <| h_injective.trans
     <| le_trans (Finset.sum_le_sum h_sum_one) ?_
   rcases r with (_ | _ | r) <;> rcases maxLen with (_ | _ | maxLen) <;> norm_num at *
-  · positivity
-  · rw [Nat.cast_sub] <;> push_cast <;> nlinarith only
 
 /-- Kraft inequality under injectivity, in the abstract `WeightModel` setting.
 
@@ -196,32 +193,38 @@ lemma kraft_inequality_of_injective'
     (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
     ∑ x ∈ S, m.μ x ≤ 1 := by
   -- 1. Setup contradiction
-  set K := ∑ x ∈ S, m.μ x
+  set K : ℝ≥0 := ∑ x ∈ S, m.μ x
   by_contra hK_gt_one
   rw [not_le] at hK_gt_one
   -- 2. Use the auxiliary bound: K^r ≤ r * maxLen
   set maxLen := S.sup m.cost
-  have h_bound (r : ℕ) (hr : 1 ≤ r) : K ^ r ≤ r * (S.sup m.cost) :=
-    pow_sum_le_linear_bound_of_inj D_pos m h_pos h_growth h_inj r hr
+  have h_bound (r : ℕ) (hr : 1 ≤ r) : K ^ r ≤ r * (S.sup m.cost) := by
+    exact_mod_cast pow_sum_le_linear_bound_of_inj D_pos m h_pos h_growth h_inj r hr
   -- 3. Algebraic limit argument
   -- If K > 1, then K^r grows exponentially, while r * maxLen grows linearly.
   -- We prove (r * maxLen) / K^r tends to 0, implying eventually (r * maxLen) < K^r.
-  have hAbs : |1 / K| < 1 := by
+  have hAbs : |1 / (K: ℝ)| < 1 := by
     rw [abs_of_pos (by positivity)]
-    exact (div_lt_one (by linarith)).mpr hK_gt_one
+    exact (div_lt_one (by positivity)).mpr hK_gt_one
   have h_tendsto : Filter.Tendsto (fun r : ℕ => (maxLen : ℝ) * r / K ^ r) Filter.atTop (nhds 0) := by
     simpa [mul_comm, mul_left_comm, mul_div_assoc] using
       ((tendsto_self_mul_const_pow_of_abs_lt_one hAbs).const_mul (maxLen : ℝ))
+
   -- 4. Derive contradiction
   obtain ⟨r, hr_tendsto⟩ := Filter.eventually_atTop.mp <| h_tendsto.eventually <| gt_mem_nhds zero_lt_one
   -- Pick a large enough r (must be ≥ 1)
   let r_large := max r 1
-  have h_strict : (maxLen : ℝ) * r_large / K ^ r_large < 1 := hr_tendsto r_large (le_max_left _ _)
-  rw [div_lt_iff₀ (pow_pos (by linarith) _)] at h_strict
+  have h_strict : maxLen * r_large / K ^ r_large < 1 := hr_tendsto r_large (le_max_left _ _)
+  rw [div_lt_iff₀ (pow_pos (by positivity) _)] at h_strict
   -- But our bound says K^r ≤ r * maxLen
   have h_le := h_bound r_large (le_max_right _ _)
   -- K^r ≤ r * maxLen < K^r => Contradiction
-  linarith
+  -- rewrite the strict inequality into the “B < A” shape
+  have h_strict' :
+      (r_large * maxLen) < (K ^ r_large) := by
+    -- h_strict is `maxLen * r_large < 1 * K^r_large`; commute and drop `1 *`
+    simpa [mul_comm] using h_strict
+  exact lt_irrefl _ (lt_of_le_of_lt h_le h_strict')
 
 /-- Kraft inequality for an arbitrary multiplicative weight dominated by the canonical exponential weight.
 
@@ -232,21 +235,16 @@ theorem kraft_inequality_of_injective_of_le
     {ℓ : M → ℕ}
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
-    (μ : M →* ℝ)
+    (μ : M →* ℝ≥0)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
     (h_pos : ∀ x ∈ S, 1 ≤ ℓ x)
     (h_growth : costGrowth ℓ D_nat)
-    (hμ : ∀ x, μ x ≤ (1 / (D_nat : ℝ)) ^ ℓ x)
+    (hμ : ∀ x, μ x ≤ (D_nat : ℝ≥0)⁻¹ ^ ℓ x)
     (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
-    ∑ x ∈ S, μ x ≤ 1 :=
-  kraft_inequality_of_injective' D_pos h_pos h_growth h_inj
-     (m := { cost := ℓ, μ := μ, μ_le := hμ, cost_mul := h_add })
+    ∑ x ∈ S, μ x ≤ 1 := by
+  exact kraft_inequality_of_injective' D_pos h_pos h_growth h_inj
+     (m := { cost := ℓ, μ := μ, μ_le := (by simp_all), cost_mul := h_add })
 
-/-- Kraft inequality in the canonical exponential-weight form.
-
-This is the standard statement recovered from `kraft_inequality_of_injective_of_le`
-by taking `μ x = (1/D)^ℓ x`. It is the easiest-to-use API when one already has an
-additive cost function `ℓ`. -/
 theorem kraft_inequality_of_injective {ℓ : M → ℕ}
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
@@ -254,8 +252,27 @@ theorem kraft_inequality_of_injective {ℓ : M → ℕ}
     (h_pos : ∀ x ∈ S, 1 ≤ ℓ x)
     (h_growth : costGrowth ℓ D_nat)
     (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
-    ∑ x ∈ S, (1 / (D_nat : ℝ)) ^ (ℓ x) ≤ 1 :=
+    ∑ x ∈ S, ((D_nat : ℝ≥0)⁻¹) ^ (ℓ x) ≤ 1 :=
   kraft_inequality_of_injective_of_le D_pos h_add h_pos h_growth (fun _ => le_rfl) h_inj
-    (μ := weightHom h_add)
+    (μ := weightHom D_nat h_add)
+
+/-- Kraft inequality in the canonical exponential-weight form.
+
+This is the standard statement recovered from `kraft_inequality_of_injective_of_le`
+by taking `μ x = (1/D)^ℓ x`. It is the easiest-to-use API when one already has an
+additive cost function `ℓ`. -/
+theorem kraft_inequality_of_injective_real {ℓ : M → ℕ}
+    {S : Finset M} {D_nat : ℕ}
+    (D_pos : 0 < D_nat)
+    (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
+    (h_pos : ∀ x ∈ S, 1 ≤ ℓ x)
+    (h_growth : costGrowth ℓ D_nat)
+    (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
+    ∑ x ∈ S, (1 / (D_nat : ℝ)) ^ (ℓ x) ≤ 1 := by
+  let k := kraft_inequality_of_injective D_pos h_add h_pos h_growth h_inj
+  rw [<-one_div] at *
+  have : 1 / (D_nat : ℝ) = (1 / D_nat : ℝ≥0) := by simp
+  rw [this]
+  exact_mod_cast k
 
 end InformationTheory
