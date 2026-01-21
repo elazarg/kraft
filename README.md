@@ -37,7 +37,8 @@ InformationTheory/
     Kraft.lean                      -- Kraft's inequality (main theorem)
     KraftConverse.lean              -- Converse of Kraft's inequality
     KraftMcMillan.lean              -- Kraft-McMillan inequality for lists
-    KraftGeneralized.lean           -- Abstract Kraft-McMillan for monoids
+    KraftNatural.lean               -- ℕ-valued counting bounds (foundation)
+    KraftGeneralized.lean           -- Abstract Kraft-McMillan for monoids (ℝ≥0)
     SourceCodingLowerBound.lean     -- Source coding lower bound (entropy ≤ E[L])
     Example.lean                    -- Shannon-Fano coding application
 
@@ -61,7 +62,9 @@ InformationTheory/
 
 - **KraftMcMillan.lean**: Proves the Kraft-McMillan inequality for uniquely decodable codes over lists
 
-- **KraftGeneralized.lean**: Abstract version of Kraft-McMillan for monoids with a length function; proves the inequality holds when r-fold products are injective
+- **KraftNatural.lean**: Natural number approach to Kraft-style bounds; defines the core `costGrowth` axiom and `tupleProduct` abstraction; proves `mcmillan_counting_of_inj` (ℕ-valued counting bound) and `scaled_sum_pow_le_linear`
+
+- **KraftGeneralized.lean**: Builds on KraftNatural with the `WeightModel` structure for ℝ≥0-valued weights; proves the abstract Kraft inequality via limit arguments when r-fold products are injective
 
 - **SourceCodingLowerBound.lean**: Proves the source coding lower bound: Shannon entropy is a lower bound on expected codeword length for uniquely decodable codes. Uses the Gibbs inequality (non-negativity of KL divergence) applied to the probability distribution and normalized Kraft weights
 
