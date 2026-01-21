@@ -58,14 +58,6 @@ local instance : MeasurableSpace I := ⊤
 noncomputable def pmfMeasure (p : I → ℝ) : Measure I :=
   Measure.count.withDensity (fun i => ENNReal.ofReal (p i))
 
-lemma pmfMeasure_singleton {I : Type*} {p : I → ℝ} {i : I} :
-    pmfMeasure p {i} = ENNReal.ofReal (p i) := by
-  simp [pmfMeasure]
-
-lemma pmfMeasure_univ {p : I → ℝ} :
-    pmfMeasure p univ = ∑ i, ENNReal.ofReal (p i) := by
-  simp [pmfMeasure, lintegral_count]
-
 /-- If `q i > 0` for all i, then `pmfMeasure p ≪ pmfMeasure q`. -/
 lemma pmfMeasure_ac {I : Type*} {p q : I → ℝ} (hq : ∀ i, 0 < q i) :
     pmfMeasure p ≪ pmfMeasure q := by
@@ -81,12 +73,12 @@ lemma pmfMeasure_ac {I : Type*} {p q : I → ℝ} (hq : ∀ i, 0 < q i) :
         simpa [this] using his)
     have hpos_singleton : 0 < pmfMeasure q {i} := by
       have : 0 < ENNReal.ofReal (q i) := ENNReal.ofReal_pos.mpr (hq i)
-      simpa [pmfMeasure_singleton] using this
+      simpa [pmfMeasure] using this
     exact ne_of_gt (lt_of_lt_of_le hpos_singleton hle) hs0
   simp [hs_empty]
 
 instance (p : I → ℝ) : IsFiniteMeasure (pmfMeasure p) := by
-  exact ⟨by simp [pmfMeasure_univ]⟩
+  exact ⟨by simp [pmfMeasure, lintegral_count]⟩
 
 lemma integral_llr_pmfMeasure {p q : I → ℝ}
   (hp_pos : ∀ i, 0 < p i)
@@ -134,7 +126,7 @@ lemma integral_llr_pmfMeasure {p q : I → ℝ}
 lemma pmfMeasure_univ_eq_of_sum_eq_one {p : I → ℝ}
     (hp_nonneg : ∀ i, 0 ≤ p i)
     (hp_sum : ∑ i, p i = 1) :
-    pmfMeasure p univ = (1 : ℝ≥0∞) := by
+    pmfMeasure p univ = 1 := by
   calc
     pmfMeasure p univ
       = ∑ i, ENNReal.ofReal (p i) := by simp [pmfMeasure, lintegral_count]
