@@ -9,8 +9,12 @@ import Mathlib.Analysis.SpecialFunctions.Pow.Real
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.NormNum
 
+import InformationTheory.Coding.KraftNatural
+
 namespace InformationTheory
+
 open NNReal
+
 
 /-- A `WeightModel` packages the hypotheses needed for Kraft-style bounds in a graded monoid.
 
@@ -28,43 +32,7 @@ structure WeightModel (M : Type*) [Monoid M] (D : ℕ) where
   cost_mul : ∀ a b, cost (a * b) = cost a + cost b
 
 variable {M : Type*}
-
-/-- Growth axiom for a cost function.
-
-`costGrowth cost D` asserts that, in any finite `T`, the number of elements of cost exactly `s`
-is at most `D^s`. This is the abstract analogue of "there are at most `D^s` strings of length `s`"
-in a `D`-ary alphabet. -/
-def costGrowth (cost : M → ℕ) (D_nat : ℕ) : Prop :=
-  ∀ (T : Finset M) (s : ℕ),
-    (T.filter (fun x => cost x = s)).card ≤ D_nat ^ s
-
 variable [Monoid M]
-
-private lemma sum_mu_filter_le_one_of_card_le
-    {T : Finset M} {s : ℕ} {D_nat : ℕ}
-    (dPos : 0 < D_nat)
-    (m : WeightModel M D_nat)
-    (h_card : (T.filter (fun x => m.cost x = s)).card ≤ D_nat ^ s) :
-    (∑ x ∈ T.filter (fun x => m.cost x = s), m.μ x) ≤ 1 := by
-  let D : ℝ≥0 := D_nat
-  have hD0 : D ≠ 0 := by positivity
-  calc
-    ∑ x ∈ T.filter (fun x => m.cost x = s), m.μ x
-      ≤ ∑ x ∈ T.filter (fun x => m.cost x = s), ((1 / D) ^ s) := by
-          refine Finset.sum_le_sum ?_
-          intro x hx
-          have hx' : m.cost x = s := (Finset.mem_filter.mp hx).right
-          simpa [D, hx'] using (m.μ_le x)
-    _ = ((T.filter (fun x => m.cost x = s)).card) * ((1 / D) ^ s) := by
-          simp [Finset.sum_const, nsmul_eq_mul]
-    _ ≤ ((D_nat ^ s : ℕ) ) * ((1 / D) ^ s) := by
-          gcongr
-    _ = 1 := by
-          simp [D, hD0]
-
-/-- The r-fold product of elements from a finite set, defined via Lists. -/
-def tupleProduct {S : Finset M} {r : ℕ} (w : Fin r → S) : M :=
-  (List.ofFn (fun i => (w i).1)).prod
 
 /-- The "weight" function (1/D)^ℓ(x) is a Monoid Homomorphism to (ℝ, *). -/
 noncomputable def weightHom {ℓ : M → ℕ} (D_nat : ℕ)
@@ -75,24 +43,6 @@ noncomputable def weightHom {ℓ : M → ℕ} (D_nat : ℕ)
       have h1 : ℓ 1 = 0 := Nat.add_left_cancel this
       simp [h1]
     map_mul' := by intro a b; simp [h_add, pow_add] }
-
-private lemma len_one {ℓ : M → ℕ} (h_add : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
-    ℓ 1 = 0 := by
-  have h : ℓ 1 + ℓ 1 = ℓ 1 := by simpa using (h_add 1 1)
-  exact (Nat.add_left_cancel h)
-
-private lemma len_list_prod {ℓ : M → ℕ}
-    (h_add : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
-    ∀ xs : List M, ℓ xs.prod = (xs.map ℓ).sum := by
-  intro xs
-  induction xs with
-  | nil => simp [len_one h_add]
-  | cons a xs ih => simp [h_add, ih]
-
-lemma tupleProduct_len {ℓ : M → ℕ} {S : Finset M} {r : ℕ}
-    (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) (w : Fin r → S) :
-    ℓ (tupleProduct w) = ∑ i : Fin r, ℓ ((w i).val) := by
-  simp [tupleProduct, len_list_prod h_add, List.sum_ofFn]
 
 private lemma kraft_sum_pow_eq_sum_tupleProduct
     {S : Finset M} {r : ℕ} (μ : M →* ℝ≥0) :
@@ -107,68 +57,74 @@ private lemma kraft_sum_pow_eq_sum_tupleProduct
           intro i
           simp [tupleProduct, MonoidHom.map_list_prod, List.prod_ofFn]
 
+private lemma pow_sub_mul_inv_pow_eq_inv_pow
+    {D : ℝ≥0} (hD0 : D ≠ 0) {N c : ℕ} (hc : c ≤ N) :
+    D ^ (N - c) * (D ^ N)⁻¹ = (D⁻¹) ^ c := by
+  -- cancel by multiplying by D^N
+  have hDN0 : D ^ N ≠ 0 := pow_ne_zero _ hD0
+  have hc0 : D ^ c ≠ 0 := pow_ne_zero _ hD0
+  apply mul_right_cancel₀ hDN0
+  -- simplify LHS
+  calc
+    (D ^ (N - c) * (D ^ N)⁻¹) * D ^ N
+        = D ^ (N - c) := by simp [hDN0]
+    _ = (D ^ c)⁻¹ * (D ^ (N - c) * D ^ c) := by
+          -- insert (D^c)⁻¹*D^c = 1 and rearrange
+          calc
+            D ^ (N - c) = (1 : ℝ≥0) * D ^ (N - c) := by simp
+            _ = ((D ^ c)⁻¹ * D ^ c) * D ^ (N - c) := by simp [hc0]
+            _ = (D ^ c)⁻¹ * (D ^ (N - c) * D ^ c) := by
+                  simp [mul_assoc, mul_left_comm, mul_comm]
+    _ = (D ^ c)⁻¹ * D ^ N := by
+          -- rewrite D^N = D^(N-c)*D^c
+          have hpow : D ^ N = D ^ (N - c) * D ^ c := by
+            simpa [Nat.sub_add_cancel hc] using (pow_add D (N - c) c)
+          simp [hpow]
+    _ = (D⁻¹) ^ c * D ^ N := by simp [inv_pow]
+
+private lemma sum_inv_pow_cost_tupleProduct_le
+    {S : Finset M} {D_nat : ℕ} {cost : M → ℕ} (r : ℕ)
+    (dPos : 0 < D_nat)
+    (cost_mul : ∀ a b, cost (a * b) = cost a + cost b)
+    (hgrowth : costGrowth cost D_nat)
+    (hinj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
+    (∑ w : Fin r → S, ((D_nat : ℝ≥0)⁻¹) ^ cost (tupleProduct w)) ≤ (r * S.sup cost + 1 : ℝ≥0) := by
+  let N := r * S.sup cost
+  let D : ℝ≥0 := D_nat
+  have hD0 : D ≠ 0 := by positivity
+  calc  ∑ w : Fin r → S, (D⁻¹) ^ cost (tupleProduct w)
+      = ∑ w : Fin r → S, (D ^ (N - cost (tupleProduct w))) * (D ^ N)⁻¹ := by
+          apply Finset.sum_congr rfl
+          intro w hw
+          rw [pow_sub_mul_inv_pow_eq_inv_pow hD0]
+          exact cost_tupleProduct_le_mul_sup cost_mul
+    _ =  (∑ w : Fin r → S, D ^ (N - cost (tupleProduct w))) * (D ^ N)⁻¹ := by
+          simp [Finset.sum_mul]
+    _  ≤ ((N + 1 : ℝ≥0) * D ^ N) * (D ^ N)⁻¹ := by
+          have hNN : (∑ w : Fin r → S, D ^ (N - cost (tupleProduct w)))
+              ≤ (N + 1 : ℝ≥0) * D ^ N := by
+            subst D
+            exact_mod_cast InformationTheory.mcmillan_counting_of_inj cost_mul hgrowth hinj r
+          simpa using mul_le_mul_left hNN (D ^ N)⁻¹
+  simp [N, hD0]
+
 lemma pow_sum_le_linear_bound_of_inj
-    {S : Finset M} {D_nat : ℕ} (dPos : 0 < D_nat)
+    {S : Finset M} {D_nat : ℕ}
+    (D_pos : 0 < D_nat)
     (m : WeightModel M D_nat)
     (hgrowth : costGrowth m.cost D_nat)
     (hinj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r)))
     (r : ℕ) :
     (∑ x ∈ S, m.μ x) ^ r ≤ (r * (S.sup m.cost) + 1) := by
-  classical
-  -- Let $maxLen = \max_{w \in S} |w|$.
-  set maxLen := S.sup m.cost
-  let T := Finset.image tupleProduct (Finset.univ : Finset (Fin r → S))
-  have h_injective :
-    ∑ w : Fin r → S, m.μ (tupleProduct w)
-      ≤ ∑ s ∈ Finset.Icc 0 (r * maxLen),
-          ∑ x ∈ T.filter (fun x => m.cost x = s), m.μ x := by
-    rw [← Finset.sum_biUnion]
-    · apply le_of_eq
-      refine Finset.sum_bij (fun w _ => tupleProduct w) ?_ ?_ (by
-        intro b hb
-        rcases Finset.mem_biUnion.mp hb with ⟨s, -, hb⟩
-        rcases Finset.mem_filter.mp hb with ⟨hb, -⟩
-        rcases Finset.mem_image.mp hb with ⟨a, ha, rfl⟩
-        exact ⟨a, ha, rfl⟩
-      ) (by simp)
-      · intro a _
-        have hlen := tupleProduct_len m.cost_mul a
-        simp only [T, Finset.mem_biUnion, Finset.mem_Icc, Finset.mem_filter, Finset.mem_image,
-                   Finset.mem_univ, true_and]
-        use m.cost (tupleProduct a)
-        refine ⟨⟨?_, ?_⟩, ⟨a, rfl⟩, rfl⟩
-        · -- r ≤ (tupleProduct a).length
-          -- Each selected codeword has positive length (since [] ∉ S).
-          -- Sum of r ones ≤ sum of the lengths.
-          exact Nat.zero_le _
-        · -- Upper bound: |w| ≤ r * maxLen
-          -- length of r-fold product
-          rw [hlen]
-          -- rewrite r*maxLen as a sum and compare termwise
-          -- (either of the next two styles)
-          · -- style 1 (closest to your old code)
-            grw [show r * maxLen = ∑ _ : Fin r, maxLen by simp]
-            exact Finset.sum_le_sum (fun i _ => Finset.le_sup (a i).2)
-      · intro a₁ _ a₂ _ h_eq
-        exact hinj r h_eq
-    · exact fun _ _ _ _ _ => Finset.disjoint_left.mpr (by grind)
-  -- Since $\sum_{x \in \{0,1\}^s} 2^{-|x|} = 1$ for any $s$, we have
-  -- $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}
-  --   = \sum_{s=r}^{r\ell} 1 = r\ell - r + 1 \le r\ell$.
-  have h_sum_one :
-      ∀ s ∈ Finset.Icc 0 (r * maxLen),
-        ∑ x ∈ T.filter (fun x => m.cost x = s), m.μ x ≤ 1 := by
-    intro s _
-    apply sum_mu_filter_le_one_of_card_le (T := T) (s := s) dPos m
-    simpa using (hgrowth (T := T) (s := s))
-  have h_pow :
-      (∑ x ∈ S, m.μ x) ^ r
-        = ∑ w : Fin r → S, m.μ (tupleProduct w) :=
-    kraft_sum_pow_eq_sum_tupleProduct (μ := m.μ)
-  refine le_trans h_pow.le
-    <| h_injective.trans
-    <| le_trans (Finset.sum_le_sum h_sum_one) ?_
-  rcases r with (_ | _ | r) <;> rcases maxLen with (_ | _ | maxLen) <;> norm_num at *
+  calc  (∑ x ∈ S, m.μ x) ^ r
+       = ∑ w : Fin r → S, m.μ (tupleProduct w) := kraft_sum_pow_eq_sum_tupleProduct (μ := m.μ)
+    _  ≤ ∑ w : Fin r → S, ((D_nat : ℝ≥0)⁻¹) ^ m.cost (tupleProduct w) := by
+           refine Finset.sum_le_sum ?_
+           intro w hw
+           simpa using (m.μ_le (tupleProduct w))
+    _  ≤ (r * S.sup m.cost + 1 : ℝ≥0) := by
+           simpa using
+            (sum_inv_pow_cost_tupleProduct_le (r := r) (dPos := D_pos) m.cost_mul hgrowth hinj)
 
 /-- Kraft inequality under injectivity, in the abstract `WeightModel` setting.
 

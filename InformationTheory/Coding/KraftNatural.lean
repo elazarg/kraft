@@ -41,6 +41,18 @@ lemma tupleProduct_cost
     cost (tupleProduct w) = ∑ i, cost (w i) := by
   simp [tupleProduct, len_list_prod cost_mul, Fin.sum_ofFn]
 
+lemma cost_tupleProduct_le_mul_sup
+    {S : Finset M} {cost : M → ℕ} {r : ℕ}
+    (cost_mul : ∀ a b, cost (a*b) = cost a + cost b)
+    {w : Fin r → S} :
+    cost (tupleProduct w) ≤ r * S.sup cost  := by
+  have hsum := tupleProduct_cost cost_mul w
+  have hterm (i : Fin r) : cost (w i) ≤ S.sup cost :=
+    Finset.le_sup (f := cost) (w i).prop
+  have : (∑ i, cost (w i)) ≤ ∑ _ : Fin r, S.sup cost :=
+    Finset.sum_le_sum (fun i _ => hterm i)
+  simpa [hsum] using (le_trans this (by simp))
+
 /--
 **McMillan counting bound (unnormalized, ℕ-valued).**
 
@@ -75,12 +87,7 @@ theorem mcmillan_counting_of_inj
   have h_cost_le_N : ∀ x ∈ T, cost x ≤ N := by
     intro x hx
     rcases Finset.mem_image.mp hx with ⟨w, hw, rfl⟩
-    have hsum := tupleProduct_cost cost_mul w
-    have hterm (i : Fin r) : cost (w i) ≤ s :=
-      Finset.le_sup (f := cost) (w i).prop
-    have : (∑ i, cost (w i)) ≤ ∑ _ : Fin r, s :=
-      Finset.sum_le_sum (fun i _ => hterm i)
-    simpa [N, hsum] using (le_trans this (by simp [s]))
+    simpa [N, s] using cost_tupleProduct_le_mul_sup cost_mul
 
   -- Step 2: rewrite the sum over tuples as a sum over `T` (injectivity gives bijection)
   have h_sum_over_T :

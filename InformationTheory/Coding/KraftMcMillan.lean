@@ -109,7 +109,7 @@ private lemma one_le_length_of_mem {S : Finset (List α)} (hε : [] ∉ S) :
   exact Nat.one_le_iff_ne_zero.mpr (by simpa using hxne)
 
 private lemma lengthGrowth_list [Fintype α]:
-    costGrowth (M := List α) (cost := List.length) (D_nat := Fintype.card α) := by
+    costGrowth (M := List α) (cost := List.length) (D := Fintype.card α) := by
   intro T s
   simpa using card_filter_length_eq_le
 
