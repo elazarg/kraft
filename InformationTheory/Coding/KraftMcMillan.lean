@@ -109,7 +109,7 @@ private lemma one_le_length_of_mem {S : Finset (List α)} (hε : [] ∉ S) :
   exact Nat.one_le_iff_ne_zero.mpr (by simpa using hxne)
 
 private lemma lengthGrowth_list [Fintype α]:
-    lengthGrowth (M := List α) (ℓ := List.length) (D_nat := Fintype.card α) := by
+    costGrowth (M := List α) (cost := List.length) (D_nat := Fintype.card α) := by
   intro T s
   simpa using card_filter_length_eq_le
 
@@ -129,12 +129,11 @@ private lemma injective_tupleProduct_of_injective_concatFn
 public theorem kraft_mcmillan_inequality {S : Finset (List α)} [Fintype α] [Nonempty α]
     (h : UniquelyDecodable (S : Set (List α))) :
     ∑ w ∈ S, (1 / Fintype.card α : ℝ) ^ w.length ≤ 1 := by
-  refine kraft_inequality_of_injective
+  refine kraft_inequality_of_injective_real
     (D_nat := Fintype.card α)
     (D_pos := Fintype.card_pos)
     (h_add := by simp)
-    (h_pos := one_le_length_of_mem (by simpa using h.one_not_mem))
-    (h_count := lengthGrowth_list)
+    (h_growth := lengthGrowth_list)
     (h_inj := fun r => injective_tupleProduct_of_injective_concatFn
               (hinj := uniquely_decodable_concatFn_injective h r))
 

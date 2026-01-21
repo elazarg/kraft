@@ -110,18 +110,17 @@ private lemma kraft_sum_pow_eq_sum_tupleProduct
 lemma pow_sum_le_linear_bound_of_inj
     {S : Finset M} {D_nat : ℕ} (dPos : 0 < D_nat)
     (m : WeightModel M D_nat)
-    (hpos : ∀ x ∈ S, 1 ≤ m.cost x)
     (hgrowth : costGrowth m.cost D_nat)
     (hinj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r)))
-    (r : ℕ) (hr : 1 ≤ r) :
-    (∑ x ∈ S, m.μ x) ^ r ≤ r * (S.sup m.cost) := by
+    (r : ℕ) :
+    (∑ x ∈ S, m.μ x) ^ r ≤ (r * (S.sup m.cost) + 1) := by
   classical
   -- Let $maxLen = \max_{w \in S} |w|$.
   set maxLen := S.sup m.cost
   let T := Finset.image tupleProduct (Finset.univ : Finset (Fin r → S))
   have h_injective :
     ∑ w : Fin r → S, m.μ (tupleProduct w)
-      ≤ ∑ s ∈ Finset.Icc r (r * maxLen),
+      ≤ ∑ s ∈ Finset.Icc 0 (r * maxLen),
           ∑ x ∈ T.filter (fun x => m.cost x = s), m.μ x := by
     rw [← Finset.sum_biUnion]
     · apply le_of_eq
@@ -141,9 +140,7 @@ lemma pow_sum_le_linear_bound_of_inj
         · -- r ≤ (tupleProduct a).length
           -- Each selected codeword has positive length (since [] ∉ S).
           -- Sum of r ones ≤ sum of the lengths.
-          have hsum : (∑ _ : Fin r, 1) ≤ ∑ i, m.cost ((a i).val) :=
-            Finset.sum_le_sum (fun i _ => hpos _ (a i).prop)
-          simpa [hlen] using hsum
+          exact Nat.zero_le _
         · -- Upper bound: |w| ≤ r * maxLen
           -- length of r-fold product
           rw [hlen]
@@ -159,7 +156,7 @@ lemma pow_sum_le_linear_bound_of_inj
   -- $\sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|}
   --   = \sum_{s=r}^{r\ell} 1 = r\ell - r + 1 \le r\ell$.
   have h_sum_one :
-      ∀ s ∈ Finset.Icc r (r * maxLen),
+      ∀ s ∈ Finset.Icc 0 (r * maxLen),
         ∑ x ∈ T.filter (fun x => m.cost x = s), m.μ x ≤ 1 := by
     intro s _
     apply sum_mu_filter_le_one_of_card_le (T := T) (s := s) dPos m
@@ -184,11 +181,10 @@ we obtain `∑ x ∈ S, μ x ≤ 1`.
 
 This statement is formulated in terms of an arbitrary multiplicative weight `μ`,
 only requiring the domination `μ x ≤ (1/D)^cost x`. -/
-lemma kraft_inequality_of_injective'
+public lemma kraft_inequality_of_injective'
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
     (m : WeightModel M D_nat)
-    (h_pos : ∀ x ∈ S, 1 ≤ m.cost x)
     (h_growth : costGrowth m.cost D_nat)
     (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
     ∑ x ∈ S, m.μ x ≤ 1 := by
@@ -198,33 +194,79 @@ lemma kraft_inequality_of_injective'
   rw [not_le] at hK_gt_one
   -- 2. Use the auxiliary bound: K^r ≤ r * maxLen
   set maxLen := S.sup m.cost
-  have h_bound (r : ℕ) (hr : 1 ≤ r) : K ^ r ≤ r * (S.sup m.cost) := by
-    exact_mod_cast pow_sum_le_linear_bound_of_inj D_pos m h_pos h_growth h_inj r hr
+  have h_bound (r : ℕ) : K ^ r ≤ r * maxLen + 1 := by
+    exact_mod_cast pow_sum_le_linear_bound_of_inj D_pos m h_growth h_inj r
   -- 3. Algebraic limit argument
   -- If K > 1, then K^r grows exponentially, while r * maxLen grows linearly.
   -- We prove (r * maxLen) / K^r tends to 0, implying eventually (r * maxLen) < K^r.
   have hAbs : |1 / (K: ℝ)| < 1 := by
     rw [abs_of_pos (by positivity)]
     exact (div_lt_one (by positivity)).mpr hK_gt_one
-  have h_tendsto : Filter.Tendsto (fun r : ℕ => (maxLen : ℝ) * r / K ^ r) Filter.atTop (nhds 0) := by
+  have h_tendh_tendsto_linsto :
+      Filter.Tendsto (fun r : ℕ => (maxLen : ℝ) * r / K ^ r) Filter.atTop (nhds 0) := by
     simpa [mul_comm, mul_left_comm, mul_div_assoc] using
       ((tendsto_self_mul_const_pow_of_abs_lt_one hAbs).const_mul (maxLen : ℝ))
+  have h_tendsto_geo :
+      Filter.Tendsto (fun r => 1 / (K:ℝ)^r) Filter.atTop (nhds 0) := by
+    -- rewrite as (1/K)^r and apply abs_lt_1 lemma
+    simpa [one_div, div_eq_mul_inv, pow_mul] using (tendsto_pow_atTop_nhds_zero_of_abs_lt_one hAbs)
+  have h_tendsto_sum :
+      Filter.Tendsto
+        (fun r : ℕ =>
+          (maxLen : ℝ) * r / K ^ r + 1 / K ^ r)
+        Filter.atTop (nhds 0) := by
+    simpa [zero_add] using (h_tendh_tendsto_linsto.add h_tendsto_geo)
 
   -- 4. Derive contradiction
-  obtain ⟨r, hr_tendsto⟩ := Filter.eventually_atTop.mp <| h_tendsto.eventually <| gt_mem_nhds zero_lt_one
+  have hIio : Set.Iio (1 : ℝ) ∈ nhds (0 : ℝ) := by
+    simpa using (Iio_mem_nhds (show (0 : ℝ) < 1 by norm_num))
+
+  obtain ⟨r, hr_tendsto⟩ :=
+    Filter.eventually_atTop.mp <|
+      (h_tendsto_sum.eventually hIio)
+
+  have hr_lt : ∀ b ≥ r,
+      ↑maxLen * ↑b / ↑K ^ b + 1 / ↑K ^ b < (1 : ℝ) := by
+    simpa [Set.Iio] using hr_tendsto
+
   -- Pick a large enough r (must be ≥ 1)
   let r_large := max r 1
-  have h_strict : maxLen * r_large / K ^ r_large < 1 := hr_tendsto r_large (le_max_left _ _)
-  rw [div_lt_iff₀ (pow_pos (by positivity) _)] at h_strict
-  -- But our bound says K^r ≤ r * maxLen
-  have h_le := h_bound r_large (le_max_right _ _)
-  -- K^r ≤ r * maxLen < K^r => Contradiction
-  -- rewrite the strict inequality into the “B < A” shape
-  have h_strict' :
-      (r_large * maxLen) < (K ^ r_large) := by
-    -- h_strict is `maxLen * r_large < 1 * K^r_large`; commute and drop `1 *`
-    simpa [mul_comm] using h_strict
-  exact lt_irrefl _ (lt_of_le_of_lt h_le h_strict')
+  have h_strict_sum : ↑maxLen * ↑r_large / ↑K ^ r_large + 1 / ↑K ^ r_large < (1 : ℝ) :=
+    hr_lt r_large (le_max_left _ _)
+
+  have h_strict_sum :
+      (maxLen : ℝ) * r_large / (K : ℝ) ^ r_large
+        + (1 : ℝ) / (K : ℝ) ^ r_large < 1 := by
+    have hmem :
+        ( maxLen * r_large / K ^ r_large
+          + (1 : ℝ) / K ^ r_large )
+          ∈ {x | x < 1} := by
+      exact hr_tendsto r_large (le_max_left _ _)
+    simpa using hmem
+
+  have h_strict_div :
+     (maxLen * r_large + 1) / (K:ℝ)^r_large < 1 := by
+    -- turn sum of fractions into one fraction
+    -- (a/b + 1/b) = (a+1)/b
+    simpa [add_div] using h_strict_sum
+
+  rw [div_lt_iff₀ (pow_pos (by positivity) _)] at *
+  -- Turn the ≤ bound into an ℝ inequality
+  have h_le_real :
+      ((K : ℝ) ^ r_large) ≤ (r_large : ℝ) * (maxLen : ℝ) + 1 := by
+    -- h_bound r_large : (K:ℝ≥0)^r_large ≤ (r_large*maxLen+1)  (in ℝ≥0)
+    exact_mod_cast (h_bound r_large)
+
+  -- Turn the strict inequality into the “(r*maxLen+1) < K^r” shape
+  have h_strict_real :
+      (r_large : ℝ) * (maxLen : ℝ) + 1 < (K : ℝ) ^ r_large := by
+    -- your h_strict_div is: ↑maxLen * ↑r_large + 1 < 1 * ↑K ^ r_large
+    -- commute the product and drop the `1 *`
+    simpa [mul_comm, one_mul] using h_strict_div
+
+  -- Contradiction: K^r ≤ r*maxLen+1 < K^r
+  exact (lt_irrefl ((K : ℝ) ^ r_large)) (lt_of_le_of_lt h_le_real h_strict_real)
+
 
 /-- Kraft inequality for an arbitrary multiplicative weight dominated by the canonical exponential weight.
 
@@ -237,23 +279,21 @@ theorem kraft_inequality_of_injective_of_le
     (D_pos : 0 < D_nat)
     (μ : M →* ℝ≥0)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_pos : ∀ x ∈ S, 1 ≤ ℓ x)
     (h_growth : costGrowth ℓ D_nat)
     (hμ : ∀ x, μ x ≤ (D_nat : ℝ≥0)⁻¹ ^ ℓ x)
     (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
     ∑ x ∈ S, μ x ≤ 1 := by
-  exact kraft_inequality_of_injective' D_pos h_pos h_growth h_inj
+  exact kraft_inequality_of_injective' D_pos h_growth h_inj
      (m := { cost := ℓ, μ := μ, μ_le := (by simp_all), cost_mul := h_add })
 
 theorem kraft_inequality_of_injective {ℓ : M → ℕ}
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_pos : ∀ x ∈ S, 1 ≤ ℓ x)
     (h_growth : costGrowth ℓ D_nat)
     (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
     ∑ x ∈ S, ((D_nat : ℝ≥0)⁻¹) ^ (ℓ x) ≤ 1 :=
-  kraft_inequality_of_injective_of_le D_pos h_add h_pos h_growth (fun _ => le_rfl) h_inj
+  kraft_inequality_of_injective_of_le D_pos h_add h_growth (fun _ => le_rfl) h_inj
     (μ := weightHom D_nat h_add)
 
 /-- Kraft inequality in the canonical exponential-weight form.
@@ -265,11 +305,10 @@ theorem kraft_inequality_of_injective_real {ℓ : M → ℕ}
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_pos : ∀ x ∈ S, 1 ≤ ℓ x)
     (h_growth : costGrowth ℓ D_nat)
     (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
     ∑ x ∈ S, (1 / (D_nat : ℝ)) ^ (ℓ x) ≤ 1 := by
-  let k := kraft_inequality_of_injective D_pos h_add h_pos h_growth h_inj
+  let k := kraft_inequality_of_injective D_pos h_add h_growth h_inj
   rw [<-one_div] at *
   have : 1 / (D_nat : ℝ) = (1 / D_nat : ℝ≥0) := by simp
   rw [this]
