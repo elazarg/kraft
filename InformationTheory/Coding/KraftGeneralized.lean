@@ -35,9 +35,9 @@ variable {M : Type*}
 variable [Monoid M]
 
 /-- The "weight" function (1/D)^ℓ(x) is a Monoid Homomorphism to (ℝ, *). -/
-noncomputable def weightHom {ℓ : M → ℕ} (D_nat : ℕ)
+noncomputable def weightHom {ℓ : M → ℕ} (base : ℕ)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b) : M →* ℝ≥0 :=
-  { toFun := fun x => (( (D_nat : ℝ≥0) )⁻¹) ^ ℓ x
+  { toFun := fun x => (( (base : ℝ≥0) )⁻¹) ^ ℓ x
     map_one' := by
       have : ℓ 1 + ℓ 1 = ℓ 1 := by simpa using (h_add 1 1)
       have h1 : ℓ 1 = 0 := Nat.add_left_cancel this
@@ -83,48 +83,48 @@ private lemma pow_sub_mul_inv_pow_eq_inv_pow
     _ = (D⁻¹) ^ c * D ^ N := by simp [inv_pow]
 
 private lemma sum_inv_pow_cost_prodTuple_le
-    {S : Finset M} {D_nat : ℕ} {cost : M → ℕ} (r : ℕ)
-    (dPos : 0 < D_nat)
+    {S : Finset M} {base : ℕ} {cost : M → ℕ} (r : ℕ)
+    (base_pos : 0 < base)
     (cost_mul : ∀ a b, cost (a * b) = cost a + cost b)
-    (hgrowth : ExpBounded cost D_nat)
+    (hgrowth : ExpBounded cost base)
     (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
-    (∑ w : Fin r → S, ((D_nat : ℝ≥0)⁻¹) ^ cost (prodTuple w)) ≤ (r * S.sup cost + 1 : ℝ≥0) := by
+    (∑ w : Fin r → S, ((base : ℝ≥0)⁻¹) ^ cost (prodTuple w)) ≤ (r * S.sup cost + 1 : ℝ≥0) := by
   let N := r * S.sup cost
-  let D : ℝ≥0 := D_nat
+  let D : ℝ≥0 := base
   have hD0 : D ≠ 0 := by positivity
   calc  ∑ w : Fin r → S, (D⁻¹) ^ cost (prodTuple w)
       = ∑ w : Fin r → S, (D ^ (N - cost (prodTuple w))) * (D ^ N)⁻¹ := by
           apply Finset.sum_congr rfl
           intro w hw
           rw [pow_sub_mul_inv_pow_eq_inv_pow hD0]
-          exact len_prodTuple_le_mul_sup cost_mul
+          exact len_prodTuple_le_mul_sup (prodTuple_len cost_mul) w
     _ =  (∑ w : Fin r → S, D ^ (N - cost (prodTuple w))) * (D ^ N)⁻¹ := by
           simp [Finset.sum_mul]
     _  ≤ ((N + 1 : ℝ≥0) * D ^ N) * (D ^ N)⁻¹ := by
           have hNN : (∑ w : Fin r → S, D ^ (N - cost (prodTuple w)))
               ≤ (N + 1 : ℝ≥0) * D ^ N := by
             subst D
-            exact_mod_cast InformationTheory.mcmillan_counting_of_inj cost_mul hgrowth hinj r
+            exact_mod_cast mcmillan_counting_of_inj cost_mul hgrowth hinj
           simpa using mul_le_mul_left hNN (D ^ N)⁻¹
   simp [N, hD0]
 
 lemma pow_sum_le_linear_bound_of_inj
-    {S : Finset M} {D_nat : ℕ}
-    (D_pos : 0 < D_nat)
-    (m : WeightModel M D_nat)
-    (hgrowth : ExpBounded m.cost D_nat)
+    {S : Finset M} {base : ℕ}
+    (base_pos : 0 < base)
+    (m : WeightModel M base)
+    (hgrowth : ExpBounded m.cost base)
     (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r)))
     (r : ℕ) :
     (∑ x ∈ S, m.μ x) ^ r ≤ (r * (S.sup m.cost) + 1) := by
   calc  (∑ x ∈ S, m.μ x) ^ r
        = ∑ w : Fin r → S, m.μ (prodTuple w) := kraft_sum_pow_eq_sum_prodTuple (μ := m.μ)
-    _  ≤ ∑ w : Fin r → S, ((D_nat : ℝ≥0)⁻¹) ^ m.cost (prodTuple w) := by
+    _  ≤ ∑ w : Fin r → S, ((base : ℝ≥0)⁻¹) ^ m.cost (prodTuple w) := by
            refine Finset.sum_le_sum ?_
            intro w hw
            simpa using (m.μ_le (prodTuple w))
     _  ≤ (r * S.sup m.cost + 1 : ℝ≥0) := by
            simpa using
-            (sum_inv_pow_cost_prodTuple_le (r := r) (dPos := D_pos) m.cost_mul hgrowth hinj)
+            (sum_inv_pow_cost_prodTuple_le (r := r) (base_pos := base_pos) m.cost_mul hgrowth hinj)
 
 /-- Kraft inequality under injectivity, in the abstract `WeightModel` setting.
 
@@ -138,10 +138,10 @@ we obtain `∑ x ∈ S, μ x ≤ 1`.
 This statement is formulated in terms of an arbitrary multiplicative weight `μ`,
 only requiring the domination `μ x ≤ (1/D)^cost x`. -/
 public lemma kraft_inequality_of_injective'
-    {S : Finset M} {D_nat : ℕ}
-    (D_pos : 0 < D_nat)
-    (m : WeightModel M D_nat)
-    (h_growth : ExpBounded m.cost D_nat)
+    {S : Finset M} {base : ℕ}
+    (base_pos : 0 < base)
+    (m : WeightModel M base)
+    (h_growth : ExpBounded m.cost base)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, m.μ x ≤ 1 := by
   -- 1. Setup contradiction
@@ -151,7 +151,7 @@ public lemma kraft_inequality_of_injective'
   -- 2. Use the auxiliary bound: K^r ≤ r * maxLen
   set maxLen := S.sup m.cost
   have h_bound (r : ℕ) : K ^ r ≤ r * maxLen + 1 := by
-    exact_mod_cast pow_sum_le_linear_bound_of_inj D_pos m h_growth h_inj r
+    exact_mod_cast pow_sum_le_linear_bound_of_inj base_pos m h_growth h_inj r
   -- 3. Algebraic limit argument
   -- If K > 1, then K^r grows exponentially, while r * maxLen grows linearly.
   -- We prove (r * maxLen) / K^r tends to 0, implying eventually (r * maxLen) < K^r.
@@ -231,26 +231,26 @@ a `WeightModel` explicitly: given `μ : M →* ℝ` and a cost `ℓ : M → ℕ`
 `μ x ≤ (1/D)^ℓ x`, it proves `∑ x ∈ S, μ x ≤ 1` under the same growth and injectivity hypotheses. -/
 theorem kraft_inequality_of_injective_of_le
     {ℓ : M → ℕ}
-    {S : Finset M} {D_nat : ℕ}
-    (D_pos : 0 < D_nat)
+    {S : Finset M} {base : ℕ}
+    (base_pos : 0 < base)
     (μ : M →* ℝ≥0)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : ExpBounded ℓ D_nat)
-    (hμ : ∀ x, μ x ≤ (D_nat : ℝ≥0)⁻¹ ^ ℓ x)
+    (h_growth : ExpBounded ℓ base)
+    (hμ : ∀ x, μ x ≤ (base : ℝ≥0)⁻¹ ^ ℓ x)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, μ x ≤ 1 := by
-  exact kraft_inequality_of_injective' D_pos h_growth h_inj
+  exact kraft_inequality_of_injective' base_pos h_growth h_inj
      (m := { cost := ℓ, μ := μ, μ_le := (by simp_all), cost_mul := h_add })
 
 theorem kraft_inequality_of_injective {ℓ : M → ℕ}
-    {S : Finset M} {D_nat : ℕ}
-    (D_pos : 0 < D_nat)
+    {S : Finset M} {base : ℕ}
+    (base_pos : 0 < base)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : ExpBounded ℓ D_nat)
+    (h_growth : ExpBounded ℓ base)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
-    ∑ x ∈ S, ((D_nat : ℝ≥0)⁻¹) ^ (ℓ x) ≤ 1 :=
-  kraft_inequality_of_injective_of_le D_pos h_add h_growth (fun _ => le_rfl) h_inj
-    (μ := weightHom D_nat h_add)
+    ∑ x ∈ S, ((base : ℝ≥0)⁻¹) ^ (ℓ x) ≤ 1 :=
+  kraft_inequality_of_injective_of_le base_pos h_add h_growth (fun _ => le_rfl) h_inj
+    (μ := weightHom base h_add)
 
 /-- Kraft inequality in the canonical exponential-weight form.
 
@@ -258,15 +258,15 @@ This is the standard statement recovered from `kraft_inequality_of_injective_of_
 by taking `μ x = (1/D)^ℓ x`. It is the easiest-to-use API when one already has an
 additive cost function `ℓ`. -/
 theorem kraft_inequality_of_injective_real {ℓ : M → ℕ}
-    {S : Finset M} {D_nat : ℕ}
-    (D_pos : 0 < D_nat)
+    {S : Finset M} {base : ℕ}
+    (base_pos : 0 < base)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : ExpBounded ℓ D_nat)
+    (h_growth : ExpBounded ℓ base)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
-    ∑ x ∈ S, (1 / (D_nat : ℝ)) ^ (ℓ x) ≤ 1 := by
-  let k := kraft_inequality_of_injective D_pos h_add h_growth h_inj
+    ∑ x ∈ S, (1 / (base : ℝ)) ^ (ℓ x) ≤ 1 := by
+  let k := kraft_inequality_of_injective base_pos h_add h_growth h_inj
   rw [<-one_div] at *
-  have : 1 / (D_nat : ℝ) = (1 / D_nat : ℝ≥0) := by simp
+  have : 1 / (base : ℝ) = (1 / base : ℝ≥0) := by simp
   rw [this]
   exact_mod_cast k
 

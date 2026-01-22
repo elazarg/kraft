@@ -86,9 +86,9 @@ private lemma lengthGrowth_list [Fintype α]:
 public theorem kraft_mcmillan_inequality {S : Finset (List α)} [Fintype α] [Nonempty α]
     (h : UniquelyDecodable (S : Set (List α))) :
     ∑ w ∈ S, (1 / Fintype.card α : ℝ) ^ w.length ≤ 1 := by
-  refine kraft_inequality_of_injective_real
-    (D_nat := Fintype.card α)
-    (D_pos := Fintype.card_pos)
+  exact kraft_inequality_of_injective_real
+    (base := Fintype.card α)
+    (base_pos := Fintype.card_pos)
     (h_add := by simp)
     (h_growth := lengthGrowth_list)
     (h_inj := fun r => uniquely_decodable_tupleProduct_injective h r)

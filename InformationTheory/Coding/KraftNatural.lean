@@ -118,7 +118,7 @@ private lemma len_list_prod {len : M → ℕ}
   | cons a xs ih => simp [hmap_mul, ih]
 
 /-- len additivity for `prodTuple`. -/
-private lemma prodTuple_len
+lemma prodTuple_len
     {len : M → ℕ} {S : Finset M} {r : ℕ}
     (hmap_mul : ∀ a b, len (a * b) = len a + len b)
     (w : Fin r → S) :
@@ -127,27 +127,26 @@ private lemma prodTuple_len
 
 lemma len_prodTuple_le_mul_sup
     {S : Finset M} {len : M → ℕ} {r : ℕ}
-    (hmap_mul : ∀ a b, len (a * b) = len a + len b)
-    {w : Fin r → S} :
-    len (prodTuple w) ≤ r * S.sup len  := by
-  have hsum := prodTuple_len hmap_mul w
+    (hprod : ∀ w : Fin r → S, len (prodTuple w) = ∑ i, len (w i))
+    (w : Fin r → S) :
+    len (prodTuple w) ≤ r * S.sup len := by
   have hterm (i : Fin r) : len (w i) ≤ S.sup len :=
     Finset.le_sup (f := len) (w i).prop
   have : (∑ i, len (w i)) ≤ ∑ _ : Fin r, S.sup len :=
     Finset.sum_le_sum (fun i _ => hterm i)
-  simpa [hsum] using (le_trans this (by simp))
+  simpa [hprod w] using le_trans this (by simp)
 
 /-- Summing a function over a domain equals summing over the image, if the map is injective. -/
 private lemma sum_eq_sum_image_of_inj
     {α β : Type*} [DecidableEq β]
     {A : Finset α} {g : α → β}
-    (hf : Function.Injective g)
+    (hg : Set.InjOn g A)
     {f : β → ℕ} :
     (∑ a ∈ A, f (g a)) = ∑ b ∈ A.image g, f b := by
   have hinj : ∀ a ∈ A, ∀ a' ∈ A, g a = g a' → a = a' := by
     intro a ha a' ha' h
-    exact hf h
-  simpa using (Finset.sum_image (f := f) (g := g) hinj).symm
+    exact hg ha ha' h
+  simpa using (Finset.sum_image hinj).symm
 
 /--
 **McMillan counting bound (unnormalized, ℕ-valued).**
@@ -168,7 +167,7 @@ theorem mcmillan_counting_of_inj
     (hmap_mul : ∀ a b, len (a * b) = len a + len b)
     (hbound : ExpBounded len base)
     (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r)))
-    (r : ℕ) :
+    {r : ℕ} :
     (∑ w : Fin r → S, base ^ ((r * S.sup len) - len (prodTuple w)))
       ≤ (r * S.sup len + 1) * base ^( r * S.sup len) := by
   classical
@@ -185,12 +184,12 @@ theorem mcmillan_counting_of_inj
         = ∑ x ∈ T, base ^ (N - len x) := by
         simpa [T] using
           (sum_eq_sum_image_of_inj
-            (f := fun x => base ^ (N - len x)) (hinj r))
+            (f := fun x => base ^ (N - len x)) (fun _ _ _ _ h => hinj r h))
     _ = ∑ s ∈ Finset.Icc 0 N, ∑ x ∈ T.filter (fun x => len x = s), base ^ (N - len x) := by
         apply sum_eq_sum_Icc_filter_len
         intro x hx
         rcases Finset.mem_image.mp hx with ⟨w, hw, rfl⟩
-        simpa [N] using len_prodTuple_le_mul_sup hmap_mul
+        simpa [N] using len_prodTuple_le_mul_sup (prodTuple_len hmap_mul) w
     _ ≤ ∑ s ∈ Finset.Icc 0 N, base ^ N := by
         refine Finset.sum_le_sum (fun s hs => ?_)
         have hs_le : s ≤ N := (Finset.mem_Icc.mp hs).2
@@ -231,6 +230,6 @@ theorem scaled_sum_pow_le_linear
       ≤ (r * S.sup len + 1) * base ^ (r * S.sup len) := by
   simpa using (le_trans
     ((scaled_sum_pow_eq_sum_prodTuple hmap_mul).le)
-    (mcmillan_counting_of_inj hmap_mul hbound hinj r))
+    (mcmillan_counting_of_inj hmap_mul hbound hinj))
 
 end InformationTheory
