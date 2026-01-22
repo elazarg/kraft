@@ -166,8 +166,8 @@ theorem mcmillan_counting_of_inj
     {len : M → ℕ}
     (hmap_mul : ∀ a b, len (a * b) = len a + len b)
     (hbound : ExpBounded len base)
-    (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r)))
-    {r : ℕ} :
+    {r : ℕ}
+    (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ w : Fin r → S, base ^ ((r * S.sup len) - len (prodTuple w)))
       ≤ (r * S.sup len + 1) * base ^( r * S.sup len) := by
   classical
@@ -184,7 +184,7 @@ theorem mcmillan_counting_of_inj
         = ∑ x ∈ T, base ^ (N - len x) := by
         simpa [T] using
           (sum_eq_sum_image_of_inj
-            (f := fun x => base ^ (N - len x)) (fun _ _ _ _ h => hinj r h))
+            (f := fun x => base ^ (N - len x)) (fun _ _ _ _ h => hinj h))
     _ = ∑ s ∈ Finset.Icc 0 N, ∑ x ∈ T.filter (fun x => len x = s), base ^ (N - len x) := by
         apply sum_eq_sum_Icc_filter_len
         intro x hx
@@ -224,8 +224,8 @@ theorem scaled_sum_pow_le_linear
     {S : Finset M} {base : ℕ} {len : M → ℕ}
     (hmap_mul : ∀ a b, len (a * b) = len a + len b)
     (hbound : ExpBounded len base)
-    (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r)))
-    {r : ℕ} :
+    {r : ℕ}
+    (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ x ∈ S, base ^ (S.sup len - len x)) ^ r
       ≤ (r * S.sup len + 1) * base ^ (r * S.sup len) := by
   simpa using (le_trans
