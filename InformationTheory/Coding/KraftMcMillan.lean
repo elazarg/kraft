@@ -48,7 +48,7 @@ private instance : Monoid (List α) := listMonoid α
 This is the key property: distinct tuples of codewords produce distinct concatenations. -/
 private lemma uniquely_decodable_tupleProduct_injective {S : Finset (List α)}
     (h : UniquelyDecodable (S : Set (List α))) (r : ℕ) :
-    Function.Injective (tupleProduct (S := S) (r := r)) := by
+    Function.Injective (prodTuple (S := S) (r := r)) := by
   intro w₁ w₂ hflat
   have hprod :
       (List.ofFn (fun i => (w₁ i).val)).prod =
@@ -60,7 +60,7 @@ private lemma uniquely_decodable_tupleProduct_injective {S : Finset (List α)}
   exact Subtype.ext (by simpa using congrArg (fun f => f i) this)
 
 private lemma lengthGrowth_list [Fintype α]:
-    costGrowth (M := List α) (cost := List.length) (D := Fintype.card α) := by
+    ExpBounded (M := List α) (len := List.length) (base := Fintype.card α) := by
   classical
   intro T s
   let all_words := (Finset.univ : Finset (Fin s → α)).image List.ofFn

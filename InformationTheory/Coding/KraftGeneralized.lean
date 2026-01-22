@@ -44,18 +44,18 @@ noncomputable def weightHom {ℓ : M → ℕ} (D_nat : ℕ)
       simp [h1]
     map_mul' := by intro a b; simp [h_add, pow_add] }
 
-private lemma kraft_sum_pow_eq_sum_tupleProduct
+private lemma kraft_sum_pow_eq_sum_prodTuple
     {S : Finset M} {r : ℕ} (μ : M →* ℝ≥0) :
-    (∑ x ∈ S, μ x) ^ r = ∑ w : Fin r → S, μ (tupleProduct w) := by
+    (∑ x ∈ S, μ x) ^ r = ∑ w : Fin r → S, μ (prodTuple w) := by
   have hS : (∑ x ∈ S, μ x) = ∑ x : S, μ x := (Finset.sum_coe_sort S μ).symm
   calc
     (∑ x ∈ S, μ x) ^ r
         = (∑ x : S, μ x) ^ r := by simp [hS]
     _ = ∑ w : Fin r → S, ∏ i : Fin r, μ (w i) := Fintype.sum_pow (f := fun x : S => μ x) r
-    _ = ∑ w : Fin r → S, μ (tupleProduct w) := by
+    _ = ∑ w : Fin r → S, μ (prodTuple w) := by
           rw [Fintype.sum_congr]
           intro i
-          simp [tupleProduct, MonoidHom.map_list_prod, List.prod_ofFn]
+          simp [prodTuple, MonoidHom.map_list_prod, List.prod_ofFn]
 
 private lemma pow_sub_mul_inv_pow_eq_inv_pow
     {D : ℝ≥0} (hD0 : D ≠ 0) {N c : ℕ} (hc : c ≤ N) :
@@ -82,26 +82,26 @@ private lemma pow_sub_mul_inv_pow_eq_inv_pow
           simp [hpow]
     _ = (D⁻¹) ^ c * D ^ N := by simp [inv_pow]
 
-private lemma sum_inv_pow_cost_tupleProduct_le
+private lemma sum_inv_pow_cost_prodTuple_le
     {S : Finset M} {D_nat : ℕ} {cost : M → ℕ} (r : ℕ)
     (dPos : 0 < D_nat)
     (cost_mul : ∀ a b, cost (a * b) = cost a + cost b)
-    (hgrowth : costGrowth cost D_nat)
-    (hinj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
-    (∑ w : Fin r → S, ((D_nat : ℝ≥0)⁻¹) ^ cost (tupleProduct w)) ≤ (r * S.sup cost + 1 : ℝ≥0) := by
+    (hgrowth : ExpBounded cost D_nat)
+    (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
+    (∑ w : Fin r → S, ((D_nat : ℝ≥0)⁻¹) ^ cost (prodTuple w)) ≤ (r * S.sup cost + 1 : ℝ≥0) := by
   let N := r * S.sup cost
   let D : ℝ≥0 := D_nat
   have hD0 : D ≠ 0 := by positivity
-  calc  ∑ w : Fin r → S, (D⁻¹) ^ cost (tupleProduct w)
-      = ∑ w : Fin r → S, (D ^ (N - cost (tupleProduct w))) * (D ^ N)⁻¹ := by
+  calc  ∑ w : Fin r → S, (D⁻¹) ^ cost (prodTuple w)
+      = ∑ w : Fin r → S, (D ^ (N - cost (prodTuple w))) * (D ^ N)⁻¹ := by
           apply Finset.sum_congr rfl
           intro w hw
           rw [pow_sub_mul_inv_pow_eq_inv_pow hD0]
-          exact cost_tupleProduct_le_mul_sup cost_mul
-    _ =  (∑ w : Fin r → S, D ^ (N - cost (tupleProduct w))) * (D ^ N)⁻¹ := by
+          exact len_prodTuple_le_mul_sup cost_mul
+    _ =  (∑ w : Fin r → S, D ^ (N - cost (prodTuple w))) * (D ^ N)⁻¹ := by
           simp [Finset.sum_mul]
     _  ≤ ((N + 1 : ℝ≥0) * D ^ N) * (D ^ N)⁻¹ := by
-          have hNN : (∑ w : Fin r → S, D ^ (N - cost (tupleProduct w)))
+          have hNN : (∑ w : Fin r → S, D ^ (N - cost (prodTuple w)))
               ≤ (N + 1 : ℝ≥0) * D ^ N := by
             subst D
             exact_mod_cast InformationTheory.mcmillan_counting_of_inj cost_mul hgrowth hinj r
@@ -112,26 +112,26 @@ lemma pow_sum_le_linear_bound_of_inj
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
     (m : WeightModel M D_nat)
-    (hgrowth : costGrowth m.cost D_nat)
-    (hinj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r)))
+    (hgrowth : ExpBounded m.cost D_nat)
+    (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r)))
     (r : ℕ) :
     (∑ x ∈ S, m.μ x) ^ r ≤ (r * (S.sup m.cost) + 1) := by
   calc  (∑ x ∈ S, m.μ x) ^ r
-       = ∑ w : Fin r → S, m.μ (tupleProduct w) := kraft_sum_pow_eq_sum_tupleProduct (μ := m.μ)
-    _  ≤ ∑ w : Fin r → S, ((D_nat : ℝ≥0)⁻¹) ^ m.cost (tupleProduct w) := by
+       = ∑ w : Fin r → S, m.μ (prodTuple w) := kraft_sum_pow_eq_sum_prodTuple (μ := m.μ)
+    _  ≤ ∑ w : Fin r → S, ((D_nat : ℝ≥0)⁻¹) ^ m.cost (prodTuple w) := by
            refine Finset.sum_le_sum ?_
            intro w hw
-           simpa using (m.μ_le (tupleProduct w))
+           simpa using (m.μ_le (prodTuple w))
     _  ≤ (r * S.sup m.cost + 1 : ℝ≥0) := by
            simpa using
-            (sum_inv_pow_cost_tupleProduct_le (r := r) (dPos := D_pos) m.cost_mul hgrowth hinj)
+            (sum_inv_pow_cost_prodTuple_le (r := r) (dPos := D_pos) m.cost_mul hgrowth hinj)
 
 /-- Kraft inequality under injectivity, in the abstract `WeightModel` setting.
 
 Assuming:
 * positive costs on `S`,
 * the growth axiom for `cost`,
-* and injectivity of `tupleProduct` on `r`-tuples from `S` (a unique decoding hypothesis),
+* and injectivity of `prodTuple` on `r`-tuples from `S` (a unique decoding hypothesis),
 
 we obtain `∑ x ∈ S, μ x ≤ 1`.
 
@@ -141,8 +141,8 @@ public lemma kraft_inequality_of_injective'
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
     (m : WeightModel M D_nat)
-    (h_growth : costGrowth m.cost D_nat)
-    (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
+    (h_growth : ExpBounded m.cost D_nat)
+    (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, m.μ x ≤ 1 := by
   -- 1. Setup contradiction
   set K : ℝ≥0 := ∑ x ∈ S, m.μ x
@@ -235,9 +235,9 @@ theorem kraft_inequality_of_injective_of_le
     (D_pos : 0 < D_nat)
     (μ : M →* ℝ≥0)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : costGrowth ℓ D_nat)
+    (h_growth : ExpBounded ℓ D_nat)
     (hμ : ∀ x, μ x ≤ (D_nat : ℝ≥0)⁻¹ ^ ℓ x)
-    (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
+    (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, μ x ≤ 1 := by
   exact kraft_inequality_of_injective' D_pos h_growth h_inj
      (m := { cost := ℓ, μ := μ, μ_le := (by simp_all), cost_mul := h_add })
@@ -246,8 +246,8 @@ theorem kraft_inequality_of_injective {ℓ : M → ℕ}
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : costGrowth ℓ D_nat)
-    (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
+    (h_growth : ExpBounded ℓ D_nat)
+    (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, ((D_nat : ℝ≥0)⁻¹) ^ (ℓ x) ≤ 1 :=
   kraft_inequality_of_injective_of_le D_pos h_add h_growth (fun _ => le_rfl) h_inj
     (μ := weightHom D_nat h_add)
@@ -261,8 +261,8 @@ theorem kraft_inequality_of_injective_real {ℓ : M → ℕ}
     {S : Finset M} {D_nat : ℕ}
     (D_pos : 0 < D_nat)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : costGrowth ℓ D_nat)
-    (h_inj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r))) :
+    (h_growth : ExpBounded ℓ D_nat)
+    (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, (1 / (D_nat : ℝ)) ^ (ℓ x) ≤ 1 := by
   let k := kraft_inequality_of_injective D_pos h_add h_growth h_inj
   rw [<-one_div] at *

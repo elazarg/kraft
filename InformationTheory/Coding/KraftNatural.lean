@@ -1,7 +1,6 @@
 import Mathlib.Data.List.OfFn
 import Mathlib.Data.Finset.Basic
 import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Algebra.BigOperators.Pi
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 
 import Mathlib.Tactic.NormNum
@@ -10,199 +9,228 @@ namespace InformationTheory
 
 open scoped BigOperators
 
+private lemma sum_sub_eq_card_mul_sub_sum
+    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    {sup : ℕ} {f : ι → ℕ} (hf : ∀ i, f i ≤ sup) :
+    (∑ i : ι, (sup - f i)) = (Fintype.card ι) * sup - ∑ i : ι, f i := by
+  have h :
+      (∑ i : ι, (sup - f i)) + (∑ i : ι, f i) = (Fintype.card ι) * sup := by
+    calc
+      (∑ i : ι, (sup - f i)) + (∑ i : ι, f i)
+          = ∑ i : ι, ((sup - f i) + f i) := by
+              simp [Finset.sum_add_distrib]
+      _ = ∑ _i : ι, sup := Finset.sum_congr rfl (fun i hi => Nat.sub_add_cancel (hf i))
+      _ = (Fintype.card ι) * sup := by simp
+  have := congrArg (fun t => t - (∑ i : ι, f i)) h
+  simpa [Nat.add_sub_cancel_right] using this
+
+private lemma scaled_prod_pow_eq_pow_sum {T : Type*}
+    {S : Finset T} {base : ℕ} {len : T → ℕ} {r : ℕ}
+    (w : Fin r → S) :
+    (∏ i, base ^ (S.sup len - len (w i))) =
+      base ^ (r * S.sup len - ∑ i, len (w i)) := by
+  simpa [sum_sub_eq_card_mul_sub_sum (fun i => Finset.le_sup (w i).prop)] using
+    Finset.prod_pow_eq_pow_sum base (s := Finset.univ)
+        (f := fun i => (S.sup len - len (w i)))
+
+private lemma sum_filter_pow_sub_eq_card_mul {M : Type*}
+    {T : Finset M} {base N s : ℕ} {len : M → ℕ} :
+    (∑ x ∈ T.filter (fun x => len x = s), base ^ (N - len x))
+      = (T.filter (fun x => len x = s)).card * base ^ (N - s) := by
+  calc
+    (∑ x ∈ T.filter (fun x => len x = s), base ^ (N - len x))
+        = ∑ x ∈ T.filter (fun x => len x = s), base ^ (N - s) := by
+            refine Finset.sum_congr rfl ?_
+            intro x hx
+            have hx' : len x = s := (Finset.mem_filter.mp hx).2
+            simp [hx']
+    _ = (T.filter (fun x => len x = s)).card * base ^ (N - s) := by
+          simp [Finset.sum_const]
+
+private lemma card_mul_pow_sub_le_pow {M : Type*}
+    {T : Finset M} {base N s : ℕ} {len : M → ℕ}
+    (hs : s ≤ N)
+    (hcard : (T.filter (fun x => len x = s)).card ≤ base ^ s) :
+    (T.filter (fun x => len x = s)).card * base ^ (N - s) ≤ base ^ N := by
+  calc
+    (T.filter (fun x => len x = s)).card * base ^ (N - s)
+        ≤ (base ^ s) * base ^ (N - s) := by
+            exact Nat.mul_le_mul_right _ hcard
+    _ = base ^ (s + (N - s)) := by simp [Nat.pow_add]
+    _ = base ^ N := by simp [Nat.add_sub_of_le hs]
+
+private lemma sum_eq_sum_Icc_filter_len {M : Type*}
+    {T : Finset M} {N : ℕ} {len : M → ℕ} {F : M → ℕ}
+    (h_len_le_N : ∀ x ∈ T, len x ≤ N) :
+    (∑ x ∈ T, F x)
+      = ∑ s ∈ Finset.Icc 0 N, ∑ x ∈ T.filter (fun x => len x = s), F x := by
+  classical
+  let levels : ℕ → Finset M := fun s => T.filter (fun x => len x = s)
+
+  -- union of all level-sets (for s ∈ [0,N]) is exactly T
+  have hU : (Finset.Icc 0 N).biUnion levels = T := by
+    ext x
+    constructor
+    · intro hx
+      rcases Finset.mem_biUnion.mp hx with ⟨s, hs, hx⟩
+      exact (Finset.mem_filter.mp hx).1
+    · intro hx
+      have hx_le : len x ≤ N := h_len_le_N x hx
+      have hs : len x ∈ Finset.Icc 0 N :=
+        Finset.mem_Icc.mpr ⟨Nat.zero_le _, hx_le⟩
+      exact Finset.mem_biUnion.mpr ⟨len x, hs, Finset.mem_filter.mpr ⟨hx, rfl⟩⟩
+
+  -- different levels are disjoint
+  have hdisj :
+      Set.PairwiseDisjoint (Finset.Icc 0 N) levels := by
+    intro a ha b hb hab
+    refine Finset.disjoint_left.mpr ?_
+    intro x hxa hxb
+    have h1 : len x = a := (Finset.mem_filter.mp hxa).right
+    have h2 : len x = b := (Finset.mem_filter.mp hxb).right
+    exact hab (h1.symm.trans h2)
+
+  -- now sum over T equals sum over the disjoint union of levels
+  simpa [hU, levels] using Finset.sum_biUnion hdisj
+
+
 variable {M : Type*} [Monoid M]
 
-/-- Growth axiom: in any finite `T`, the number of elements of cost exactly `s` is ≤ D^s. -/
-def costGrowth (cost : M → ℕ) (D : ℕ) : Prop :=
-  ∀ (T : Finset M) (s : ℕ), (T.filter (fun x => cost x = s)).card ≤ D ^ s
+/-- Growth axiom: in any finite `T`, the number of elements of len exactly `s` is ≤ base^s. -/
+def ExpBounded (len : M → ℕ) (base : ℕ) : Prop :=
+  ∀ (T : Finset M) (s : ℕ), (T.filter (fun x => len x = s)).card ≤ base ^ s
 
 /-- The r-fold product of elements from a finite set, defined via Lists. -/
-def tupleProduct {S : Finset M} {r : ℕ} (w : Fin r → S) : M :=
+def prodTuple {S : Finset M} {r : ℕ} (w : Fin r → S) : M :=
   (List.ofFn (fun i => (w i).1)).prod
 
-private lemma len_one {ℓ : M → ℕ} (h_add : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
-    ℓ 1 = 0 := by
-  have h : ℓ 1 + ℓ 1 = ℓ 1 := by simpa using (h_add 1 1)
-  exact (Nat.add_left_cancel h)
+private lemma len_one {len : M → ℕ} (hmap_mul : ∀ a b : M, len (a * b) = len a + len b) :
+    len 1 = 0 := by
+  have h : len 1 + len 1 = len 1 := by simpa using (hmap_mul 1 1)
+  exact Nat.add_left_cancel h
 
-private lemma len_list_prod {ℓ : M → ℕ}
-    (h_add : ∀ a b : M, ℓ (a * b) = ℓ a + ℓ b) :
-    ∀ xs : List M, ℓ xs.prod = (xs.map ℓ).sum := by
+private lemma len_list_prod {len : M → ℕ}
+    (hmap_mul : ∀ a b : M, len (a * b) = len a + len b) :
+    ∀ xs : List M, len xs.prod = (xs.map len).sum := by
   intro xs
   induction xs with
-  | nil => simp [len_one h_add]
-  | cons a xs ih => simp [h_add, ih]
+  | nil => simp [len_one hmap_mul]
+  | cons a xs ih => simp [hmap_mul, ih]
 
-/-- Cost additivity for `tupleProduct`. -/
-lemma tupleProduct_cost
-    {cost : M → ℕ} {S : Finset M} {r : ℕ}
-    (cost_mul : ∀ a b, cost (a * b) = cost a + cost b)
+/-- len additivity for `prodTuple`. -/
+private lemma prodTuple_len
+    {len : M → ℕ} {S : Finset M} {r : ℕ}
+    (hmap_mul : ∀ a b, len (a * b) = len a + len b)
     (w : Fin r → S) :
-    cost (tupleProduct w) = ∑ i, cost (w i) := by
-  simp [tupleProduct, len_list_prod cost_mul, Fin.sum_ofFn]
+    len (prodTuple w) = ∑ i, len (w i) := by
+  simp [prodTuple, len_list_prod hmap_mul, Fin.sum_ofFn]
 
-lemma cost_tupleProduct_le_mul_sup
-    {S : Finset M} {cost : M → ℕ} {r : ℕ}
-    (cost_mul : ∀ a b, cost (a*b) = cost a + cost b)
+lemma len_prodTuple_le_mul_sup
+    {S : Finset M} {len : M → ℕ} {r : ℕ}
+    (hmap_mul : ∀ a b, len (a * b) = len a + len b)
     {w : Fin r → S} :
-    cost (tupleProduct w) ≤ r * S.sup cost  := by
-  have hsum := tupleProduct_cost cost_mul w
-  have hterm (i : Fin r) : cost (w i) ≤ S.sup cost :=
-    Finset.le_sup (f := cost) (w i).prop
-  have : (∑ i, cost (w i)) ≤ ∑ _ : Fin r, S.sup cost :=
+    len (prodTuple w) ≤ r * S.sup len  := by
+  have hsum := prodTuple_len hmap_mul w
+  have hterm (i : Fin r) : len (w i) ≤ S.sup len :=
+    Finset.le_sup (f := len) (w i).prop
+  have : (∑ i, len (w i)) ≤ ∑ _ : Fin r, S.sup len :=
     Finset.sum_le_sum (fun i _ => hterm i)
   simpa [hsum] using (le_trans this (by simp))
+
+/-- Summing a function over a domain equals summing over the image, if the map is injective. -/
+private lemma sum_eq_sum_image_of_inj
+    {α β : Type*} [DecidableEq β]
+    {A : Finset α} {g : α → β}
+    (hf : Function.Injective g)
+    {f : β → ℕ} :
+    (∑ a ∈ A, f (g a)) = ∑ b ∈ A.image g, f b := by
+  have hinj : ∀ a ∈ A, ∀ a' ∈ A, g a = g a' → a = a' := by
+    intro a ha a' ha' h
+    exact hf h
+  simpa using (Finset.sum_image (f := f) (g := g) hinj).symm
 
 /--
 **McMillan counting bound (unnormalized, ℕ-valued).**
 
 Assume:
-* `costGrowth cost D` (capacity-by-level),
-* cost additivity,
-* injectivity of `tupleProduct` on `r`-tuples from `S`.
+* `ExpBounded len base` (capacity-by-level),
+* len additivity,
+* injectivity of `prodTuple` on `r`-tuples from `S`.
 
-Let `s := S.sup cost` and `N := r * s`. Then
+Let `s := S.sup len` and `N := r * s`. Then
 \[
-\sum_{w : Fin r → S} D^{N - cost(tupleProduct w)} ≤ (N+1) D^N.
+\sum_{w : Fin r → S} base^{N - len(prodTuple w)} ≤ (N+1) base^N.
 \]
 -/
 theorem mcmillan_counting_of_inj
-    {S : Finset M} {D : ℕ}
-    {cost : M → ℕ}
-    (cost_mul : ∀ a b, cost (a * b) = cost a + cost b)
-    (hgrowth : costGrowth cost D)
-    (hinj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r)))
+    {S : Finset M} {base : ℕ}
+    {len : M → ℕ}
+    (hmap_mul : ∀ a b, len (a * b) = len a + len b)
+    (hbound : ExpBounded len base)
+    (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r)))
     (r : ℕ) :
-    (∑ w : Fin r → S, D ^ ((r * S.sup cost) - cost (tupleProduct w)))
-      ≤ (r * S.sup cost + 1) * D ^( r * S.sup cost) := by
+    (∑ w : Fin r → S, base ^ ((r * S.sup len) - len (prodTuple w)))
+      ≤ (r * S.sup len + 1) * base ^( r * S.sup len) := by
   classical
-  let s := S.sup cost
-  let N := r * S.sup cost
+  let N := r * S.sup len
 
-  -- Image of all r-tuples under tupleProduct
+  -- Image of all r-tuples under prodTuple
   let T : Finset M :=
-    Finset.image (tupleProduct (S := S) (r := r)) (Finset.univ : Finset (Fin r → S))
+    Finset.image (prodTuple (S := S) (r := r)) (Finset.univ : Finset (Fin r → S))
 
-  -- Step 1: bound all costs in `T` by `N = r*s`
-  have h_cost_le_N : ∀ x ∈ T, cost x ≤ N := by
-    intro x hx
-    rcases Finset.mem_image.mp hx with ⟨w, hw, rfl⟩
-    simpa [N, s] using cost_tupleProduct_le_mul_sup cost_mul
-
-  -- Step 2: rewrite the sum over tuples as a sum over `T` (injectivity gives bijection)
-  have h_sum_over_T :
-      (∑ w : Fin r → S, D ^ (N - cost (tupleProduct w)))
-        = ∑ x ∈ T, D ^ (N - cost x) := by
-    -- `tupleProduct` is injective on univ, so sum over domain equals sum over image
-    refine (Finset.sum_bij (fun w _ => tupleProduct w) ?inj ?map ?surj) ?_
-    · simp [T]
-    · simp
-      intro h ha w
-      exact hinj r w
-    · intro x hx
-      rcases Finset.mem_image.mp hx with ⟨w, hw, rfl⟩
-      refine ⟨w, by simp, by simp⟩
-    · simp
-
-  -- Step 3: group `T` by cost-levels `s ∈ Icc 0 N`
-  -- and use `hgrowth` + constant-sum estimate
+  -- group `T` by len-levels `s ∈ Icc 0 N`
+  -- and use `hbound` + constant-sum estimate
   calc
-    (∑ w : Fin r → S, D ^ (N - cost (tupleProduct w)))
-        = ∑ x ∈ T, D ^ (N - cost x) := h_sum_over_T
-    _ = ∑ s ∈ Finset.Icc 0 N, ∑ x ∈ T.filter (fun x => cost x = s), D ^ (N - cost x) := by
-        -- define the partitioning union
-        have hU : (Finset.Icc 0 N).biUnion (fun s => T.filter (fun x => cost x = s)) = T := by
-          ext x
-          constructor
-          · intro hx
-            rcases Finset.mem_biUnion.mp hx with ⟨s, hs, hx⟩
-            exact (Finset.mem_filter.mp hx).1
-          · intro hx
-            have hx_le : cost x ≤ N := h_cost_le_N x hx
-            have hs : cost x ∈ Finset.Icc 0 N :=
-              Finset.mem_Icc.mpr ⟨Nat.zero_le _, hx_le⟩
-            exact Finset.mem_biUnion.mpr ⟨cost x, hs, Finset.mem_filter.mpr ⟨hx, rfl⟩⟩
-        have hdisj :
-            Set.PairwiseDisjoint (Finset.Icc 0 N)
-              (fun s => T.filter (fun x => cost x = s)) := by
-          intro a ha b hb hab
-          refine Finset.disjoint_left.mpr ?_
-          intro x hxa hxb
-          have : cost x = a := (Finset.mem_filter.mp hxa).right
-          have : cost x = b := (Finset.mem_filter.mp hxb).right
-          omega
-        simpa [hU] using
-          (Finset.sum_biUnion (s := Finset.Icc 0 N)
-            (t := fun s => T.filter (fun x => cost x = s))
-            (f := fun x => D ^ (N - cost x)) hdisj)
-    _ ≤ ∑ s ∈ Finset.Icc 0 N, D ^ N := by
+    (∑ w : Fin r → S, base ^ (N - len (prodTuple w)))
+        = ∑ x ∈ T, base ^ (N - len x) := by
+        simpa [T] using
+          (sum_eq_sum_image_of_inj
+            (f := fun x => base ^ (N - len x)) (hinj r))
+    _ = ∑ s ∈ Finset.Icc 0 N, ∑ x ∈ T.filter (fun x => len x = s), base ^ (N - len x) := by
+        apply sum_eq_sum_Icc_filter_len
+        intro x hx
+        rcases Finset.mem_image.mp hx with ⟨w, hw, rfl⟩
+        simpa [N] using len_prodTuple_le_mul_sup hmap_mul
+    _ ≤ ∑ s ∈ Finset.Icc 0 N, base ^ N := by
         refine Finset.sum_le_sum (fun s hs => ?_)
+        have hs_le : s ≤ N := (Finset.mem_Icc.mp hs).2
         calc
-              ∑ x ∈ T.filter (fun x => cost x = s), D ^ (N - cost x)
-            = ∑ x ∈ T.filter (fun x => cost x = s), D ^ (N - s) := by
-                refine Finset.sum_congr rfl ?_
-                intro x hx
-                simp [Finset.mem_filter.mp hx]
-          _ = (T.filter (fun x => cost x = s)).card * D ^ (N - s) := by
-                simp [Finset.sum_const]
-          _ ≤ (D ^ s) * D ^ (N - s) :=  Nat.mul_le_mul_right _ (hgrowth T s)
-          _ = D ^ (s + (N - s)) := by
-                simp [Nat.pow_add]
-          _ = D ^ N := by
-                simp [Nat.add_sub_of_le (Finset.mem_Icc.mp hs).right]
-    _ = (N + 1) * D ^ N := by
+          ∑ x ∈ T.filter (fun x => len x = s), base ^ (N - len x)
+              = (T.filter (fun x => len x = s)).card * base ^ (N - s) := by
+                  simpa using sum_filter_pow_sub_eq_card_mul
+          _ ≤ base ^ N := card_mul_pow_sub_le_pow hs_le (hbound T s)
+    _ = (N + 1) * base ^ N := by
         simp [Nat.mul_comm]
 
 /-- (Nat-only) Key algebraic identity turning the tuple-sum into a power of a single sum,
-using the *scaled* weight `D^(s - cost x)`. -/
-lemma scaled_sum_pow_eq_sum_tupleProduct
-    {S : Finset M} {D : ℕ} {cost : M → ℕ} {r : ℕ}
-    (cost_mul : ∀ a b, cost (a * b) = cost a + cost b) :
-    (∑ x ∈ S, D ^ (S.sup cost - cost x)) ^ r =
-    ∑ w : Fin r → S, D ^ (r * S.sup cost - cost (tupleProduct w)) := by
-  classical
-  let s := S.sup cost
-  calc
-          (∑ x ∈ S, D ^ (s - cost x)) ^ r
-        = (∑ x : S, D ^ (s - cost x)) ^ r := by
-            simp [(Finset.sum_coe_sort S (fun x => D ^ (s - cost x))).symm]
-    _   = ∑ w : Fin r → S, ∏ i : Fin r, D ^ (s - cost (w i)) :=
-            (Fintype.sum_pow (f := fun x : S => D ^ (s - cost x)) r)
-    _   = ∑ w : Fin r → S, D ^ (r * s - cost (tupleProduct w)) := by
+using the *scaled* weight `base^(s - len x)`. -/
+lemma scaled_sum_pow_eq_sum_prodTuple
+    {S : Finset M} {base : ℕ} {len : M → ℕ} {r : ℕ}
+    (hmap_mul : ∀ a b, len (a * b) = len a + len b) :
+    (∑ x ∈ S, base ^ (S.sup len - len x)) ^ r =
+    ∑ w : Fin r → S, base ^ (r * S.sup len - len (prodTuple w)) := by
+  let s := S.sup len
+  calc    (∑ x ∈ S, base ^ (s - len x)) ^ r
+        = (∑ x : S, base ^ (s - len x)) ^ r := by
+            simp [(Finset.sum_coe_sort S (fun x => base ^ (s - len x))).symm]
+    _   = ∑ w : Fin r → S, ∏ i : Fin r, base ^ (s - len (w i)) :=
+            (Fintype.sum_pow (f := fun x : S => base ^ (s - len x)) r)
+    _   = ∑ w : Fin r → S, base ^ (r * s - len (prodTuple w)) := by
             apply Fintype.sum_congr
             intro w
-            -- show: ∏ i, D^(s - cost(w i)) = D^(r*s - cost(tupleProduct w))
-            have hterm (i : Fin r) : cost (w i) ≤ s :=
-              Finset.le_sup (f := cost) (w i).prop
-            have hprod :
-                (∏ i, D ^ (s - cost (w i))) =
-                D ^ (∑ i, (s - cost (w i))) := by
-                  simpa using
-                    (Finset.prod_pow_eq_pow_sum D (s := (Finset.univ : Finset (Fin r)))
-                      (f := fun i => (s - cost (w i))))
-            have hexp := calc
-                   (∑ i, (s - cost (w i))) + (∑ i, cost (w i))
-                  = ∑ i, ((s - cost (w i)) + cost (w i)) := by
-                        simp [Finset.sum_add_distrib]
-                _ = ∑ _ : Fin r, s := by grind
-                _ = r * s := by simp
-            have : (∏ i, D ^ (s - cost (w i)))
-                    =
-                  D ^ (r * s - ∑ i, cost (w i)) := by
-              simpa using hprod.trans (by grind)
-            simpa [tupleProduct_cost cost_mul w] using this
+            simp [s, scaled_prod_pow_eq_pow_sum, prodTuple_len hmap_mul w]
 
 /-- Nat-only corollary: the scaled-sum power is linearly bounded. -/
 theorem scaled_sum_pow_le_linear
-    {S : Finset M} {D : ℕ} {cost : M → ℕ}
-    (cost_mul : ∀ a b, cost (a * b) = cost a + cost b)
-    (hgrowth : costGrowth cost D)
-    (hinj : ∀ r, Function.Injective (tupleProduct (S := S) (r := r)))
-    (r : ℕ) :
-    (∑ x ∈ S, D ^ (S.sup cost - cost x)) ^ r
-      ≤ (r * S.sup cost + 1) * D ^ (r * S.sup cost) := by
+    {S : Finset M} {base : ℕ} {len : M → ℕ}
+    (hmap_mul : ∀ a b, len (a * b) = len a + len b)
+    (hbound : ExpBounded len base)
+    (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r)))
+    {r : ℕ} :
+    (∑ x ∈ S, base ^ (S.sup len - len x)) ^ r
+      ≤ (r * S.sup len + 1) * base ^ (r * S.sup len) := by
   simpa using (le_trans
-    ((scaled_sum_pow_eq_sum_tupleProduct cost_mul).le)
-    (mcmillan_counting_of_inj cost_mul hgrowth hinj r))
+    ((scaled_sum_pow_eq_sum_prodTuple hmap_mul).le)
+    (mcmillan_counting_of_inj hmap_mul hbound hinj r))
 
 end InformationTheory
