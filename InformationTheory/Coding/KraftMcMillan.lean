@@ -21,10 +21,6 @@ import InformationTheory.Coding.KraftGeneralized
 
 This file proves the Kraft-McMillan inequality for uniquely decodable codes.
 
-## Main definitions
-
-* `concatFn`: Concatenation of `r` codewords into a single string.
-
 ## Main results
 
 * `kraft_mcmillan_inequality`: For a uniquely decodable code `S` over an alphabet of size
@@ -43,45 +39,30 @@ namespace InformationTheory
 
 variable {α : Type*}
 
-private def concatFn {S : Finset (List α)} {r : ℕ} (w : Fin r → S) : List α :=
-  (List.ofFn (fun i => (w i).val)).flatten
-
 private instance : Monoid (List α) := listMonoid α
 
-@[simp] private lemma one_list : (1 : List α) = [] := rfl
 @[simp] private lemma mul_list (a b : List α) : a * b = a ++ b := rfl
-
-private lemma flatten_eq_prod (L : List (List α)) : L.flatten = L.prod := by
-  induction L with
-  | nil => simp
-  | cons x xs ih => simp [ih]
-
-private lemma concatFn_eq_prod {S : Finset (List α)} {r : ℕ} (w : Fin r → S) :
-    concatFn w = (List.ofFn (fun i => (w i).val)).prod := by
-  simpa using flatten_eq_prod (List.ofFn (fun i => (w i).val))
 
 /-- For uniquely decodable codes, the concatenation map is injective.
 
 This is the key property: distinct tuples of codewords produce distinct concatenations. -/
-private lemma uniquely_decodable_concatFn_injective {S : Finset (List α)}
+private lemma uniquely_decodable_tupleProduct_injective {S : Finset (List α)}
     (h : UniquelyDecodable (S : Set (List α))) (r : ℕ) :
-    Function.Injective (concatFn (S := S) (r := r)) := by
+    Function.Injective (tupleProduct (S := S) (r := r)) := by
   intro w₁ w₂ hflat
   have hprod :
       (List.ofFn (fun i => (w₁ i).val)).prod =
       (List.ofFn (fun i => (w₂ i).val)).prod := by
-    simpa [concatFn_eq_prod w₁,
-           concatFn_eq_prod w₂] using hflat
+    simpa using hflat
   have : (fun i : Fin r => (w₁ i).val) = fun i => (w₂ i).val :=
     List.ofFn_injective (h _ _ (by simp) (by simp) hprod)
   funext i
   exact Subtype.ext (by simpa using congrArg (fun f => f i) this)
 
-/-- The number of strings of length `s` in any set is at most `D^s`
-(the total number of such strings). -/
-private lemma card_filter_length_eq_le [Fintype α] {T : Finset (List α)} {s : ℕ} :
-    (T.filter (fun x => x.length = s)).card ≤ (Fintype.card α) ^ s := by
+private lemma lengthGrowth_list [Fintype α]:
+    costGrowth (M := List α) (cost := List.length) (D := Fintype.card α) := by
   classical
+  intro T s
   let all_words := (Finset.univ : Finset (Fin s → α)).image List.ofFn
   have hsub : T.filter (fun x => x.length = s) ⊆ all_words := by
     intro a ha
@@ -102,30 +83,6 @@ private lemma card_filter_length_eq_le [Fintype α] {T : Finset (List α)} {s : 
         ≤ all_words.card := Finset.card_le_card hsub
     _ = Fintype.card α ^ s := hcard_all
 
-private lemma one_le_length_of_mem {S : Finset (List α)} (hε : [] ∉ S) :
-    ∀ x ∈ S, 1 ≤ x.length := by
-  intro x hx
-  have hxne : x ≠ [] := fun h => (by simp [hε, h] at hx)
-  exact Nat.one_le_iff_ne_zero.mpr (by simpa using hxne)
-
-private lemma lengthGrowth_list [Fintype α]:
-    costGrowth (M := List α) (cost := List.length) (D := Fintype.card α) := by
-  intro T s
-  simpa using card_filter_length_eq_le
-
-private lemma tupleProduct_eq_concatFn {S : Finset (List α)} {r : ℕ} (w : Fin r → S) :
-    tupleProduct w = concatFn w :=
-  (flatten_eq_prod (List.ofFn (fun i : Fin r => (w i).val))).symm
-
-private lemma injective_tupleProduct_of_injective_concatFn
-    {S : Finset (List α)} {r : ℕ}
-    (hinj : Function.Injective (concatFn (S := S) (r := r))) :
-    Function.Injective (tupleProduct (S := S) (r := r)) := by
-  intro w₁ w₂ hprod
-  apply hinj
-  simpa [tupleProduct_eq_concatFn w₁,
-         tupleProduct_eq_concatFn w₂] using hprod
-
 public theorem kraft_mcmillan_inequality {S : Finset (List α)} [Fintype α] [Nonempty α]
     (h : UniquelyDecodable (S : Set (List α))) :
     ∑ w ∈ S, (1 / Fintype.card α : ℝ) ^ w.length ≤ 1 := by
@@ -134,7 +91,6 @@ public theorem kraft_mcmillan_inequality {S : Finset (List α)} [Fintype α] [No
     (D_pos := Fintype.card_pos)
     (h_add := by simp)
     (h_growth := lengthGrowth_list)
-    (h_inj := fun r => injective_tupleProduct_of_injective_concatFn
-              (hinj := uniquely_decodable_concatFn_injective h r))
+    (h_inj := fun r => uniquely_decodable_tupleProduct_injective h r)
 
 end InformationTheory
