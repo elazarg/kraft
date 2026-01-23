@@ -83,11 +83,11 @@ private lemma pow_sub_mul_inv_pow_eq_inv_pow
     _ = (D⁻¹) ^ c * D ^ N := by simp [inv_pow]
 
 private lemma sum_inv_pow_cost_prodTuple_le
-    {S : Finset M} {base : ℕ} {cost : M → ℕ} (r : ℕ)
+    {S : Finset M} {base : ℕ} {cost : M → ℕ} {r : ℕ}
     (base_pos : 0 < base)
     (cost_mul : ∀ a b, cost (a * b) = cost a + cost b)
     (hgrowth : ExpBounded cost base)
-    (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
+    (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ w : Fin r → S, ((base : ℝ≥0)⁻¹) ^ cost (prodTuple w)) ≤ (r * S.sup cost + 1 : ℝ≥0) := by
   let N := r * S.sup cost
   let D : ℝ≥0 := base
@@ -113,8 +113,8 @@ lemma pow_sum_le_linear_bound_of_inj
     (base_pos : 0 < base)
     (m : WeightModel M base)
     (hgrowth : ExpBounded m.cost base)
-    (hinj : ∀ r, Function.Injective (prodTuple (S := S) (r := r)))
-    (r : ℕ) :
+    {r : ℕ}
+    (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ x ∈ S, m.μ x) ^ r ≤ (r * (S.sup m.cost) + 1) := by
   calc  (∑ x ∈ S, m.μ x) ^ r
        = ∑ w : Fin r → S, m.μ (prodTuple w) := kraft_sum_pow_eq_sum_prodTuple (μ := m.μ)
@@ -124,7 +124,7 @@ lemma pow_sum_le_linear_bound_of_inj
            simpa using (m.μ_le (prodTuple w))
     _  ≤ (r * S.sup m.cost + 1 : ℝ≥0) := by
            simpa using
-            (sum_inv_pow_cost_prodTuple_le (r := r) (base_pos := base_pos) m.cost_mul hgrowth hinj)
+            (sum_inv_pow_cost_prodTuple_le (base_pos := base_pos) m.cost_mul hgrowth hinj)
 
 /-- Kraft inequality under injectivity, in the abstract `WeightModel` setting.
 
@@ -151,7 +151,7 @@ public lemma kraft_inequality_of_injective'
   -- 2. Use the auxiliary bound: K^r ≤ r * maxLen
   set maxLen := S.sup m.cost
   have h_bound (r : ℕ) : K ^ r ≤ r * maxLen + 1 := by
-    exact_mod_cast pow_sum_le_linear_bound_of_inj base_pos m h_growth h_inj r
+    exact_mod_cast pow_sum_le_linear_bound_of_inj base_pos m h_growth (h_inj r)
   -- 3. Algebraic limit argument
   -- If K > 1, then K^r grows exponentially, while r * maxLen grows linearly.
   -- We prove (r * maxLen) / K^r tends to 0, implying eventually (r * maxLen) < K^r.

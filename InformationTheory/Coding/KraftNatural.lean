@@ -96,7 +96,7 @@ private lemma sum_eq_sum_Icc_filter_len {M : Type*}
 
 variable {M : Type*} [Monoid M]
 
-/-- Growth axiom: in any finite `T`, the number of elements of len exactly `s` is ≤ base^s. -/
+/-- Growth axiom: ∈ any finite `T`, the number of elements of len exactly `s` is ≤ base^s. -/
 def ExpBounded (len : M → ℕ) (base : ℕ) : Prop :=
   ∀ (T : Finset M) (s : ℕ), (T.filter (fun x => len x = s)).card ≤ base ^ s
 
@@ -169,7 +169,7 @@ theorem mcmillan_counting_of_inj
     {r : ℕ}
     (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ w : Fin r → S, base ^ ((r * S.sup len) - len (prodTuple w)))
-      ≤ (r * S.sup len + 1) * base ^( r * S.sup len) := by
+      ≤ (r * S.sup len + 1) * base ^ (r * S.sup len) := by
   classical
   let N := r * S.sup len
 
@@ -231,5 +231,161 @@ theorem scaled_sum_pow_le_linear
   simpa using (le_trans
     ((scaled_sum_pow_eq_sum_prodTuple hmap_mul).le)
     (mcmillan_counting_of_inj hmap_mul hbound hinj))
+
+theorem card_pow_le_linear_mul_sum_pow_len_pow
+    {M : Type*} [Monoid M]
+    {S : Finset M} {base : ℕ} {len : M → ℕ}
+    (hbase : 0 < base)
+    (hmap_mul : ∀ a b, len (a * b) = len a + len b)
+    (hbound : ExpBounded len base)
+    {r : ℕ}
+    (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
+    (S.card ^ r) ≤ (r * S.sup len + 1) * (∑ x ∈ S, base ^ (len x)) ^ r := by
+  by_cases (r = 0)
+  · subst r
+    simp
+
+  classical
+  -- abbreviations
+  let s : ℕ := S.sup len
+  let A : ℕ := ∑ x ∈ S, base ^ (s - len x)
+  let B : ℕ := ∑ x ∈ S, base ^ (len x)
+
+  -- your main bound: A^r ≤ (r*s+1) * base^(r*s)
+  have hA : A ^ r ≤ (r * s + 1) * base ^ (r * s) := by
+    simpa [A, s] using (scaled_sum_pow_le_linear hmap_mul hbound hinj)
+
+  -- diagonal lower bound: S.card * base^s ≤ A * B
+  have hdiag : S.card * base ^ s ≤ A * B := by
+    -- expand A*B as a double sum
+    have hAB :
+        A * B = ∑ x ∈ S, ∑ y ∈ S, (base ^ (s - len x)) * (base ^ (len y)) := by
+      -- `sum_mul_sum` is exactly this expansion
+      simpa [A, B] using
+        (Finset.sum_mul_sum (s := S) (t := S)
+          (f := fun x => base ^ (s - len x))
+          (g := fun y => base ^ (len y)))
+
+    -- show each outer term contributes at least base^s via y = x
+    have houter :
+        ∑ x ∈ S, base ^ s ≤ ∑ x ∈ S, ∑ y ∈ S, (base ^ (s - len x)) * (base ^ (len y)) := by
+      refine Finset.sum_le_sum ?_
+      intro x hx
+      -- pick the diagonal term y = x ∈ the inner sum
+      have hsingle :
+          (base ^ (s - len x)) * (base ^ (len x))
+            ≤ ∑ y ∈ S, (base ^ (s - len x)) * (base ^ (len y)) := by
+        let f : M → ℕ := fun y => (base ^ (s - len x)) * (base ^ (len y))
+        have hsum : (∑ y ∈ S.erase x, f y) + f x = ∑ y ∈ S, f y := by
+          simpa [f] using (Finset.sum_erase_add (s := S) (f := f) hx)
+        have : f x ≤ (∑ y ∈ S.erase x, f y) + f x := Nat.le_add_left _ _
+        simpa [hsum, f]
+      -- rewrite the diagonal term to base^s using len x ≤ s
+      have hx_le : len x ≤ s := Finset.le_sup hx
+      have hpow :
+          base ^ s = base ^ (s - len x) * base ^ (len x) := by
+        simpa [Nat.sub_add_cancel hx_le]
+          using (Nat.pow_add base (s - len x) (len x))
+      -- conclude base^s ≤ inner sum
+      simpa [hpow] using hsingle
+
+    -- left side is a constant sum = card * base^s
+    have hconst : (∑ x ∈ S, base ^ s) = S.card * base ^ s := by
+      simp [Finset.sum_const]
+
+    -- assemble and rewrite RHS using hAB
+    have : S.card * base ^ s ≤ ∑ x ∈ S, ∑ y ∈ S, (base ^ (s - len x)) * (base ^ (len y)) := by
+      simpa [hconst] using houter
+    simpa [hAB] using this
+
+  -- raise the diagonal inequality to r
+  have hdiag_pow : (S.card * base ^ s) ^ r ≤ (A * B) ^ r := by
+    exact (Nat.pow_le_pow_iff_left (by intro; contradiction)).mpr hdiag
+
+  -- rewrite both sides and combine with hA
+  have hchain :
+      (S.card ^ r) * base ^ (r * s) ≤ ((r * s + 1) * (B ^ r)) * base ^ (r * s) := by
+    -- (S.card * base^s)^r = S.card^r * base^(r*s)
+    -- (A*B)^r = A^r * B^r
+    have hsimpL := calc
+            (S.card * base ^ s) ^ r
+          = (S.card ^ r) * (base ^ s) ^ r := by simp [mul_pow]
+        _ = (S.card ^ r) * base ^ (s * r) := by simp [pow_mul]
+        _ = (S.card ^ r) * base ^ (r * s) := by simp [Nat.mul_comm]
+    have hsimpR :
+        (A * B) ^ r = (A ^ r) * (B ^ r) := by
+      simp [mul_pow]
+
+    -- start from hdiag_pow, rewrite, then use hA
+    have : (S.card ^ r) * base ^ (r * s) ≤ (A ^ r) * (B ^ r) := by
+      simpa [hsimpL, hsimpR] using hdiag_pow
+
+    -- multiply hA by B^r and chain
+    have hA_mul : (A ^ r) * (B ^ r) ≤ ((r * s + 1) * base ^ (r * s)) * (B ^ r) :=
+      Nat.mul_le_mul_right (B ^ r) hA
+
+    -- rearrange RHS to put base^(r*s) on the far right so we can cancel later
+    -- and combine
+    refine le_trans this ?_
+    refine le_trans hA_mul ?_
+    -- commutativity/associativity normalization
+    simp [Nat.mul_assoc, Nat.mul_comm]
+
+  -- cancel the positive factor base^(r*s)
+  have hcpos : 0 < base ^ (r * s) := Nat.pow_pos hbase
+  have hcancel :
+      S.card ^ r ≤ (r * s + 1) * (B ^ r) := by
+    -- use the iff-cancel lemma for Nat multiplication on the right
+    exact (Nat.mul_le_mul_right_iff hcpos).1 hchain
+
+  -- finish: unfold B and s, match binder form
+  simpa [B, s, Finset.sum_mul] using hcancel
+
+lemma sum_pow_len_le
+    {M : Type*} {S : Finset M} {base : ℕ} {len : M → ℕ}
+    (base_nontrivial : base > 1)
+    (hbound : ExpBounded (M := M) len base) :
+    (∑ x ∈ S, base ^ (len x))
+      ≤ (S.sup len + 1) * base ^ (2 * S.sup len) := by
+  let L := S.sup len
+  -- partition S by s ∈ [0,L]
+  have hpart :
+      (∑ x ∈ S, base ^ len x)
+        = ∑ s ∈ Finset.Icc 0 L, ∑ x ∈ S.filter (fun x => len x = s), base ^ len x := by
+    -- reuse your lemma with F := fun x => base ^ len x
+    have h_len_le_L : ∀ x ∈ S, len x ≤ L := by
+      intro x hx; exact Finset.le_sup (f := len) hx
+    simpa [L] using
+      (sum_eq_sum_Icc_filter_len (T := S) (N := L) (len := len)
+        (F := fun x => base ^ len x) h_len_le_L)
+
+  -- bound each level by base^(2s), then by base^(2L)
+  calc
+    (∑ x ∈ S, base ^ len x)
+        = ∑ s ∈ Finset.Icc 0 L, ∑ x ∈ S.filter (fun x => len x = s), base ^ len x := hpart
+    _ ≤ ∑ s ∈ Finset.Icc 0 L, base ^ (2 * L) := by
+          refine Finset.sum_le_sum (fun s hs => ?_)
+          have hs_le : s ≤ L := (Finset.mem_Icc.mp hs).2
+          calc
+            (∑ x ∈ S.filter (fun x => len x = s), base ^ len x)
+                = (S.filter (fun x => len x = s)).card * base ^ s := by
+                    -- constant-sum rewrite
+                    have : ∀ x ∈ S.filter (fun x => len x = s), base ^ len x = base ^ s := by
+                      intro x hx
+                      have hx' : len x = s := (Finset.mem_filter.mp hx).2
+                      simp [hx']
+                    simpa [Finset.sum_mul, Finset.sum_const, nsmul_eq_mul] using
+                      (Finset.sum_congr rfl (fun x hx => this x hx))
+            _ ≤ (base ^ s) * base ^ s := by
+                    exact Nat.mul_le_mul_right _ (hbound S s)
+            _ = base ^ (2 * s) := by
+                    -- base^s * base^s = base^(s+s) = base^(2*s)
+                    simp [Nat.pow_add, two_mul]
+            _ ≤ base ^ (2 * L) := by
+                    rw [Nat.pow_le_pow_iff_right]
+                    omega
+                    exact base_nontrivial
+    _ = (L + 1) * base ^ (2 * L) := by
+          simp [Finset.sum_const, L, Nat.mul_comm]
 
 end InformationTheory
