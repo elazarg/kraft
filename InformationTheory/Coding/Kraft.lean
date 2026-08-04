@@ -13,8 +13,9 @@ import Mathlib.Analysis.SpecificLimits.Normed
 import Mathlib.Tactic.NormNum
 import Mathlib.Tactic.Linarith
 
+import Mathlib.InformationTheory.Coding.UniquelyDecodable
+import Mathlib.InformationTheory.Coding.KraftMcMillan
 import InformationTheory.Coding.PrefixFree
-import InformationTheory.Coding.KraftMcMillan
 
 /-!
 # Kraft's Inequality

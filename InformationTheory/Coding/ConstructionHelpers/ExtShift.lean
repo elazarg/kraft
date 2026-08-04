@@ -19,11 +19,16 @@ This file provides utilities for extending finite length sequences to infinite o
 
 ## Main results
 
-* `extShift_monotone`: The extended sequence is monotone if the original is.
+* `ext_shift_eq`: Simp lemma showing `extShift` agrees with the original function on `Fin k`.
+* `ext_shift_monotone`: The extended sequence is monotone if the original is.
+* `ext_shift_apply_lt`: Alternative form of `ext_shift_eq` for natural number indices.
 -/
 
 namespace InformationTheory
 
+/-- Extends a finite length sequence `l : Fin k → ℕ` to all naturals by continuing
+monotonically after the last element. For `n < k`, returns `l(n)`. For `n ≥ k`,
+returns `lastL + s + (n - k + 1)`, where `lastL` is typically `l(k-1)` and `s` is a step size. -/
 def extShift {k: ℕ} (lastL s : ℕ) (l : Fin k → ℕ) (n : ℕ) : ℕ :=
   if h : n < k then l ⟨n,h⟩ else lastL + s + (n - k + 1)
 

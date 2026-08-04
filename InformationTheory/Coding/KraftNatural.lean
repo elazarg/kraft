@@ -1,9 +1,27 @@
+/-
+Copyright (c) 2026 Elazar Gershuni. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Elazar Gershuni
+-/
 import Mathlib.Data.List.OfFn
 import Mathlib.Data.Finset.Basic
 import Mathlib.Algebra.BigOperators.Fin
 import Mathlib.Algebra.Order.BigOperators.Group.Finset
 
 import Mathlib.Tactic.NormNum
+
+/-!
+# McMillan's Counting Argument
+
+This file implements McMillan's counting-based proof of Kraft's inequality for uniquely
+decodable codes over natural number lists.
+
+## Main results
+
+* `mcmillan_counting_of_inj`: The core counting theorem bounding codeword tuple cardinality.
+* `scaled_sum_pow_le_linear`: Power sum growth is at most linear in the exponent.
+* `card_pow_le_linear_mul_sum_pow_len_pow`: Relates tuple counts to Kraft sums.
+-/
 
 namespace InformationTheory
 
@@ -379,7 +397,6 @@ lemma sum_pow_len_le
             _ ≤ (base ^ s) * base ^ s := by
                     exact Nat.mul_le_mul_right _ (hbound S s)
             _ = base ^ (2 * s) := by
-                    -- base^s * base^s = base^(s+s) = base^(2*s)
                     simp [Nat.pow_add, two_mul]
             _ ≤ base ^ (2 * L) := by
                     rw [Nat.pow_le_pow_iff_right]

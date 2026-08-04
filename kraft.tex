@@ -53,7 +53,7 @@ If the length of the longest codeword in $S$ is $0$, then $S = \{ \epsilon \}$. 
  \sum_{w \in S} 2^{-|w|} = 2^{-0} = 1.
 \]
 
-Suppose next that the length of the longest codeword in $S$ is $\ell + 1$. We claim that $\epsilon \notin S$. Indeed, by assumption, there exists $w \in S$ of length $\ell + 1$. If also $\epsilon \in S$, then $S$ is not prefix-free, since $\epsilon$ is a prefix of $w$ but $\epsilon \neq w$ since $|\epsilon| = 0$ while $|w| = \ell+1 \ge 1$.
+Suppose next that the length of the longest codeword in $S$ is $\ell + 1$. We claim that $\epsilon \notin S$. Indeed, by assumption, there exists $w \in S$ of length $\ell + 1$. If also $\epsilon \in S$, then $S$ is not prefix-free, since $\epsilon$ is a prefix of $w$ but $\epsilon \neq w$ since $|\epsilon| = 0$ while $|w| = \ell+1 \geq 1$.
 
 Define
 \begin{align*}
@@ -145,12 +145,12 @@ The second inequality above therefore can be strengthened to
 \]
 which implies that
 \[
-  \sum_{i=1}^{i_0} 2^{\ell'_{i_0}-\ell'_i} = \sum_{i=1}^{i_0-1} 2^{\ell'_{i_0}-\ell'_i} + 2^{\ell'_{i_0} - \ell'_{i_0}} =  \sum_{i=1}^{i_0-1} 2^{\ell'_{i_0}-\ell'_i} + 1 \leq 2^{\ell'_{i_0}}.
+  \sum_{i=1}^{i_0} 2^{\ell'_{i_0}-\ell'_i} = \sum_{i=1}^{i_0-1} 2^{\ell'_{i_0}-\ell'_i} + 2^{\ell'_{i_0} - \ell'_{i_0}} = \sum_{i=1}^{i_0-1} 2^{\ell'_{i_0}-\ell'_i} + 1 \leq 2^{\ell'_{i_0}}.
 \]
 
 Therefore
 \[
- \sum_{i=1}^{i_0} 2^{\ell'_{i_0} - \ell_i} = 2^{\ell'_{i_0}},
+ \sum_{i=1}^{i_0} 2^{\ell'_{i_0} - \ell'_i} = 2^{\ell'_{i_0}},
 \]
 and so
 \[
@@ -173,7 +173,7 @@ Let $I$ be a finite set and let $\ell\colon I \to \mathbb{N}$ satisfy
 
 If $\ell(i) > 0$ for all $i$ then there exists a subset $S \subseteq I$ such that
 \[
- \sum_{i \in S} 2^{-\ell(i)} = 1.
+ \sum_{i \in S} 2^{-\ell(i)} = \frac{1}{2}.
 \]
 \end{corollary}
 \begin{proof}
@@ -182,7 +182,7 @@ Let $\ell'(i) = \ell(i) - 1$. Since $\ell(i) > 0$, we have
  \sum_{i \in I} 2^{-\ell'(i)} =
  2\sum_{i \in I} 2^{-\ell(i)} \geq 2 \cdot \frac{1}{2} = 1.
 \]
-Therefore the theorem implies that there exists a set $S \subseteq I$ such that
+Therefore \Cref{lem:aux} implies that there exists a set $S \subseteq I$ such that
 \[
  \sum_{i \in S} 2^{-\ell(i)} = \frac{1}{2} \sum_{i \in S} 2^{-\ell'(i)} = \frac{1}{2} \cdot 1 = \frac{1}{2}. \qedhere
 \]
@@ -195,7 +195,7 @@ The proof is by strong induction on $\max_{i \in I} \ell(i)$.
 
 If $\max_{i \in I} \ell(i) = 0$ then $\ell(i) = 0$ for all $i \in I$, hence $\sum_{i \in I} 2^{-\ell(i)} = \sum_{i \in I} 1 = |I|$, implying that $|I| \leq 1$. Since also $|I| \geq 1$, we have $|I| = 1$, say $I = \{i_0\}$. In this case we can take $w(i_0) = \epsilon$. This is clearly injective, a prefix-free code, and satisfies $|w(i_0)| = \ell(i_0)$.
 
-From now on, we assume that $\max_{i \in I} \ell(i) > 0$. This implies that $\ell(i) > 0$ for all $i \in I$. Indeed, suppose that $\ell(i) = 0$. Since $\max_{i \in I} \ell(i) > 0$, there exists $j \in I$ such that $\ell(j) > 0$; note $i \neq j$. Then $\sum_{k \in I} 2^{-\ell(k)} \ge 2^{-\ell(i)} + 2^{-\ell(j)} > 2^{-\ell(i)} = 1$, which is impossible.
+From now on, we assume that $\max_{i \in I} \ell(i) > 0$. This implies that $\ell(i) > 0$ for all $i \in I$. Indeed, suppose that $\ell(i) = 0$. Since $\max_{i \in I} \ell(i) > 0$, there exists $j \in I$ such that $\ell(j) > 0$; note $i \neq j$. Then $\sum_{k \in I} 2^{-\ell(k)} \geq 2^{-\ell(i)} + 2^{-\ell(j)} > 2^{-\ell(i)} = 1$, which is impossible.
 
 \smallskip
 
@@ -239,7 +239,7 @@ Define $\ell'\colon I \to \mathbb{N}$ by $\ell'(i) = \ell(i) - 1$. Then
 
 Also, $\max_{i \in I} \ell'(i) = \max_{i \in I} \ell(i) - 1$, implying that $\max_{i \in S} \ell'(i) \leq \max_{i \in I} \ell'(i) < \max_{i \in I} \ell(i)$ and $\max_{i \in S^c} \ell'(i) \leq \max_{i \in I} \ell'(i) < \max_{i \in I} \ell(i)$.
 
-Therefore we can apply the induction hypothesis twice, on $\ell'|_S$ and on $\ell'|_{S^c}$, to obtain injective maps $w_0\colon S \to \{0,1\}^*$ and $w_1\colon S^c \to \{0,1\}^*$ such that $w_0(S)$ and $w_1(S)$ are prefix-free; $|w_0(i)| = \ell'(i)$ for all $i \in S$; and $|w_1(i)| = \ell'(i)$ for all $i \in S^c$.
+Therefore we can apply the induction hypothesis twice, on $\ell'|_S$ and on $\ell'|_{S^c}$, to obtain injective maps $w_0\colon S \to \{0,1\}^*$ and $w_1\colon S^c \to \{0,1\}^*$ such that $w_0(S)$ and $w_1(S^c)$ are prefix-free; $|w_0(i)| = \ell'(i)$ for all $i \in S$; and $|w_1(i)| = \ell'(i)$ for all $i \in S^c$.
 
 Define $w\colon I \to \{0,1\}^*$ by
 \[
@@ -264,7 +264,7 @@ Finally, let us show that $|w(i)| = \ell(i)$ for all $i \in I$. If $i \in S$ the
 Kraft's inequality extends to the more general setting of uniquely decodable codes.
 
 \begin{definition}[Uniquely decodable code]
-A finite set $S$ of words is \emph{uniquely decodable} if every $x \in \{0,1\}^*$ can be written in at most one way as $x = w_1 \ldots w_r$ (for any $r$), where $w_1,\dots,w_r \in S$.
+A finite set $S$ of words is \emph{uniquely decodable} if every $x \in \{0,1\}^*$ can be written in at most one way as $x = w_1 \dots w_r$ (for any $r$), where $w_1,\dots,w_r \in S$.
 \end{definition}
 
 %\begin{remark}
@@ -285,9 +285,9 @@ Define
 \[
  C = \sum_{w \in S} 2^{-|w|}.
 \]
-We would like to show that $|C| \leq 1$.
+We would like to show that $C \leq 1$.
 
-For every $r \ge 1$, consider
+For every $r \geq 1$, consider
 \[
  C^r =
  \left(\sum_{w \in S} 2^{-|w|}\right)^r =
@@ -300,7 +300,7 @@ Unique decodability implies that the mapping $(w_1,\dots,w_r) \mapsto w_1 \cdots
 \[
  C^r = \sum_{w_1,\dots,w_r \in S} 2^{-|w_1 \cdots w_r|} \leq
  \sum_{s=r}^{r\ell} \sum_{x \in \{0,1\}^s} 2^{-|x|} =
- \sum_{s=r}^{r\ell} 2^s 2^{-s} = r\ell - r + 1 \stackrel{r\ge1}\le \leq r\ell.
+ \sum_{s=r}^{r\ell} 2^s 2^{-s} = r\ell - r + 1 \leq r\ell.
 \]
 
 Taking an $r$'th root, we have
@@ -309,13 +309,12 @@ Taking an $r$'th root, we have
 \]
 and so
 \[
- \log_2 C \leq \frac{\log_2 r + \log \ell}{r}.
+ \log_2 C \leq \frac{\log_2 r + \log_2 \ell}{r}.
 \]
 
 Let $r = 2^{2t}$. Then
 \[
- \log_2 r = 2t
- \stackrel{\text{Cantor}}{<} 2 \cdot 2^t = 2^{t+1}.
+ \log_2 r = 2t < 2 \cdot 2^t = 2^{t+1}.
 \]
 Therefore if $2^{t+1} \geq \log_2 \ell$ then
 \[
@@ -336,7 +335,7 @@ The remarks mentioned for Kraft's inequality are relevant in this more general s
 
 \subsection{Unique decodability of prefix-free codes}
 
-Prefix-free codes are uniquely decodable (the converse doesn't hold: for example, $\{0,00,01\}$ is uniquely decodable since it is the reverse of a prefix-free code).
+Prefix-free codes are uniquely decodable (the converse doesn't hold: for example, $\{10,100\}$ is uniquely decodable since it is suffix-free, but is not prefix-free since $10$ is a prefix of $100$).
 
 \begin{theorem} \label{thm:prefix-free-ud}
 If a finite set $S$ of words is prefix-free and $\epsilon \notin S$ then it is uniquely decodable.
@@ -348,7 +347,7 @@ The base case is when $|x| = 0$. In this case $x = \epsilon$. If $x = w_1 \dots 
 
 Now suppose that $|x| > 0$, and consider any two representations $x = w_1 \dots w_r = z_1 \dots z_s$. Since $|x| > 0$, we must have $r,s \geq 1$.
 
-Suppose without loss of generality that $|w_1| \leq |z_1|$. We claim that $w_1$ is a prefix of $z_1$. Indeed, $z_1 = w_1 q$, where $q = x_{|z_1|+1} \dots x_{|w_1|}$. Since $S$ is prefix-free, $w_1 = z_1$. This implies that $w_2 \dots w_r = z_2 \dots z_s$. Denote the common value by $y$.
+Suppose without loss of generality that $|w_1| \leq |z_1|$. We claim that $w_1$ is a prefix of $z_1$. Indeed, $z_1 = w_1 q$, where $q = x_{|w_1|+1} \dots x_{|z_1|}$. Since $S$ is prefix-free, $w_1 = z_1$. This implies that $w_2 \dots w_r = z_2 \dots z_s$. Denote the common value by $y$.
 
 Since $|x| = |z_1| + |y|$ and $z_1 \neq \epsilon$ (since $z_1 \in S$ and $\epsilon \notin S$), we have $|y| < |x|$, and so the induction hypothesis implies that $r = s$ and $w_i = z_i$ for all $i > 1$. Therefore $w_i = z_i$ for all $i$, completing the inductive proof.
 \end{proof}

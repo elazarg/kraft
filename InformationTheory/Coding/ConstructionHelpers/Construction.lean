@@ -18,6 +18,25 @@ import Mathlib.Tactic.Linarith
 
 import InformationTheory.Coding.ConstructionHelpers.Sum
 
+/-!
+# Kraft Code Construction
+
+This file provides the core machinery for constructing prefix-free codes from length sequences
+satisfying Kraft's inequality (converse direction).
+
+## Main definitions
+
+* `kraftNumerator`: Maps a length sequence to interval boundaries in base-D representation.
+* `KraftOrder`: A strict total order on indices combining lexicographic and length-based ordering.
+
+## Main results
+
+* `kraftNumerator.div_pow_eq_sum`: The key invariant relating numerators to Kraft partial sums.
+* `kraftNumerator.strictMono`: Numerators increase strictly, ensuring distinct code intervals.
+* `exists_equiv_nat_monotone_of_infinite`: Reorders an infinite type to make lengths monotone.
+* `exists_equiv_fin_monotone`: Reorders a finite type to make lengths monotone.
+-/
+
 namespace InformationTheory
 
 open scoped BigOperators Real
@@ -273,17 +292,13 @@ lemma KraftOrder_iff {I : Type*} {l : I → ℕ} {e : I ↪ ℕ} {i j : I} :
 lemma KraftOrder_isStrictTotalOrder {I : Type*} (l : I → ℕ) (e : I ↪ ℕ) :
     IsStrictTotalOrder I (KraftOrder l e) where
   trichotomous a b := by
-    simp only [KraftOrder_iff]
-    rcases lt_trichotomy (l a) (l b) with h | h | h
-    · exact Or.inl (Or.inl h)
-    · rcases lt_trichotomy (e a) (e b) with h' | h' | h'
-      · left; right
-        exact ⟨h, h'⟩
-      · right; left
-        exact e.injective h'
-      · right; right; right
-        exact ⟨h.symm, h'⟩
-    · exact Or.inr (Or.inr (Or.inl h))
+    intro hab hba
+    simp only [KraftOrder_iff, not_or, not_and, not_lt] at hab hba
+    obtain ⟨hab1, hab2⟩ := hab
+    obtain ⟨hba1, hba2⟩ := hba
+    have hl : l a = l b := le_antisymm hba1 hab1
+    have he : e a = e b := le_antisymm (hba2 hl.symm) (hab2 hl)
+    exact e.injective he
   irrefl a h := by
     simp only [KraftOrder_iff] at h
     rcases h with h | ⟨_, h⟩ <;> exact lt_irrefl _ h
@@ -368,7 +383,7 @@ lemma kraftRank_surjective {I : Type*} [Infinite I] (l : I → ℕ) (e : I ↪ �
   -- kraftRank is injective (distinct elements have distinct ranks)
   have h_inj : Function.Injective (kraftRank l e h_finite) := by
     intro i j hij
-    rcases hsto.trichotomous i j with h | rfl | h
+    rcases (hsto.toTrichotomous.rel_or_eq_or_rel_swap (a := i) (b := j)) with h | rfl | h
     · exact absurd hij (Nat.ne_of_lt (kraftRank_lt_of_KraftOrder l e h_finite h))
     · rfl
     · exact absurd hij (Nat.ne_of_gt (kraftRank_lt_of_KraftOrder l e h_finite h))
@@ -410,7 +425,7 @@ lemma kraftRank_injective {I : Type*} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) :
     Function.Injective (kraftRank l e h_finite) := by
   intro i j hij
-  rcases (KraftOrder_isStrictTotalOrder l e).trichotomous i j with h | rfl | h
+  rcases ((KraftOrder_isStrictTotalOrder l e).toTrichotomous.rel_or_eq_or_rel_swap (a := i) (b := j)) with h | rfl | h
   · exact absurd hij (Nat.ne_of_lt (kraftRank_lt_of_KraftOrder l e h_finite h))
   · rfl
   · exact absurd hij (Nat.ne_of_gt (kraftRank_lt_of_KraftOrder l e h_finite h))
@@ -491,7 +506,7 @@ lemma exists_equiv_fin_monotone {I : Type*} [Fintype I] (l : I → ℕ) :
     ∃ e : Fin (Fintype.card I) ≃ I, Monotone (l ∘ e) := by
   -- sort relation by length
   let r : I → I → Prop := fun x y => l x ≤ l y
-  have r_total : IsTotal I r := ⟨fun x y => le_total _ _⟩
+  have r_total : Std.Total r := ⟨fun x y => le_total _ _⟩
   have r_trans : IsTrans I r := ⟨fun _ _ _ => le_trans⟩
 
   -- start from the canonical list of all elements

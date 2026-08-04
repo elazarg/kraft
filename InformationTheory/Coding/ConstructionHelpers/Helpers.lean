@@ -13,7 +13,7 @@ This file provides utility lemmas for lists, prefixes, and injective mappings.
 
 ## Main results
 
-* `List.prefix_map_iff`: Mapping preserves prefix relationships.
+* `List.IsPrefix.map_iff`: Mapping an injective function over lists preserves prefix relationships.
 -/
 
 open List

@@ -17,7 +17,9 @@ This file provides helper lemmas for working with Kraft sums.
 
 * `sum_range_lt_one_of_sum_range_le_one`: If a sum over `k` terms is `≤ 1`, then proper prefix
   sums are `< 1`.
-* `tsum_lt_one_of_partial_lt_one`: If all partial sums are `< 1`, so is the infinite sum.
+* `prefix_sum_lt_one_of_tsum_le_one`: From summability and `tsum ≤ 1`, every finite prefix sum
+  is `< 1`.
+* `prefix_sum_lt_one_of_fin_sum_le_one`: Variant for finite sums indexed by `Fin k`.
 -/
 
 section Sum
@@ -86,22 +88,5 @@ lemma prefix_sum_lt_one_of_fin_sum_le_one
      = (∑ t ∈ Finset.range k, (1 / (D : ℝ)) ^ l t) := by
       simpa using (Fin.sum_univ_eq_sum_range (n := k) (fun t : ℕ => (1 / (D : ℝ)) ^ l t))
     simp_all only
-
-lemma strict_prefix_of_tsum_le_one
-    {D : ℕ} (hD : 1 < D) {l : ℕ → ℕ}
-    (h_summable : Summable (fun i => (1 / D : ℝ) ^ l i))
-    (h_sum : (∑' i, (1 / D : ℝ) ^ l i) ≤ 1) :
-    ∀ n, (∑ k < n, (1 / D : ℝ) ^ l k) < 1 := by
-    intro n
-    have h_pos : (0 : ℝ) < 1 / D :=
-      one_div_pos.mpr (by exact_mod_cast Nat.zero_lt_of_lt hD)
-
-    have h_le_tsum : (∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k) ≤ ∑' k, (1 / D : ℝ) ^ l k :=
-      Summable.sum_le_tsum _ (fun _ _ => by positivity) h_summable
-
-    have h_le_one : (∑ k ∈ Finset.range (n + 1), (1 / D : ℝ) ^ l k) ≤ 1 :=
-      le_trans h_le_tsum h_sum
-
-    simpa [<-Nat.Iio_eq_range] using sum_range_lt_one_of_sum_range_le_one h_pos (Nat.lt_succ_self n) h_le_one
 
 end Sum

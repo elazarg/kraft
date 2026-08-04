@@ -104,7 +104,7 @@ lemma integral_llr_pmfMeasure {p q : I → ℝ}
       (Measurable.of_discrete : Measurable (fun i : I => ENNReal.ofReal (q i))).aemeasurable
     have h := Measure.rnDeriv_withDensity_right (μ := μ) (ν := ρ) hf (by simp [ρ]; grind) (by simp [ρ])
     filter_upwards [h, h_rn_μρ] with i hi hip
-    simpa [hip] using hi
+    simpa [ν, pmfMeasure, hip] using hi
 
   have h_llr :
       llr μ ν  =ᵐ[μ] fun i => log (p i / q i) := by
@@ -117,7 +117,7 @@ lemma integral_llr_pmfMeasure {p q : I → ℝ}
             refine integral_congr_ae ?_
             simpa using h_llr
     _ = ∑ i, p i * log (p i / q i) := by
-          simpa [μ, fun i => le_of_lt (hp_pos i)]
+          simpa [μ, pmfMeasure, fun i => le_of_lt (hp_pos i)]
             using integral_withDensity_eq_integral_toReal_smul
               (μ := Measure.count)
               (f := fun i : I => ENNReal.ofReal (p i))

@@ -1,3 +1,8 @@
+/-
+Copyright (c) 2026 Elazar Gershuni. All rights reserved.
+Released under Apache 2.0 license as described in the file LICENSE.
+Authors: Elazar Gershuni
+-/
 import Mathlib.Data.Finset.Basic
 import Mathlib.Data.List.OfFn
 import Mathlib.Data.Real.Basic
@@ -10,6 +15,34 @@ import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.NormNum
 
 import InformationTheory.Coding.KraftNatural
+
+/-!
+# Generalized Kraft Inequality for Monoids
+
+This file proves an abstract version of the Kraft inequality for arbitrary monoids with
+a length-like function, using real-valued (ℝ≥0) weights instead of natural number counting.
+
+## Main definitions
+
+* `WeightModel`: A structure packaging a cost function, multiplicative weight homomorphism,
+  and domination condition for abstract Kraft-style bounds.
+* `weightHom`: The canonical weight homomorphism `(1/D)^ℓ(x)` induced by a grading function.
+
+## Main results
+
+* `pow_sum_le_linear_bound_of_inj`: The key lemma showing that if products of length `r` are
+  injective, then the `r`-th power of the Kraft sum is bounded linearly in `r`.
+* `kraft_inequality_of_injective`: Abstract Kraft inequality for monoids where the product
+  map is injective, using ℝ≥0-valued weights.
+* `kraft_inequality_of_injective_real`: Real-valued version of the abstract Kraft inequality.
+
+The proof technique uses the natural number bounds from `KraftNatural.lean` and takes limits
+to obtain results for real-valued weights.
+
+## References
+
+* McMillan, B. (1956), "Two inequalities implied by unique decipherability"
+-/
 
 namespace InformationTheory
 
@@ -160,7 +193,7 @@ public lemma kraft_inequality_of_injective'
     exact (div_lt_one (by positivity)).mpr hK_gt_one
   have h_tendh_tendsto_linsto :
       Filter.Tendsto (fun r : ℕ => (maxLen : ℝ) * r / K ^ r) Filter.atTop (nhds 0) := by
-    simpa [mul_comm, mul_left_comm, mul_div_assoc] using
+    simpa [mul_comm, mul_left_comm, mul_div_assoc] using!
       ((tendsto_self_mul_const_pow_of_abs_lt_one hAbs).const_mul (maxLen : ℝ))
   have h_tendsto_geo :
       Filter.Tendsto (fun r => 1 / (K:ℝ)^r) Filter.atTop (nhds 0) := by

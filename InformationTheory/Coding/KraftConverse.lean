@@ -18,7 +18,7 @@ import InformationTheory.Coding.ConstructionHelpers.Codeword
 import InformationTheory.Coding.ConstructionHelpers.Construction
 import InformationTheory.Coding.ConstructionHelpers.ExtShift
 import InformationTheory.Coding.ConstructionHelpers.Helpers
-import InformationTheory.Coding.KraftMcMillan
+import Mathlib.InformationTheory.Coding.KraftMcMillan
 
 /-!
 # Constructive Converse of Kraft's Inequality
@@ -198,7 +198,7 @@ theorem exists_code_nat
       Function.Injective w ∧
       PrefixFree (Set.range w) ∧
       (∀ i, (w i).length = l i) := by
-  have h_prefix := strict_prefix_of_tsum_le_one hD h_summable h_sum
+  have h_prefix := prefix_sum_lt_one_of_tsum_le_one hD h_summable h_sum
 
   exact exists_code_of_strict_prefix_sum hD h_mono h_prefix
 

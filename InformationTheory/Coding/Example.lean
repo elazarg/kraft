@@ -9,6 +9,7 @@ import Mathlib.Analysis.SpecialFunctions.Log.Base
 import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
 
 import InformationTheory.Coding.KraftConverse
+import InformationTheory.Coding.SourceCodingLowerBound
 
 /-!
 # Shannon-Fano Coding Example
@@ -39,9 +40,17 @@ variable {D : ℕ}
 
 section Entropy
 
-/-- Entropy in **base D** (so measured in "D-ary digits"), defined via `negMulLog` (nats) / `log D`. -/
-noncomputable def entropy (D : ℕ) (p : I → ℝ) : ℝ :=
-  (∑ i, Real.negMulLog (p i)) / Real.log D
+/-- Helper: cast `1 < D` to `0 < (D : ℝ)`. -/
+private lemma nat_cast_pos_of_one_lt {D : ℕ} (hD : 1 < D) : 0 < (D : ℝ) :=
+  by exact_mod_cast lt_trans Nat.zero_lt_one hD
+
+/-- Helper: cast `1 < D` to `(D : ℝ) ≠ 1`. -/
+private lemma nat_cast_ne_one_of_one_lt {D : ℕ} (hD : 1 < D) : (D : ℝ) ≠ 1 :=
+  by exact_mod_cast Nat.ne_of_gt hD
+
+/-- Helper: `log D ≠ 0` when `1 < D`. -/
+private lemma log_ne_zero_of_one_lt {D : ℕ} (hD : 1 < D) : Real.log D ≠ 0 :=
+  Real.log_ne_zero_of_pos_of_ne_one (nat_cast_pos_of_one_lt hD) (nat_cast_ne_one_of_one_lt hD)
 
 /-- Convenience: base-D entropy equals the usual `∑ -p * logb_D p`. -/
 lemma entropy_eq_sum_neg_logb (hD : 1 < D) (p : I → ℝ) :
@@ -50,9 +59,9 @@ lemma entropy_eq_sum_neg_logb (hD : 1 < D) (p : I → ℝ) :
 
   unfold entropy
 
-  have hDpos: 0 < (D: ℝ) := by exact_mod_cast lt_trans Nat.zero_lt_one hD
-  have hDneq1: (D: ℝ) ≠ 1 := by exact_mod_cast Nat.ne_of_gt hD
-  have hlogD_ne : Real.log D ≠ 0 := Real.log_ne_zero_of_pos_of_ne_one hDpos hDneq1
+  have hDpos: 0 < (D: ℝ) := nat_cast_pos_of_one_lt hD
+  have hDneq1: (D: ℝ) ≠ 1 := nat_cast_ne_one_of_one_lt hD
+  have hlogD_ne : Real.log D ≠ 0 := log_ne_zero_of_one_lt hD
 
   -- turn `/ log D` into `* (log D)⁻¹` and push inside the sum
   -- then rewrite `negMulLog` and `logb`.
@@ -100,9 +109,9 @@ theorem exists_prefix_code_near_entropy
   let l : I → ℕ := shannonFanoLength (D := D) p
 
   have hD_one_lt : 1 < (D : ℝ) := by exact_mod_cast hD
-  have hDpos: 0 < (D: ℝ) := by exact_mod_cast lt_trans Nat.zero_lt_one hD
-  have hDneq1: (D: ℝ) ≠ 1 := by exact_mod_cast Nat.ne_of_gt hD
-  have hlogD_ne : Real.log D ≠ 0 := Real.log_ne_zero_of_pos_of_ne_one hDpos hDneq1
+  have hDpos: 0 < (D: ℝ) := nat_cast_pos_of_one_lt hD
+  have hDneq1: (D: ℝ) ≠ 1 := nat_cast_ne_one_of_one_lt hD
+  have hlogD_ne : Real.log D ≠ 0 := log_ne_zero_of_one_lt hD
 
   --------------------------------------------------------------------
   -- Step 1: Kraft condition for Shannon–Fano lengths
