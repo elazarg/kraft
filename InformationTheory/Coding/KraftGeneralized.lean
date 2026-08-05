@@ -40,6 +40,13 @@ a length-like function, using real-valued (ℝ≥0) weights instead of natural n
 The proof technique uses the natural number bounds from `KraftNatural.lean` and takes limits
 to obtain results for real-valued weights.
 
+Nothing in this repo depends on this file — `KraftConverse.lean` reaches its results via
+`PrefixFree`/`Coding.Kraft` instead. Kept deliberately for the `WeightModel` abstraction itself,
+which is strictly more general than `Mathlib.InformationTheory.Coding.KraftMcMillan` (arbitrary
+monoids and real-valued weights, not just `List`/natural-number counting). Not proposed for
+upstreaming alongside `KraftNatural.lean` (see `UpstreamPlan.md`), for the same reason: it would
+sit next to an already-merged proof of the same theorem.
+
 ## References
 
 * McMillan, B. (1956), "Two inequalities implied by unique decipherability"

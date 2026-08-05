@@ -16,6 +16,14 @@ public import Mathlib.Data.List.OfFn
 This file implements McMillan's counting-based proof of Kraft's inequality for uniquely
 decodable codes over natural number lists.
 
+This is an alternate route to Kraft-McMillan, independent of `Mathlib.InformationTheory.Coding.
+KraftMcMillan` (the injection-based proof merged upstream in mathlib PR #34108): a counting
+argument rather than an injectivity argument. `KraftGeneralized.lean` builds on it directly, but
+nothing else in this repo depends on it — kept deliberately, for the proof technique itself, not
+as a stepping stone to anything downstream. Not proposed for upstreaming (see
+`UpstreamPlan.md`): mathlib already has one proof of this theorem, and a second one right next
+to it would just invite "why do we need both."
+
 ## Main results
 
 * `mcmillan_counting_of_inj`: The core counting theorem bounding codeword tuple cardinality.
