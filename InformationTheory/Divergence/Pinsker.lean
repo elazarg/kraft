@@ -35,6 +35,9 @@ replaced by `InformationTheory.Divergence.Basic`'s `klFin` and `klFin_nonneg`.
 ## Main results
 
 * `tvDist_eq_max_set` : the optimal-set identity `tvDist p q = ∑_{q ≤ p} (p - q)`.
+* `logSum_ineq` : the classical log-sum inequality, `A * log (A / B) ≤ ∑ i ∈ S, a i * log
+  (a i / b i)` for `A := ∑ i ∈ S, a i`, `B := ∑ i ∈ S, b i` — the engine behind
+  `klBin_le_klFin_partition`, and reusable on its own.
 * `klBin_le_klFin_partition` : the two-block log-sum reduction, `klBin P Q ≤ klFin p q` for the
   block masses `P, Q` of the optimal set.
 * `pinsker` : `2 * tvDist p q ^ 2 ≤ klFin p q`, the **sharp constant `2`**, via the partition
@@ -122,7 +125,7 @@ trick as `klFin_nonneg`, with an extra `A / B` renormalization factor, reusing
 `InformationTheory.Divergence.Binary.one_sub_div_le_log_div`; the degenerate case `B = 0`
 (forcing `A = 0` by the a.c. hypothesis, via `b`'s nonnegativity) is handled separately since
 junk values make both sides `0` there. -/
-private theorem logSum_ineq {I : Type*} {S : Finset I} {a b : I → ℝ}
+theorem logSum_ineq {I : Type*} {S : Finset I} {a b : I → ℝ}
     (ha : ∀ i ∈ S, 0 ≤ a i) (hb : ∀ i ∈ S, 0 ≤ b i)
     (hac : ∀ i ∈ S, b i = 0 → a i = 0) :
     (∑ i ∈ S, a i) * Real.log ((∑ i ∈ S, a i) / (∑ i ∈ S, b i))

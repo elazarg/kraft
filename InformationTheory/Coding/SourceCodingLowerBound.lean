@@ -188,10 +188,6 @@ end DiscreteKL
 
 section SourceCodingLower
 
-lemma sum_normalized {I : Type*} [Fintype I] (K : ℝ) (a : I → ℝ) :
-    (∑ i, (1 / K) * a i) = (1 / K) * (∑ i, a i) := by
-  simp [Finset.mul_sum]
-
 open Real
 
 variable {I : Type*} [Fintype I] [Nonempty I]
