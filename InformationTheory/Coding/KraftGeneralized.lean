@@ -172,14 +172,18 @@ lemma pow_sum_le_linear_bound_of_inj
 /-- Kraft inequality under injectivity, in the abstract `WeightModel` setting.
 
 Assuming:
-* positive costs on `S`,
-* the growth axiom for `cost`,
+* the growth axiom for `cost` (`ExpBounded`),
 * and injectivity of `prodTuple` on `r`-tuples from `S` (a unique decoding hypothesis),
 
 we obtain `∑ x ∈ S, μ x ≤ 1`.
 
 This statement is formulated in terms of an arbitrary multiplicative weight `μ`,
-only requiring the domination `μ x ≤ (1/D)^cost x`. -/
+only requiring the domination `μ x ≤ (1/D)^cost x`.
+
+Proved by contradiction: if `K := ∑ x ∈ S, μ x > 1`, then `pow_sum_le_linear_bound_of_inj` gives
+`K ^ r ≤ r * maxLen + 1` for every `r`, but `K > 1` makes the left side grow exponentially in
+`r` while the right side only grows linearly — so `(r * maxLen + 1) / K ^ r → 0`, meaning
+eventually `r * maxLen + 1 < K ^ r`, contradicting the bound. -/
 public lemma kraft_inequality_of_injective'
     {S : Finset M} {base : ℕ}
     (base_pos : 0 < base)
@@ -187,85 +191,57 @@ public lemma kraft_inequality_of_injective'
     (h_growth : ExpBounded m.cost base)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, m.μ x ≤ 1 := by
-  -- 1. Setup contradiction
   set K : ℝ≥0 := ∑ x ∈ S, m.μ x
   by_contra hK_gt_one
   rw [not_le] at hK_gt_one
-  -- 2. Use the auxiliary bound: K^r ≤ r * maxLen
   set maxLen := S.sup m.cost
   have h_bound (r : ℕ) : K ^ r ≤ r * maxLen + 1 := by
     exact_mod_cast pow_sum_le_linear_bound_of_inj base_pos m h_growth (h_inj r)
-  -- 3. Algebraic limit argument
-  -- If K > 1, then K^r grows exponentially, while r * maxLen grows linearly.
-  -- We prove (r * maxLen) / K^r tends to 0, implying eventually (r * maxLen) < K^r.
-  have hAbs : |1 / (K: ℝ)| < 1 := by
+  -- If `K > 1`, then `K ^ r` grows exponentially while `r * maxLen` grows linearly.
+  -- We prove `(r * maxLen) / K ^ r → 0`, implying eventually `r * maxLen + 1 < K ^ r`.
+  have hAbs : |1 / (K : ℝ)| < 1 := by
     rw [abs_of_pos (by positivity)]
     exact (div_lt_one (by positivity)).mpr hK_gt_one
-  have h_tendh_tendsto_linsto :
+  have h_tendsto_lin :
       Filter.Tendsto (fun r : ℕ => (maxLen : ℝ) * r / K ^ r) Filter.atTop (nhds 0) := by
     simpa [mul_comm, mul_left_comm, mul_div_assoc] using!
       ((tendsto_self_mul_const_pow_of_abs_lt_one hAbs).const_mul (maxLen : ℝ))
   have h_tendsto_geo :
-      Filter.Tendsto (fun r => 1 / (K:ℝ)^r) Filter.atTop (nhds 0) := by
+      Filter.Tendsto (fun r => 1 / (K : ℝ) ^ r) Filter.atTop (nhds 0) := by
     -- rewrite as (1/K)^r and apply abs_lt_1 lemma
     simpa [one_div, div_eq_mul_inv, pow_mul] using (tendsto_pow_atTop_nhds_zero_of_abs_lt_one hAbs)
   have h_tendsto_sum :
       Filter.Tendsto
-        (fun r : ℕ =>
-          (maxLen : ℝ) * r / K ^ r + 1 / K ^ r)
+        (fun r : ℕ => (maxLen : ℝ) * r / K ^ r + 1 / K ^ r)
         Filter.atTop (nhds 0) := by
-    simpa [zero_add] using (h_tendh_tendsto_linsto.add h_tendsto_geo)
+    simpa [zero_add] using (h_tendsto_lin.add h_tendsto_geo)
 
-  -- 4. Derive contradiction
+  -- Derive the contradiction: pick `r` large enough that the sum above is `< 1`.
   have hIio : Set.Iio (1 : ℝ) ∈ nhds (0 : ℝ) := by
     simpa using (Iio_mem_nhds (show (0 : ℝ) < 1 by norm_num))
+  obtain ⟨r, hr_lt⟩ := Filter.eventually_atTop.mp (h_tendsto_sum.eventually hIio)
 
-  obtain ⟨r, hr_tendsto⟩ :=
-    Filter.eventually_atTop.mp <|
-      (h_tendsto_sum.eventually hIio)
-
-  have hr_lt : ∀ b ≥ r,
-      ↑maxLen * ↑b / ↑K ^ b + 1 / ↑K ^ b < (1 : ℝ) := by
-    simpa [Set.Iio] using hr_tendsto
-
-  -- Pick a large enough r (must be ≥ 1)
-  let r_large := max r 1
-  have h_strict_sum : ↑maxLen * ↑r_large / ↑K ^ r_large + 1 / ↑K ^ r_large < (1 : ℝ) :=
+  -- `r_large ≥ 1` and `r_large ≥ r`, so `hr_lt` applies at it.
+  set r_large := max r 1 with hr_large_def
+  have h_strict_sum :
+      (maxLen : ℝ) * r_large / (K : ℝ) ^ r_large + (1 : ℝ) / (K : ℝ) ^ r_large < 1 :=
     hr_lt r_large (le_max_left _ _)
 
-  have h_strict_sum :
-      (maxLen : ℝ) * r_large / (K : ℝ) ^ r_large
-        + (1 : ℝ) / (K : ℝ) ^ r_large < 1 := by
-    have hmem :
-        ( maxLen * r_large / K ^ r_large
-          + (1 : ℝ) / K ^ r_large )
-          ∈ {x | x < 1} := by
-      exact hr_tendsto r_large (le_max_left _ _)
-    simpa using hmem
-
-  have h_strict_div :
-     (maxLen * r_large + 1) / (K:ℝ)^r_large < 1 := by
-    -- turn sum of fractions into one fraction
-    -- (a/b + 1/b) = (a+1)/b
+  have h_strict_div : (maxLen * r_large + 1 : ℝ) / (K : ℝ) ^ r_large < 1 := by
+    -- turn the sum of fractions `a/b + 1/b` into the single fraction `(a+1)/b`
     simpa [add_div] using h_strict_sum
 
-  rw [div_lt_iff₀ (pow_pos (by positivity) _)] at *
-  -- Turn the ≤ bound into an ℝ inequality
-  have h_le_real :
-      ((K : ℝ) ^ r_large) ≤ (r_large : ℝ) * (maxLen : ℝ) + 1 := by
-    -- h_bound r_large : (K:ℝ≥0)^r_large ≤ (r_large*maxLen+1)  (in ℝ≥0)
-    exact_mod_cast (h_bound r_large)
+  have hKpow_pos : (0 : ℝ) < (K : ℝ) ^ r_large := pow_pos (by positivity) _
+  rw [div_lt_iff₀ hKpow_pos, one_mul] at h_strict_div
 
-  -- Turn the strict inequality into the “(r*maxLen+1) < K^r” shape
-  have h_strict_real :
-      (r_large : ℝ) * (maxLen : ℝ) + 1 < (K : ℝ) ^ r_large := by
-    -- your h_strict_div is: ↑maxLen * ↑r_large + 1 < 1 * ↑K ^ r_large
-    -- commute the product and drop the `1 *`
-    simpa [mul_comm, one_mul] using h_strict_div
+  -- `h_bound r_large` says `K ^ r_large ≤ r_large * maxLen + 1`; `h_strict_div` (after
+  -- commuting the product) says the reverse strictly — contradiction.
+  have h_le_real : (K : ℝ) ^ r_large ≤ (r_large : ℝ) * (maxLen : ℝ) + 1 := by
+    exact_mod_cast h_bound r_large
+  have h_strict_real : (r_large : ℝ) * (maxLen : ℝ) + 1 < (K : ℝ) ^ r_large := by
+    simpa [mul_comm] using h_strict_div
 
-  -- Contradiction: K^r ≤ r*maxLen+1 < K^r
-  exact (lt_irrefl ((K : ℝ) ^ r_large)) (lt_of_le_of_lt h_le_real h_strict_real)
-
+  exact lt_irrefl _ (lt_of_le_of_lt h_le_real h_strict_real)
 
 /-- Kraft inequality for an arbitrary multiplicative weight dominated by the canonical
 exponential weight.
