@@ -172,32 +172,32 @@ def stepEquiv (T : ℕ) (I : Type*) : (Fin (T + 1) → I) ≃ (Fin T → I) × I
 /-! ## Tensorization over the horizon -/
 
 /-- Tensorization of `klFin` over a finite horizon: KL divergence between product laws is the sum
-of the per-step KL divergences, under per-step normalization (`∑ i, r t i = 1`,
-`∑ i, r' t i = 1`) and per-step absolute continuity. Proved by induction on `T`, peeling off the
-last step via `stepEquiv` and `klFin_prod_two`. **No nonnegativity hypothesis is needed**, since
-`klFin_prod_two` itself needs none, and `productLaw_sum_one` / `productLaw_ac` likewise need only
-normalization / absolute continuity. The relabeling step reuses
-`InformationTheory.Divergence.Basic.klFin_relabel`, applied along `(stepEquiv T I).symm` so that
-its `e.symm` matches `stepEquiv T I` in the direction the induction needs. -/
+of the per-step KL divergences, under per-step normalization of the **numerator** law only
+(`∑ i, r t i = 1`, matching `klFin_prod_two`) and per-step absolute continuity. Proved by
+induction on `T`, peeling off the last step via `stepEquiv` and `klFin_prod_two`. **No
+nonnegativity hypothesis is needed**, since `klFin_prod_two` itself needs none, and
+`productLaw_sum_one` / `productLaw_ac` likewise need only normalization / absolute continuity.
+The relabeling step reuses `InformationTheory.Divergence.Basic.klFin_relabel`, applied along
+`(stepEquiv T I).symm` so that its `e.symm` matches `stepEquiv T I` in the direction the
+induction needs. -/
 theorem klFin_productLaw {I : Type*} [Fintype I] :
     ∀ (T : ℕ) (r r' : Fin T → I → ℝ),
-      (∀ t, ∑ i, r t i = 1) → (∀ t, ∑ i, r' t i = 1) →
+      (∀ t, ∑ i, r t i = 1) →
       (∀ t i, r' t i = 0 → r t i = 0) →
       klFin (productLaw r) (productLaw r') = ∑ t, klFin (r t) (r' t) := by
   intro T
   induction T with
   | zero =>
-    intro r r' _ _ _
+    intro r r' _ _
     simp [klFin, productLaw, Finset.prod_of_isEmpty]
   | succ T ih =>
-    intro r r' hrsum hr'sum hac
+    intro r r' hrsum hac
     set rp : Fin T → I → ℝ := fun t => r t.castSucc with hrp_def
     set rp' : Fin T → I → ℝ := fun t => r' t.castSucc with hrp'_def
     have hrpsum : ∀ t, ∑ i, rp t i = 1 := fun t => hrsum t.castSucc
-    have hrp'sum : ∀ t, ∑ i, rp' t i = 1 := fun t => hr'sum t.castSucc
     have hracc : ∀ t i, rp' t i = 0 → rp t i = 0 := fun t i => hac t.castSucc i
     have hihstep : klFin (productLaw rp) (productLaw rp') = ∑ t, klFin (rp t) (rp' t) :=
-      ih rp rp' hrpsum hrp'sum hracc
+      ih rp rp' hrpsum hracc
     have hPsum : ∑ ω, productLaw rp ω = 1 := productLaw_sum_one rp hrpsum
     have hPac : ∀ ω, productLaw rp' ω = 0 → productLaw rp ω = 0 := productLaw_ac hracc
     have key := klFin_prod_two (productLaw rp) (productLaw rp') (r (Fin.last T)) (r' (Fin.last T))
@@ -314,7 +314,7 @@ theorem pathBudget {I : Type*} [Fintype I] (T : ℕ) (r s : Fin T → I → ℝ)
     ring
   have hac : ∀ t i, r t i = 0 → mixed t i = 0 := fun t i h => absurd h (hr_pos t i).ne'
   have htensor : klFin (productLaw mixed) (productLaw r) = ∑ t, klFin (mixed t) (r t) :=
-    klFin_productLaw T mixed r hmixed_sum hrsum hac
+    klFin_productLaw T mixed r hmixed_sum hac
   have hstep : ∀ t, klFin (mixed t) (r t) ≤ (δ t) ^ 2 * ∑ i, (s t i - r t i) ^ 2 / r t i :=
     fun t => klFin_mix_le_chiSq (r t) (s t) (hr_pos t) (hrsum t) (hs t) (hssum t) (hδ t)
   have hstep2 : ∀ t, klFin (mixed t) (r t) ≤ (δ t) ^ 2 * C := by
