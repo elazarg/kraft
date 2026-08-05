@@ -13,3 +13,9 @@ import InformationTheory.Coding.KraftGeneralized
 import InformationTheory.Coding.Example
 import InformationTheory.Coding.SourceCodingLowerBound
 import InformationTheory.Entropy.ConditionalEntropy
+import InformationTheory.Divergence.Basic
+import InformationTheory.Divergence.Binary
+import InformationTheory.Divergence.ChainRule
+import InformationTheory.Divergence.Pinsker
+import InformationTheory.Divergence.Tensorization
+import InformationTheory.Entropy.Uniform
