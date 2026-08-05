@@ -269,7 +269,7 @@ theorem card_pow_le_linear_mul_sum_pow_len_pow
     (S.card ^ r) ≤ (r * S.sup len + 1) * (∑ x ∈ S, base ^ (len x)) ^ r := by
   by_cases (r = 0)
   · subst r
-    simp
+    simp only [pow_zero, zero_mul, zero_add, mul_one, Std.le_refl]
 
   classical
   -- abbreviations
@@ -277,7 +277,7 @@ theorem card_pow_le_linear_mul_sum_pow_len_pow
   let A : ℕ := ∑ x ∈ S, base ^ (s - len x)
   let B : ℕ := ∑ x ∈ S, base ^ (len x)
 
-  -- your main bound: A^r ≤ (r*s+1) * base^(r*s)
+  -- main bound: A^r ≤ (r*s+1) * base^(r*s)
   have hA : A ^ r ≤ (r * s + 1) * base ^ (r * s) := by
     simpa [A, s] using (scaled_sum_pow_le_linear hmap_mul hbound hinj)
 
@@ -378,7 +378,7 @@ lemma sum_pow_len_le
   have hpart :
       (∑ x ∈ S, base ^ len x)
         = ∑ s ∈ Finset.Icc 0 L, ∑ x ∈ S.filter (fun x => len x = s), base ^ len x := by
-    -- reuse your lemma with F := fun x => base ^ len x
+    -- reuse `sum_eq_sum_Icc_filter_len` with F := fun x => base ^ len x
     have h_len_le_L : ∀ x ∈ S, len x ≤ L := by
       intro x hx; exact Finset.le_sup (f := len) hx
     simpa [L] using

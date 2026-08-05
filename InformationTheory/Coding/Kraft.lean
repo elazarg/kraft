@@ -52,11 +52,11 @@ theorem kraft_inequality {S : Finset (List α)} (h : PrefixFree (S : Set (List �
     ∑ w ∈ S, kraftWeight w ≤ 1 := by
   unfold kraftWeight
   by_cases he : [] ∈ S
-  · simp
+  · simp only [one_div, inv_pow]
     have h_eq : S = {[]} := by
       exact_mod_cast h.epsilon_singleton he
     subst h_eq
-    simp
+    simp only [Finset.sum_singleton, List.length_nil, pow_zero, inv_one, Std.le_refl]
   · have hud : UniquelyDecodable (S : Set (List α)) :=
       h.uniquely_decodable he
     simpa using (kraft_mcmillan_inequality hud)

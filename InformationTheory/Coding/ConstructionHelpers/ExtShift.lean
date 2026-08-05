@@ -23,7 +23,6 @@ This file provides utilities for extending finite length sequences to infinite o
 
 * `ext_shift_eq`: Simp lemma showing `extShift` agrees with the original function on `Fin k`.
 * `ext_shift_monotone`: The extended sequence is monotone if the original is.
-* `ext_shift_apply_lt`: Alternative form of `ext_shift_eq` for natural number indices.
 -/
 
 @[expose] public section
@@ -64,9 +63,5 @@ lemma ext_shift_monotone (k : ℕ) (l : Fin k → ℕ) (hmono : Monotone l) (hk 
     have hk_le_j : k ≤ j := le_trans hk_le_i hij
     -- goal is `i ≤ j - k + k`, rewrite RHS to `j`
     simpa [Nat.sub_add_cancel hk_le_j] using hij
-
-lemma ext_shift_apply_lt {k : ℕ} (lastL s : ℕ) (l : Fin k → ℕ) {n : ℕ} (hn : n < k) :
-  extShift lastL s l n = l ⟨n, hn⟩ := by
-  simp [extShift, hn]
 
 end InformationTheory

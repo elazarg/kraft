@@ -117,7 +117,7 @@ theorem PrefixFree.uniquely_decodable
       -- Now that we know heads are equal, we substitute and recurse.
       -- We proved the heads are equal, so unify them.
       subst hw
-      simp
+      simp only [List.cons.injEq, true_and]
       simp at hflatten
       -- Apply the induction hypothesis to the tails
       apply ih L₂'

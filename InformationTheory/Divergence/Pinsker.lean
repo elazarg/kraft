@@ -144,7 +144,7 @@ theorem logSum_ineq {I : Type*} {S : Finset I} {a b : I → ℝ}
     apply le_of_eq
     refine Eq.symm (Finset.sum_eq_zero (fun i hi => ?_))
     rw [ha0 i hi]
-    simp
+    simp only [zero_div, Real.log_zero, mul_zero]
   · have key : ∀ i ∈ S,
         a i - (A / B) * b i ≤ a i * Real.log (a i / b i) - a i * Real.log (A / B) := by
       intro i hi

@@ -24,7 +24,11 @@ This file provides helper lemmas for working with Kraft sums.
 * `prefix_sum_lt_one_of_fin_sum_le_one`: Variant for finite sums indexed by `Fin k`.
 -/
 
-@[expose] public section Sum
+@[expose] public section
+
+namespace InformationTheory
+
+section Sum
 
 /-- Helper: if a nonnegative series of length `k` sums to `≤ 1`,
 then every proper prefix sum is `< 1`. -/
@@ -92,3 +96,5 @@ lemma prefix_sum_lt_one_of_fin_sum_le_one
     simp_all only
 
 end Sum
+
+end InformationTheory

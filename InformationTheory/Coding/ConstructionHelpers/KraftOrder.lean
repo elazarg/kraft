@@ -215,7 +215,7 @@ lemma exists_equiv_nat_monotone_of_infinite {I : Type*} [Infinite I] {D : ℕ} (
         exact Set.countable_univ_iff.mp this
       -- Let `e = Encodable.encode`.
       obtain ⟨e, he⟩ : ∃ e : I ↪ ℕ, True := by
-        simp
+        simp only [exists_const_iff, and_true]
         exact countable_iff_nonempty_embedding.mp h_countable
       have h_finite : ∀ k, {i : I | l i = k}.Finite := by
         intro k
