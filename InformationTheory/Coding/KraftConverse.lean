@@ -46,9 +46,13 @@ the Kraft condition, a prefix-free code with those lengths exists.
 
 ## Main Results
 
-- `exists_code_nat`: The converse for `l : ℕ → ℕ`.
-- `exists_code_fin`: The converse for `l : Fin k → ℕ`.
-- `exists_code`: The master theorem for arbitrary types.
+- `exists_code`: **The converse of Kraft's inequality**, the textbook statement — arbitrary
+  index and alphabet types, no monotonicity hypothesis on the lengths.
+- `exists_code_nat`, `exists_code_fin`: the `Monotone l` special cases for `l : ℕ → ℕ` and
+  `l : Fin k → ℕ` respectively that `exists_code` reduces to, after reordering indices by length
+  (`exists_equiv_nat_monotone_of_infinite`/`exists_equiv_fin_monotone` in `Construction.lean`).
+  Not themselves the textbook statement — the monotonicity is an artifact of the construction,
+  not a real restriction — but exposed since `Monotone l` is sometimes already in hand.
 -/
 
 @[expose] public section

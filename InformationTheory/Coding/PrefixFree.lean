@@ -27,7 +27,7 @@ This file defines prefix-free codes and proves that they are uniquely decodable.
   `{[]}`.
 * `PrefixFree.uniquely_decodable`: Every prefix-free code (not containing the empty string)
   is uniquely decodable.
-* `PrefixFree.is_uniquely_decodable_of_card_ge_two`: Prefix-free codes with at least two
+* `PrefixFree.nontrivial_is_uniquely_decodable`: Prefix-free codes with at least two
   codewords are uniquely decodable.
 -/
 

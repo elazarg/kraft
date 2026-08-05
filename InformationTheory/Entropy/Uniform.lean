@@ -14,36 +14,36 @@ public import InformationTheory.Entropy.Basic
 This file records the max-entropy attainment fact underlying
 `InformationTheory.entropy_le_logb_card` (which only bounds entropy above by
 `logb D (Fintype.card I)`, without exhibiting a law that attains it): the uniform law on a
-nonempty finite type attains exactly that bound, and `T` fresh independent uniform draws carry
-entropy growing exactly linearly in `T`, without any horizon-free cap.
-
-Ported from the GameTheory experiments layer (probe E57, verified 2026-08-05), consolidating
-previously duplicated local definitions. This file deliberately does **not** port the
-`seedBudget` theorems from the source (`seedBudget`, `seedBudget_le_logb_card`, and the
-`tupleLaw` definition they use): those stay as a downstream worked example built on top of
-`entropy_uniform` and `InformationTheory.entropy_push_le`, rather than as library-level results.
+nonempty finite type attains exactly that bound. Instantiating this at the tuple type `Fin T → G`
+gives the entropy of the uniform law on `T`-tuples, which grows exactly linearly in `T` — this
+coincides with what `T` independent fresh uniform draws would give, but note the formalization:
+it is the entropy of the single uniform law on `Fin T → G`, not a statement about a product of
+`T` independent per-step laws (contrast `InformationTheory.klFin_productLaw` in
+`Divergence.Tensorization`, which does formalize independence explicitly via `productLaw`).
 
 ## Main results
 
 * `entropy_uniform` : the entropy of the uniform law on a finite type `B` is exactly
   `logb D (Fintype.card B)`.
-* `freshStream_entropy_linear` : instantiating `entropy_uniform` at `T` fresh independent uniform
-  draws from a finite type `G` gives entropy exactly `T * logb D (Fintype.card G)` — linear in
-  the horizon.
+* `freshStream_entropy_linear` : `entropy_uniform` instantiated at `B := Fin T → G`, giving
+  entropy exactly `T * logb D (Fintype.card G)` for the uniform law on `T`-tuples — linear in
+  the horizon, without any horizon-free cap.
 
 ## Nonclaims
 
-* **No seed-budget statement.** The source's contrasting fence — that a deterministic stream
-  driven by a hidden finite seed carries at most `entropy D σ` bits at *every* horizon, uniformly
-  in `T` — is not ported here; only the linearly-growing regime that the contrast was drawn
-  against is.
-* **Exact uniformity only.** `freshStream_entropy_linear` assumes *exact* uniformity of each
-  fresh draw, not merely high min-entropy or approximate uniformity.
+* **No independence structure.** `freshStream_entropy_linear` is a cardinality computation on
+  the uniform law of a single tuple type, not a product-of-laws statement; it does not formalize
+  "independent draws" the way `Divergence.Tensorization.klFin_productLaw` does.
+* **No seed-budget statement.** The contrasting fence — that a deterministic stream driven by a
+  hidden finite seed carries at most `entropy D σ` bits at *every* horizon, uniformly in `T` — is
+  not in this file; only the linearly-growing regime that such a contrast would be drawn against
+  is.
+* **Exact uniformity only.** `freshStream_entropy_linear` assumes *exact* uniformity, not merely
+  high min-entropy or approximate uniformity.
 
 ## References
 
-`experiments/SeedEntropyBudget.lean` (probe E57); `InformationTheory.entropy_le_logb_card` in
-`InformationTheory/Entropy/ConditionalEntropy.lean`.
+`InformationTheory.entropy_le_logb_card` in `InformationTheory/Entropy/ConditionalEntropy.lean`.
 -/
 
 @[expose] public section
