@@ -3,7 +3,9 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import InformationTheory.Coding.SourceCodingLowerBound
+module
+
+public import InformationTheory.Coding.SourceCodingLowerBound
 
 /-!
 # Conditional Entropy
@@ -41,6 +43,8 @@ rather than `0 < p`.
 
 * Cover & Thomas, *Elements of Information Theory*, Chapter 2
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 

@@ -3,8 +3,10 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import InformationTheory.Entropy.ConditionalEntropy
-import InformationTheory.Divergence.Basic
+module
+
+public import InformationTheory.Divergence.Basic
+public import InformationTheory.Entropy.ConditionalEntropy
 
 /-!
 # The chain rule for finite Kullback-Leibler divergence
@@ -53,6 +55,8 @@ previously duplicated local definitions.
 `experiments/FiniteKLChainRule.lean` (probe E59); `InformationTheory.condEntropy` and
 `InformationTheory.chain_rule` in `InformationTheory/Entropy/ConditionalEntropy.lean`.
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 

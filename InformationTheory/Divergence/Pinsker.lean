@@ -3,11 +3,14 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
+module
+
+public import InformationTheory.Divergence.Basic
+public import InformationTheory.Divergence.Binary
+
+import Mathlib.Analysis.Calculus.Deriv.MeanValue
 import Mathlib.Analysis.MeanInequalities
 import Mathlib.Analysis.SpecialFunctions.Log.Deriv
-import Mathlib.Analysis.Calculus.Deriv.MeanValue
-import InformationTheory.Divergence.Basic
-import InformationTheory.Divergence.Binary
 
 /-!
 # Finite Pinsker and Bretagnolle-Huber inequalities
@@ -60,6 +63,8 @@ replaced by `InformationTheory.Divergence.Basic`'s `klFin` and `klFin_nonneg`.
 `InformationTheory/Coding/SourceCodingLowerBound.lean`; Tsybakov, *Introduction to Nonparametric
 Estimation*, §2.4 (Pinsker and Bretagnolle-Huber inequalities).
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 

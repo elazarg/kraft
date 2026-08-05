@@ -3,8 +3,10 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import InformationTheory.Divergence.Basic
-import InformationTheory.Divergence.Pinsker
+module
+
+public import InformationTheory.Divergence.Basic
+public import InformationTheory.Divergence.Pinsker
 
 /-!
 # Tensorization of finite KL divergence and the quadratic deviation budget
@@ -57,6 +59,8 @@ the single-step binary analogue whose termwise `log t ≤ t - 1` route `klFin_mi
 reuses); `InformationTheory.Divergence.Pinsker.miss_add_falseAlarm_ge`, the testing corollary
 `detector_miss_of_pathBudget` composes with.
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 

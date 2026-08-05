@@ -3,7 +3,9 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import InformationTheory.Coding.SourceCodingLowerBound
+module
+
+public import InformationTheory.Coding.SourceCodingLowerBound
 
 /-!
 # Maximum-entropy attainment on the uniform law
@@ -42,6 +44,8 @@ previously duplicated local definitions. This file deliberately does **not** por
 `experiments/SeedEntropyBudget.lean` (probe E57); `InformationTheory.entropy_le_logb_card` in
 `InformationTheory/Entropy/ConditionalEntropy.lean`.
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 
