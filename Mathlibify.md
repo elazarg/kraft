@@ -1,9 +1,15 @@
 # Mathlibifying `kraft`
 
-Investigation note, 2026-08-05 (revised after review). Goal: **100% mathlib style/structure
-compatibility** — not a subset filtered by what seems worth the effort. Everything identified
-below gets done; the phases below are a sequencing of that work by risk and dependency, not a
-triage of what to skip.
+Investigation note, 2026-08-05 (revised after review; phases 0-4 executed same day). Goal:
+**100% mathlib style/structure compatibility** — not a subset filtered by what seems worth the
+effort. Everything identified below gets done; the phases below are a sequencing of that work
+by risk and dependency, not a triage of what to skip.
+
+**Status: all five phases complete.** 20/20 files use `module`; `scripts/lint-style.sh` passes
+with the `module`-coverage check as a hard gate; all object-level ASCII-digit indices (not
+hypothesis names, see Phase 3's note) are subscripted. See the commit history for the per-phase
+breakdown — one commit per phase (Phase 2 split into 4 dependency-ordered batches, rebuilding
+after every file).
 
 ## Evidence base
 
