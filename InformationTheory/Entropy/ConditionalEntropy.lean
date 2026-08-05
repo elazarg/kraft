@@ -5,7 +5,8 @@ Authors: Elazar Gershuni
 -/
 module
 
-public import InformationTheory.Coding.SourceCodingLowerBound
+public import Mathlib.Analysis.SpecialFunctions.Log.Base
+public import InformationTheory.Entropy.Basic
 
 /-!
 # Conditional Entropy
@@ -35,7 +36,8 @@ rather than `0 < p`.
 * `entropy_push_le`: the data-processing inequality, `entropy D (push f p) ≤ entropy D p`.
 * `entropy_relabel`: entropy is invariant under relabeling by an equivalence.
 * `entropy_le_logb_card`: the max-entropy bound, `entropy D p ≤ logb D (card I)`.
-* `entropy_nonneg`, `condEntropy_nonneg`: both entropies are nonnegative.
+* `condEntropy_nonneg`: conditional entropy is nonnegative (`entropy_nonneg` itself lives in
+  `InformationTheory.Entropy.Basic`).
 * `condEntropy_of_graph`, `entropy_jointOfGraph`: conditional entropy vanishes on a
   deterministic joint.
 
@@ -154,16 +156,6 @@ theorem chain_rule (D : ℕ) {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) :
   rw [key, add_div]
 
 /-! ### Nonnegativity -/
-
-/-- `entropy` is nonnegative. -/
-theorem entropy_nonneg (D : ℕ) (hD : 1 < D) {p : I → ℝ} (hp : ∀ i, 0 ≤ p i)
-    (hp_sum : ∑ i, p i = 1) :
-    0 ≤ entropy D p := by
-  have hlogD_pos : 0 < log D := log_pos (by exact_mod_cast hD)
-  apply div_nonneg _ (le_of_lt hlogD_pos)
-  refine Finset.sum_nonneg (fun i _ => negMulLog_nonneg (hp i) ?_)
-  have : p i ≤ ∑ i, p i := Finset.single_le_sum (fun i _ => hp i) (Finset.mem_univ i)
-  rwa [hp_sum] at this
 
 /-- `condEntropy` is nonnegative: conditioning never makes a code cheaper per symbol, each row's
 ratio `fst p x.1 / p x` is at least `1`. -/

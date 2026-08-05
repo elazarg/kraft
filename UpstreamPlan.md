@@ -59,41 +59,48 @@ Three corrections to the first draft of this map, verified directly against the 
   `Construction` needs `Sum` only. So three of Track C's four PRs can start immediately,
   alongside PR 1 and PR 2 — a stronger scheduling lever than "start after PR 1."
 
-## The missing refactor: extract `Entropy.Basic`
+## The missing refactor: extract `Entropy.Basic` — done, 2026-08-05
 
-`ConditionalEntropy.lean` and `Uniform.lean` currently import all of
-`SourceCodingLowerBound.lean` — but checked what they actually use: only `entropy` (defined at
+`ConditionalEntropy.lean` and `Uniform.lean` imported all of `SourceCodingLowerBound.lean` — but
+checked what they actually used: only `entropy` (previously defined at
 `SourceCodingLowerBound.lean:216`) and the Gibbs lemma. Conditional entropy has no mathematical
-dependence on a source-coding theorem; the edge exists purely because `entropy` happens to live
-in a coding-theory file. A mathlib reviewer will not accept `entropy` — this plan's own
+dependence on a source-coding theorem; the edge existed purely because `entropy` happened to
+live in a coding-theory file. A mathlib reviewer would not accept `entropy` — this plan's own
 candidate for "the single most obviously-missing definition" — defined inside
-`Coding/SourceCodingLowerBound.lean`. Do this extraction locally, before proposing either file:
+`Coding/SourceCodingLowerBound.lean`. Done, in `InformationTheory/Entropy/Basic.lean`:
 
-- New `Entropy/Basic.lean`: `entropy`, `entropy_nonneg`, and the Gibbs bound entropy needs,
-  proved via `Divergence.Basic.klFin_nonneg` (see the reroute below) — so it depends on
-  `Divergence.Basic`, not on any coding-theory file.
-- `SourceCodingLowerBound.lean` imports `Entropy.Basic` and shrinks to what's actually a
-  source-coding-specific: `expLength`, `source_coding_lower_bound`.
-- `ConditionalEntropy.lean` and `Uniform.lean` import `Entropy.Basic` instead of
-  `SourceCodingLowerBound`.
+- `Entropy/Basic.lean` (76 lines): `entropy`, `entropy_nonneg` (moved from
+  `ConditionalEntropy.lean`), and `gibbs_sum_log_ratio_nonneg_of_ac` (moved from
+  `SourceCodingLowerBound.lean`, rerouted through `Divergence.Basic.klFin_nonneg` — see below).
+  Depends on `Divergence.Basic` only, not on any coding-theory file.
+- `SourceCodingLowerBound.lean` (341 → 307 lines) imports `Entropy.Basic` and now holds only
+  what's actually source-coding-specific: `pmfMeasure`, `expLength`,
+  `gibbs_sum_log_ratio_nonneg` (kept, see the bridge-lemma note below), and
+  `source_coding_lower_bound` itself.
+- `ConditionalEntropy.lean` (356 → 348 lines) and `Uniform.lean` import `Entropy.Basic` instead
+  of `SourceCodingLowerBound`.
 
 This decouples `ConditionalEntropy` (the crown jewel) from `SourceCodingLowerBound` entirely —
-they become siblings depending on the same small base, not a chain — and fixes what would
+they're siblings depending on the same small base now, not a chain — and avoids what would
 otherwise be a permanent, odd upstream layout: `Mathlib.InformationTheory.Entropy.*` importing
 `Mathlib.InformationTheory.Coding.*` for a definition that has nothing to do with codes.
 
-## Prep work before PR 4 (not upstream PRs themselves — do these locally first)
+## Prep work before PR 4 — the Gibbs reroute is done, the bridge lemma is still open
 
-**Reroute the Gibbs proof.** `SourceCodingLowerBound.lean`'s own `gibbs_sum_log_ratio_nonneg`
-goes through `pmfMeasure`/measure-theoretic `klDiv` — heavier machinery than needed, and it now
-duplicates `Divergence.Basic.klFin_nonneg`, which is proved elementarily and already generalizes
-it (`klFin_nonneg`'s own docstring states this explicitly: it weakens the mass condition from
-`∑ q = ∑ p` to `∑ q ≤ ∑ p`). Reroute `entropy_nonneg`'s Gibbs step through `klFin_nonneg` as part
-of the `Entropy.Basic` extraction above.
+**Reroute the Gibbs proof — done.** `SourceCodingLowerBound.lean` had *two* elementary Gibbs
+proofs sitting side by side: `gibbs_sum_log_ratio_nonneg` (measure-theoretic, via
+`pmfMeasure`/`klDiv`, strict positivity) and `gibbs_sum_log_ratio_nonneg_of_ac` (already
+elementary, zero-mass-tolerant) — and the second one duplicated `Divergence.Basic.klFin_nonneg`,
+which is proved the same way and already generalizes it (`klFin_nonneg`'s own docstring said so
+explicitly: it weakens the mass condition from `∑ q = ∑ p` to `∑ q ≤ ∑ p`, and noted this reroute
+was "deliberately left untouched" — i.e. queued exactly for this pass). Now
+`gibbs_sum_log_ratio_nonneg_of_ac` in `Entropy.Basic` is a two-line wrapper around
+`klFin_nonneg`. The measure-theoretic `gibbs_sum_log_ratio_nonneg` was *not* touched — see next.
 
-**Don't delete the measure-theoretic machinery — turn it into a bridge lemma.** The instinct
-after the reroute is to drop `pmfMeasure` and `integral_llr_pmfMeasure`
-(`SourceCodingLowerBound.lean:90`) entirely. Don't: a reviewer will ask how `klFin` relates to
+**The `klFin`/`klDiv` bridge lemma is still open — not yet done, and not just a delete.** The
+instinct after the reroute above is to drop `pmfMeasure` and `integral_llr_pmfMeasure`
+(`SourceCodingLowerBound.lean:93`) entirely, now that they're no longer feeding
+`gibbs_sum_log_ratio_nonneg_of_ac`. Don't: a reviewer will ask how `klFin` relates to
 mathlib's existing `InformationTheory.KullbackLeibler.klDiv`, and `integral_llr_pmfMeasure` is
 already most of the proof of exactly that compatibility lemma —
 `klFin p q = (klDiv (pmfMeasure p) (pmfMeasure q)).toReal` (or the finite-measure equivalent).
@@ -138,9 +145,10 @@ a reviewer will read carefully; budget more review time than the line count sugg
 
 ### Wave 2 — one prerequisite each
 
-**PR 6 — `Entropy.Basic`** (Track A, new) — the extraction above. Needs PR 2 only. Ships
-`entropy` itself, which makes this arguably the PR to lead with once PR 2 lands — it's small,
-it's the plan's own headline gap-filler, and nothing about it is coding-theory-specific.
+**PR 6 — `Entropy.Basic`** (Track A, new) — 76 lines, already extracted locally (see above).
+Needs PR 2 only. Ships `entropy` itself, which makes this arguably the PR to lead with once PR 2
+lands — it's small, it's the plan's own headline gap-filler, and nothing about it is
+coding-theory-specific.
 
 **PR 7 — `Construction`** (Track C) — 573 lines, the single largest file in the repo.
 `kraftNumerator`, `KraftOrder`, `kraftRank`, the reordering machinery. Needs PR 3 only. This is
@@ -234,7 +242,7 @@ overlooked.
 | 3 | Sum + ExtShift | ~166 | — | C | 1 |
 | 4 | Codeword + Helpers | ~340 | — | C | 1 |
 | 5 | Divergence.Binary | ~273 | — | B | 1 |
-| 6 | Entropy.Basic (new, extracted) | ~small | 2 | A | 2 |
+| 6 | Entropy.Basic (extracted, done locally) | 76 | 2 | A | 2 |
 | 7 | Construction | ~573 | 3 | C | 2 |
 | 8 | Divergence.Pinsker (split in two) | ~546 | 2, 5 | B | 2 |
 | 9 | Tensorization (minus the fence corollary) | ~325 | 2 | B | 2 |

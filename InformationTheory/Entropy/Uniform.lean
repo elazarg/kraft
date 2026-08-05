@@ -5,7 +5,8 @@ Authors: Elazar Gershuni
 -/
 module
 
-public import InformationTheory.Coding.SourceCodingLowerBound
+public import Mathlib.Analysis.SpecialFunctions.Log.Base
+public import InformationTheory.Entropy.Basic
 
 /-!
 # Maximum-entropy attainment on the uniform law

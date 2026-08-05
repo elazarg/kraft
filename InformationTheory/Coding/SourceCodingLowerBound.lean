@@ -14,26 +14,29 @@ public import Mathlib.MeasureTheory.Measure.Count
 public import Mathlib.MeasureTheory.Measure.LogLikelihoodRatio
 public import Mathlib.MeasureTheory.Measure.WithDensity
 public import InformationTheory.Coding.Kraft
+public import InformationTheory.Entropy.Basic
 
 /-!
 # Source Coding Lower Bound
 
 This file proves that Shannon entropy is a lower bound on the expected codeword length
 for any uniquely decodable code. This is the converse direction of Shannon's source
-coding theorem.
+coding theorem. `entropy` itself, and the zero-mass-tolerant Gibbs inequality, live in
+`InformationTheory.Entropy.Basic` — neither has anything to do with codes, so they don't belong
+here; this file is genuinely just the source-coding-specific content built on top of them.
 
 ## Main definitions
 
 * `pmfMeasure`: Converts a probability mass function `p : I → ℝ` to a finite measure.
-* `entropy`: Shannon entropy `H(p) = -∑ p(i) log p(i)` in base `D`.
 * `expLength`: Expected codeword length `E[L] = ∑ p(i) * |w(i)|`.
 
 ## Main results
 
-* `gibbs_sum_log_ratio_nonneg`: The discrete Gibbs inequality: for probability distributions
-  `p` and `q`, we have `∑ p(i) log(p(i)/q(i)) ≥ 0` (non-negativity of KL divergence).
-* `gibbs_sum_log_ratio_nonneg_of_ac`: The same inequality without positivity, for `0 ≤ p`,
-  `0 ≤ q`, `∑ q ≤ 1`, and absolute continuity `q i = 0 → p i = 0`.
+* `gibbs_sum_log_ratio_nonneg`: The discrete Gibbs inequality via the measure-theoretic route
+  (`pmfMeasure`/`klDiv`), for strictly positive `p`, `q`: `∑ p(i) log(p(i)/q(i)) ≥ 0`. Kept
+  deliberately alongside `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` (the elementary,
+  zero-mass-tolerant proof in `Entropy.Basic`) as the bridge to mathlib's own measure-theoretic
+  `klDiv`, not as a redundant second proof.
 * `source_coding_lower_bound`: For any uniquely decodable code over an alphabet of size `D`,
   the expected codeword length is at least the entropy: `H_D(p) ≤ E[L]`.
 
@@ -166,40 +169,6 @@ lemma gibbs_sum_log_ratio_nonneg
   have hk : 0 ≤ (klDiv μ ν).toReal := by simp
   simpa [h_integral, toReal_klDiv_of_measure_eq hμν hmass] using hk
 
-/-- Finite Gibbs inequality without positivity: `p` and `q` may vanish, `q` may carry less
-than the full mass (`∑ q ≤ 1`), and only the absolute-continuity condition `q i = 0 → p i = 0`
-is required. This is the zero-mass-tolerant form conditional entropy needs, since marginals and
-conditional slices routinely hit zero mass. Proved directly from `log x ≤ x - 1`, restricted to
-the support of `p`, rather than through the measure-theoretic route above (which inherently
-needs strict positivity for absolute continuity of the two `pmfMeasure`s). -/
-lemma gibbs_sum_log_ratio_nonneg_of_ac
-    {p q : I → ℝ}
-    (hp_nonneg : ∀ i, 0 ≤ p i) (hp_sum : ∑ i, p i = 1)
-    (hq_nonneg : ∀ i, 0 ≤ q i) (hq_sum : ∑ i, q i ≤ 1)
-    (hac : ∀ i, q i = 0 → p i = 0) :
-    0 ≤ ∑ i, p i * log (p i / q i) := by
-  have key : ∀ i, p i - q i ≤ p i * log (p i / q i) := by
-    intro i
-    rcases (hp_nonneg i).lt_or_eq with hp_pos | hp0
-    · have hq_pos : 0 < q i := by
-        rcases (hq_nonneg i).lt_or_eq with hq_pos | hq0
-        · exact hq_pos
-        · exact absurd (hac i hq0.symm) (ne_of_gt hp_pos)
-      have hratio_pos : 0 < q i / p i := div_pos hq_pos hp_pos
-      have hlog : log (q i / p i) ≤ q i / p i - 1 := log_le_sub_one_of_pos hratio_pos
-      have hflip : log (p i / q i) = - log (q i / p i) := by rw [← log_inv, inv_div]
-      have hstep : 1 - q i / p i ≤ log (p i / q i) := by rw [hflip]; linarith
-      have hmul := mul_le_mul_of_nonneg_left hstep (le_of_lt hp_pos)
-      calc p i - q i = p i * (1 - q i / p i) := by field_simp
-        _ ≤ p i * log (p i / q i) := hmul
-    · simp [← hp0]
-      exact hq_nonneg i
-  have hsum : ∑ i, (p i - q i) ≤ ∑ i, p i * log (p i / q i) :=
-    Finset.sum_le_sum (fun i _ => key i)
-  have heq : ∑ i, (p i - q i) = ∑ i, p i - ∑ i, q i := by rw [Finset.sum_sub_distrib]
-  rw [heq, hp_sum] at hsum
-  linarith
-
 end DiscreteKL
 
 section SourceCodingLower
@@ -212,9 +181,6 @@ open Real
 
 variable {I : Type*} [Fintype I] [Nonempty I]
 variable {D : ℕ}
-
-noncomputable def entropy (D : ℕ) (p : I → ℝ) : ℝ :=
-  (∑ i, Real.negMulLog (p i)) / log D
 
 noncomputable def expLength (p : I → ℝ) (w : I → List (Fin D)) : ℝ :=
   ∑ i, p i * ((w i).length : ℝ)
