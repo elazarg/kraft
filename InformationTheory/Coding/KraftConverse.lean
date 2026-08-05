@@ -14,6 +14,8 @@ public import Mathlib.Data.Set.Basic
 public import InformationTheory.Coding.ConstructionHelpers.Codeword
 public import InformationTheory.Coding.ConstructionHelpers.Construction
 public import InformationTheory.Coding.ConstructionHelpers.ExtShift
+public import InformationTheory.Coding.ConstructionHelpers.KraftOrder
+public import InformationTheory.Coding.ConstructionHelpers.Sum
 public import InformationTheory.Coding.PrefixFree
 
 import Mathlib.Algebra.BigOperators.Field
