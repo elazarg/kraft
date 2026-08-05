@@ -3,18 +3,19 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.List.OfFn
-import Mathlib.Data.Real.Basic
-import Mathlib.Data.NNReal.Basic
-import Mathlib.Algebra.BigOperators.Pi
-import Mathlib.Analysis.SpecificLimits.Normed
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
+module
+
+public import Mathlib.Algebra.BigOperators.Pi
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.Analysis.SpecificLimits.Normed
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.List.OfFn
+public import Mathlib.Data.NNReal.Basic
+public import Mathlib.Data.Real.Basic
+public import InformationTheory.Coding.KraftNatural
 
 import Mathlib.Tactic.Linarith
 import Mathlib.Tactic.NormNum
-
-import InformationTheory.Coding.KraftNatural
 
 /-!
 # Generalized Kraft Inequality for Monoids
@@ -43,6 +44,8 @@ to obtain results for real-valued weights.
 
 * McMillan, B. (1956), "Two inequalities implied by unique decipherability"
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 

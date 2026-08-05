@@ -3,19 +3,16 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Data.List.Basic
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Real.Basic
-import Mathlib.Order.Filter.Tendsto
-import Mathlib.Algebra.BigOperators.Pi
-import Mathlib.Analysis.SpecificLimits.Normed
+module
 
-import Mathlib.Tactic.NormNum
-import Mathlib.Tactic.Linarith
-
-import Mathlib.InformationTheory.Coding.UniquelyDecodable
-import Mathlib.InformationTheory.Coding.KraftMcMillan
-import InformationTheory.Coding.PrefixFree
+public import Mathlib.Algebra.BigOperators.Pi
+public import Mathlib.Analysis.SpecificLimits.Normed
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.List.Basic
+public import Mathlib.Data.Real.Basic
+public import Mathlib.InformationTheory.Coding.KraftMcMillan
+public import Mathlib.InformationTheory.Coding.UniquelyDecodable
+public import InformationTheory.Coding.PrefixFree
 
 /-!
 # Kraft's Inequality
@@ -36,6 +33,8 @@ This file proves Kraft's inequality for prefix-free codes over finite alphabets.
 
 * Cover & Thomas, *Elements of Information Theory*, Chapter 5
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 

@@ -3,11 +3,12 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
+module
+
+public import Mathlib.Data.Fin.Basic
+public import Mathlib.Data.List.Basic
 import Mathlib.Data.Nat.Digits.Defs
 import Mathlib.Data.Nat.Digits.Lemmas
-import Mathlib.Data.List.Basic
-import Mathlib.Data.Fin.Basic
-
 import InformationTheory.Coding.ConstructionHelpers.Helpers
 
 namespace InformationTheory
@@ -222,13 +223,13 @@ end BE
 /- ========== PUBLIC API ========== -/
 
 /-- Fixed-width, MSB-first digits of `n` base `D`, as `Fin D`. -/
-def kraftCodeword {D: ℕ} (hD : 1 < D) (n width : ℕ) : List (Fin D) :=
+public def kraftCodeword {D: ℕ} (hD : 1 < D) (n width : ℕ) : List (Fin D) :=
   (digitsBE_fixed D n width).pmap
     (fun d hd => ⟨d, hd⟩)
     (fun _ hd => digitsBE_fixed_lt_base hD hd)
 
 @[simp]
-lemma kraftCodeword_length {D: ℕ} (hD : 1 < D) (n width : ℕ) :
+public lemma kraftCodeword_length {D: ℕ} (hD : 1 < D) (n width : ℕ) :
     (kraftCodeword hD n width).length = width := by
   simp [kraftCodeword, digitsBE_fixed_length]
 
@@ -259,7 +260,7 @@ private lemma kraftCodeword_map_val {D: ℕ} (n width : ℕ) (hD : 1 < D) :
       exact digitsBE_fixed_lt_base hD hd)
 
 /-- Prefix characterization (MSB-first): prefix iff quotient agrees. -/
-lemma kraftCodeword_prefix_iff_div
+public lemma kraftCodeword_prefix_iff_div
   {D n m w v : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^v) :
   kraftCodeword hD n w <+: kraftCodeword hD m v
@@ -270,7 +271,7 @@ lemma kraftCodeword_prefix_iff_div
   exact digitsBE_fixed_prefix_iff_div hD hn hm
 
 /-- Injectivity under the Kraft bound `n,m < D^w`. -/
-lemma kraftCodeword_inj
+public lemma kraftCodeword_inj
   {D n m w : ℕ} (hD : 1 < D)
   (hn : n < D^w) (hm : m < D^w)
   (h : kraftCodeword hD n w = kraftCodeword hD m w) :

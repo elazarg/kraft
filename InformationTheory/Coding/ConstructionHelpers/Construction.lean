@@ -3,20 +3,21 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Data.Real.Basic
-import Mathlib.Data.Finite.Defs
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Set.Finite.Basic
-import Mathlib.Order.Hom.Basic
-import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Topology.Algebra.InfiniteSum.Defs
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
-import Mathlib.Order.Interval.Finset.Nat
+module
+
+public import Mathlib.Algebra.BigOperators.Fin
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.Data.Finite.Defs
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.Real.Basic
+public import Mathlib.Data.Set.Finite.Basic
+public import Mathlib.Order.Hom.Basic
+public import Mathlib.Order.Interval.Finset.Nat
+public import Mathlib.Topology.Algebra.InfiniteSum.Defs
+public import InformationTheory.Coding.ConstructionHelpers.Sum
 
 import Mathlib.Tactic.FieldSimp
 import Mathlib.Tactic.Linarith
-
-import InformationTheory.Coding.ConstructionHelpers.Sum
 
 /-!
 # Kraft Code Construction
@@ -36,6 +37,8 @@ satisfying Kraft's inequality (converse direction).
 * `exists_equiv_nat_monotone_of_infinite`: Reorders an infinite type to make lengths monotone.
 * `exists_equiv_fin_monotone`: Reorders a finite type to make lengths monotone.
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 
