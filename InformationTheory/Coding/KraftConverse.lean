@@ -165,25 +165,25 @@ private lemma transport_code
       PrefixFree (Set.range (fun j : J => (w (e j)).map f)) := by
   constructor
   · -- Injective
-    intro j1 j2 hj
+    intro j₁ j₂ hj
     -- cancel `List.map f`
-    have hw : w (e j1) = w (e j2) :=
+    have hw : w (e j₁) = w (e j₂) :=
       (List.map_injective_iff.mpr f.injective) hj
     -- cancel `w`
-    have he : e j1 = e j2 := hw_inj hw
+    have he : e j₁ = e j₂ := hw_inj hw
     -- cancel `e.symm`
     exact e.injective he
 
   · -- PrefixFree
     intro x hx y hy hpre
-    rcases hx with ⟨j1, rfl⟩
-    rcases hy with ⟨j2, rfl⟩
+    rcases hx with ⟨j₁, rfl⟩
+    rcases hy with ⟨j₂, rfl⟩
     -- pull prefix back through `map f`
-    have hpre' : w (e j1) <+: w (e j2) :=
+    have hpre' : w (e j₁) <+: w (e j₂) :=
       (List.IsPrefix.map_iff f.injective).1 hpre
     -- apply prefix-freeness of the original range
-    have hw_eq : w (e j1) = w (e j2) :=
-      hw_pf _ ⟨e j1, rfl⟩ _ ⟨e j2, rfl⟩ hpre'
+    have hw_eq : w (e j₁) = w (e j₂) :=
+      hw_pf _ ⟨e j₁, rfl⟩ _ ⟨e j₂, rfl⟩ hpre'
     -- push equality forward
     simp [hw_eq]
 
@@ -237,12 +237,12 @@ theorem exists_code_fin
   have h_sumNat : (∑ i : Fin k, (1 / D : ℝ) ^ lNat i.val) ≤ 1 := by
     simpa [lNat] using h_sum
 
-  -- 2) define A0 on ℕ and restrict it to Fin k
-  let A0 : ℕ → ℕ := kraftNumerator D lNat
-  have hA0_strict : StrictMono A0 := by
-    simpa [A0] using (kraftNumerator.strictMono (l:=lNat) hD)
+  -- 2) define A₀ on ℕ and restrict it to Fin k
+  let A₀ : ℕ → ℕ := kraftNumerator D lNat
+  have hA0_strict : StrictMono A₀ := by
+    simpa [A₀] using (kraftNumerator.strictMono (l:=lNat) hD)
 
-  let AFin : Fin k → ℕ := fun i => A0 i.val
+  let AFin : Fin k → ℕ := fun i => A₀ i.val
 
   -- 3) bound on AFin
   have hAFin_bound : ∀ i : Fin k, AFin i < D ^ l i := by
@@ -250,8 +250,8 @@ theorem exists_code_fin
     have h_pref_lt1 :
         (∑ t ∈ Finset.range i.val, (1 / D : ℝ) ^ lNat t) < 1 :=
       prefix_sum_lt_one_of_fin_sum_le_one hD h_sumNat i
-    -- this gives: A0 i.val < D ^ lNat i.val; rewrite lNat i.val = l i
-    simpa [AFin, A0, lNat] using
+    -- this gives: A₀ i.val < D ^ lNat i.val; rewrite lNat i.val = l i
+    simpa [AFin, A₀, lNat] using
       (kraftNumerator.lt_pow_of_sum_range_lt_one hD hmonoNat h_pref_lt1)
 
   -- 4) injectivity of AFin
@@ -266,13 +266,13 @@ theorem exists_code_fin
         ¬ (l i ≤ l j ∧ AFin j / D ^ (l j - l i) = AFin i) := by
     intro i j hij
     rcases lt_trichotomy i.val j.val with hlt | heq | hgt
-    · -- i.val < j.val: use separation on ℕ for A0 = kraftNumerator D lNat
+    · -- i.val < j.val: use separation on ℕ for A₀ = kraftNumerator D lNat
       have hsepNat :
           ¬ (lNat i.val ≤ lNat j.val ∧
-              A0 j.val / D ^ (lNat j.val - lNat i.val) = A0 i.val) :=
+              A₀ j.val / D ^ (lNat j.val - lNat i.val) = A₀ i.val) :=
         kraftNumerator.div_separated_of_lt (D:=D) (l:=lNat) hD hmonoNat hlt
-      -- rewrite lNat back to l on indices < k, and AFin/A0
-      simpa [AFin, A0, lNat, extShift, i.isLt, j.isLt] using hsepNat
+      -- rewrite lNat back to l on indices < k, and AFin/A₀
+      simpa [AFin, A₀, lNat, extShift, i.isLt, j.isLt] using hsepNat
     · exact (hij (Fin.ext heq)).elim
     · -- i.val > j.val: monotone forces equal lengths, then strictMono contradicts i≠j
       rintro ⟨hle, hdiv⟩

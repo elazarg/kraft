@@ -172,8 +172,8 @@ private lemma digitsBE_fixed_prefix_iff_div
       have hlenA : (digitsBE_fixed D n w).length = w := digitsBE_fixed_length D n w
       -- rewrite, then simplify
       -- `List.take_append` is the standard lemma:
-      -- `take n (l1++l2) = take n l1 ++ take (n-l1.length) l2`.
-      -- With `n = l1.length`, it collapses to `l1`.
+      -- `take n (l₁++l₂) = take n l₁ ++ take (n-l₁.length) l₂`.
+      -- With `n = l₁.length`, it collapses to `l₁`.
       calc
         (digitsBE_fixed D m v).take w
             = ((digitsBE_fixed D n w) ++ t).take w := by simp [ht]

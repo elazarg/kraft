@@ -546,12 +546,12 @@ lemma exists_equiv_fin_monotone {I : Type*} [Fintype I] (l : I → ℕ) :
     -- card (Fin ys.length) = ys.length = card I
     simp [Fintype.card_fin, ys_len]
 
-  let e0 : Fin ys.length ≃ I := Equiv.ofBijective f hf_bij
+  let e₀ : Fin ys.length ≃ I := Equiv.ofBijective f hf_bij
   -- cast domain from `Fin (card I)` to `Fin ys.length`
   have hcast : Fintype.card I = ys.length := by simp [ys_len]
   let cast : Fin (Fintype.card I) ≃ Fin ys.length := Fin.castOrderIso hcast
 
-  let e : Fin (Fintype.card I) ≃ I := cast.trans e0
+  let e : Fin (Fintype.card I) ≃ I := cast.trans e₀
   refine ⟨e, ?_⟩
 
   -- monotone: i ≤ j ⇒ l(e i) ≤ l(e j)
@@ -563,8 +563,8 @@ lemma exists_equiv_fin_monotone {I : Type*} [Fintype I] (l : I → ℕ) :
         l (ys.get (cast i)) ≤ l (ys.get (cast j)) := by
       have hPW := List.pairwise_iff_get.1 ys_pairwise
       exact hPW (cast i) (cast j) hlt
-    -- unfold e = cast.trans e0, and e0 is built from `f = get`
-    simpa [e, cast, e0, Equiv.ofBijective, f] using hget
+    -- unfold e = cast.trans e₀, and e₀ is built from `f = get`
+    simpa [e, cast, e₀, Equiv.ofBijective, f] using hget
   · -- equal indices
     simp [e, heq]
 
