@@ -3,22 +3,23 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Data.List.Basic
-import Mathlib.Data.Real.Basic
-import Mathlib.Data.Set.Basic
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Fintype.Card
-import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Algebra.BigOperators.Field
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
-import Mathlib.Analysis.SpecificLimits.Normed
+module
 
-import InformationTheory.Coding.PrefixFree
-import InformationTheory.Coding.ConstructionHelpers.Codeword
-import InformationTheory.Coding.ConstructionHelpers.Construction
-import InformationTheory.Coding.ConstructionHelpers.ExtShift
+public import Mathlib.Algebra.BigOperators.Fin
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.Data.Fintype.Card
+public import Mathlib.Data.List.Basic
+public import Mathlib.Data.Real.Basic
+public import Mathlib.Data.Set.Basic
+public import InformationTheory.Coding.ConstructionHelpers.Codeword
+public import InformationTheory.Coding.ConstructionHelpers.Construction
+public import InformationTheory.Coding.ConstructionHelpers.ExtShift
+public import InformationTheory.Coding.PrefixFree
+
+import Mathlib.Algebra.BigOperators.Field
+import Mathlib.Analysis.SpecificLimits.Normed
+import Mathlib.Data.Finset.Basic
 import InformationTheory.Coding.ConstructionHelpers.Helpers
-import Mathlib.InformationTheory.Coding.KraftMcMillan
 
 /-!
 # Constructive Converse of Kraft's Inequality
@@ -49,6 +50,8 @@ the Kraft condition, a prefix-free code with those lengths exists.
 - `exists_code_fin`: The converse for `l : Fin k → ℕ`.
 - `exists_code`: The master theorem for arbitrary types.
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 

@@ -3,16 +3,17 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Analysis.SpecialFunctions.Log.Base
-import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
-import Mathlib.MeasureTheory.Measure.Count
-import Mathlib.MeasureTheory.Measure.LogLikelihoodRatio
-import Mathlib.MeasureTheory.Measure.WithDensity
-import Mathlib.InformationTheory.KullbackLeibler.Basic
+module
 
-import InformationTheory.Coding.Kraft
+public import Mathlib.Analysis.SpecialFunctions.Log.Base
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
+public import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.InformationTheory.KullbackLeibler.Basic
+public import Mathlib.MeasureTheory.Measure.Count
+public import Mathlib.MeasureTheory.Measure.LogLikelihoodRatio
+public import Mathlib.MeasureTheory.Measure.WithDensity
+public import InformationTheory.Coding.Kraft
 
 /-!
 # Source Coding Lower Bound
@@ -47,6 +48,8 @@ drop this term in the final inequality.
 
 * Cover & Thomas, *Elements of Information Theory*, Chapter 5
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 
