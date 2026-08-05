@@ -50,7 +50,7 @@ drop this term in the final inequality.
 
 namespace InformationTheory
 
-open scoped BigOperators ENNReal
+open scoped ENNReal
 open MeasureTheory Real Set
 
 section DiscreteKL
@@ -104,14 +104,16 @@ lemma integral_llr_pmfMeasure {p q : I → ℝ}
         (ENNReal.ofReal (q i))⁻¹ * (ENNReal.ofReal (p i)) := by
     have hf : AEMeasurable (fun i => ENNReal.ofReal (q i)) ρ :=
       (Measurable.of_discrete : Measurable (fun i : I => ENNReal.ofReal (q i))).aemeasurable
-    have h := Measure.rnDeriv_withDensity_right (μ := μ) (ν := ρ) hf (by simp [ρ]; grind) (by simp [ρ])
+    have h := Measure.rnDeriv_withDensity_right (μ := μ) (ν := ρ) hf
+      (by simp [ρ]; grind) (by simp [ρ])
     filter_upwards [h, h_rn_μρ] with i hi hip
     simpa [ν, pmfMeasure, hip] using hi
 
   have h_llr :
       llr μ ν  =ᵐ[μ] fun i => log (p i / q i) := by
     filter_upwards [hμρ h_rn_μν_ρ] with i hi
-    simp [MeasureTheory.llr_def, hi, div_eq_mul_inv, le_of_lt (hp_pos i), le_of_lt (hq_pos i), CommMonoid.mul_comm]
+    simp [MeasureTheory.llr_def, hi, div_eq_mul_inv, le_of_lt (hp_pos i), le_of_lt (hq_pos i),
+      CommMonoid.mul_comm]
 
   calc
     (∫ x, llr μ ν x ∂μ)

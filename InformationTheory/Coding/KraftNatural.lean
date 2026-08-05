@@ -25,7 +25,6 @@ decodable codes over natural number lists.
 
 namespace InformationTheory
 
-open scoped BigOperators
 
 private lemma sum_sub_eq_card_mul_sub_sum
     {ι : Type*} [Fintype ι] [DecidableEq ι]

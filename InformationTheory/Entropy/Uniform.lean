@@ -8,11 +8,11 @@ import InformationTheory.Coding.SourceCodingLowerBound
 /-!
 # Maximum-entropy attainment on the uniform law
 
-This file records the max-entropy attainment fact underlying `InformationTheory.entropy_le_logb_card`
-(which only bounds entropy above by `logb D (Fintype.card I)`, without exhibiting a law that
-attains it): the uniform law on a nonempty finite type attains exactly that bound, and `T` fresh
-independent uniform draws carry entropy growing exactly linearly in `T`, without any horizon-free
-cap.
+This file records the max-entropy attainment fact underlying
+`InformationTheory.entropy_le_logb_card` (which only bounds entropy above by
+`logb D (Fintype.card I)`, without exhibiting a law that attains it): the uniform law on a
+nonempty finite type attains exactly that bound, and `T` fresh independent uniform draws carry
+entropy growing exactly linearly in `T`, without any horizon-free cap.
 
 Ported from the GameTheory experiments layer (probe E57, verified 2026-08-05), consolidating
 previously duplicated local definitions. This file deliberately does **not** port the

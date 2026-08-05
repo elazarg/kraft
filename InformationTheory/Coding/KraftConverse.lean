@@ -33,13 +33,15 @@ the Kraft condition, a prefix-free code with those lengths exists.
    It constructs integer intervals and converts them to base-`D` digits.
 
 2. **Concrete Theorems (`Nat` and `Fin`)**:
-   - **Infinite (`ℕ`)**: Reduces `∑' ≤ 1` to the strict prefix condition (since adding a term to a prefix ≥ 1 would exceed 1).
-   - **Finite (`Fin k`)**: The most delicate case. A sum of *exactly* 1 cannot be extended to an infinite series
-     without exceeding 1. We handle this by extending the lengths to `ℕ` (via `ExtShift`),
-     running the core engine, and restricting back to `Fin k`.
+   - **Infinite (`ℕ`)**: Reduces `∑' ≤ 1` to the strict prefix condition (since adding a term to
+     a prefix ≥ 1 would exceed 1).
+   - **Finite (`Fin k`)**: The most delicate case. A sum of *exactly* 1 cannot be extended to an
+     infinite series without exceeding 1. We handle this by extending the lengths to `ℕ` (via
+     `ExtShift`), running the core engine, and restricting back to `Fin k`.
 
 3. **General API (`General`)**:
-   Wrappers that accept arbitrary index types (via equivalence to `ℕ` or `Fin k`) and arbitrary alphabets.
+   Wrappers that accept arbitrary index types (via equivalence to `ℕ` or `Fin k`) and arbitrary
+   alphabets.
 
 ## Main Results
 
@@ -50,7 +52,7 @@ the Kraft condition, a prefix-free code with those lengths exists.
 
 namespace InformationTheory
 
-open scoped BigOperators Real
+open scoped Real
 open Nat
 
 variable {D : ℕ}
@@ -209,7 +211,8 @@ section Fin
 /-- The converse for **finite** sequences (`Fin k`).
 This handles the tight boundary case where `∑ = 1`. We cannot simply embed into `ℕ` and use
 the infinite theorem because extending a sum of 1 with zeroes is impossible for `D > 1`.
-Instead, we extend the length sequence to `ℕ` artificially, run the construction, and restrict back. -/
+Instead, we extend the length sequence to `ℕ` artificially, run the construction, and restrict
+back. -/
 theorem exists_code_fin
     (hD : 1 < D) {k : ℕ}
     {l : Fin k → ℕ} (h_mono : Monotone l)

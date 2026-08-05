@@ -257,7 +257,8 @@ public lemma kraft_inequality_of_injective'
   exact (lt_irrefl ((K : ℝ) ^ r_large)) (lt_of_le_of_lt h_le_real h_strict_real)
 
 
-/-- Kraft inequality for an arbitrary multiplicative weight dominated by the canonical exponential weight.
+/-- Kraft inequality for an arbitrary multiplicative weight dominated by the canonical
+exponential weight.
 
 This is a convenience wrapper around `kraft_inequality_of_injective'` that avoids constructing
 a `WeightModel` explicitly: given `μ : M →* ℝ` and a cost `ℓ : M → ℕ` with

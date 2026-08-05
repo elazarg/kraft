@@ -39,7 +39,7 @@ satisfying Kraft's inequality (converse direction).
 
 namespace InformationTheory
 
-open scoped BigOperators Real
+open scoped Real
 
 section Numerator
 /-- Generalized interval start function for constructing prefix-free codes over alphabet of size D.
@@ -58,10 +58,12 @@ lemma kraftNumerator.div_pow_eq_sum {D : ℕ} (hD : 1 < D) {l : ℕ → ℕ} (h_
   have hD_pos : (0 : ℝ) < D := by exact_mod_cast Nat.zero_lt_of_lt hD
   have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos
   induction n with
-  | zero => simp only [kraftNumerator, CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
+  | zero =>
+    simp only [kraftNumerator, CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
   | succ n ih =>
     simp only [one_div, inv_pow, Finset.sum_range_succ]
-    have h_sub : (kraftNumerator D l (n + 1) : ℝ) = (kraftNumerator D l n + 1) * D ^ (l (n + 1) - l n) := by
+    have h_sub :
+        (kraftNumerator D l (n + 1) : ℝ) = (kraftNumerator D l n + 1) * D ^ (l (n + 1) - l n) := by
       simp only [kraftNumerator, Nat.cast_mul, Nat.cast_add, Nat.cast_one, Nat.cast_pow]
     rw [h_sub]
     simp_all only [one_div, inv_pow]
@@ -388,7 +390,8 @@ lemma kraftRank_surjective {I : Type*} [Infinite I] (l : I → ℕ) (e : I ↪ �
     · rfl
     · exact absurd hij (Nat.ne_of_gt (kraftRank_lt_of_KraftOrder l e h_finite h))
   -- The range is an initial segment: if n is in range, so is every m < n
-  have h_initial : ∀ n, (∃ i, kraftRank l e h_finite i = n) → ∀ m < n, ∃ i, kraftRank l e h_finite i = m := by
+  have h_initial :
+      ∀ n, (∃ i, kraftRank l e h_finite i = n) → ∀ m < n, ∃ i, kraftRank l e h_finite i = m := by
     intro n ⟨i, hi⟩ m hm
     -- The image of {j | j < i} under kraftRank is exactly {0, ..., n-1}
     have h_image : Finset.image (kraftRank l e h_finite)
@@ -425,7 +428,8 @@ lemma kraftRank_injective {I : Type*} (l : I → ℕ) (e : I ↪ ℕ)
     (h_finite : ∀ k, {i | l i = k}.Finite) :
     Function.Injective (kraftRank l e h_finite) := by
   intro i j hij
-  rcases ((KraftOrder_isStrictTotalOrder l e).toTrichotomous.rel_or_eq_or_rel_swap (a := i) (b := j)) with h | rfl | h
+  rcases ((KraftOrder_isStrictTotalOrder l e).toTrichotomous.rel_or_eq_or_rel_swap
+      (a := i) (b := j)) with h | rfl | h
   · exact absurd hij (Nat.ne_of_lt (kraftRank_lt_of_KraftOrder l e h_finite h))
   · rfl
   · exact absurd hij (Nat.ne_of_gt (kraftRank_lt_of_KraftOrder l e h_finite h))
@@ -452,14 +456,15 @@ This reduces the infinite case to the monotone case by using `kraftRank` to enum
 elements in increasing order of length.
 
 Generalized to any base D > 1. -/
-lemma exists_equiv_nat_monotone_of_infinite {I : Type*} [Infinite I] {D : ℕ} (hD : 1 < D) {l : I → ℕ}
-    (h_summable : Summable (fun i => (1 / D : ℝ) ^ l i)) :
+lemma exists_equiv_nat_monotone_of_infinite {I : Type*} [Infinite I] {D : ℕ} (hD : 1 < D)
+    {l : I → ℕ} (h_summable : Summable (fun i => (1 / D : ℝ) ^ l i)) :
     ∃ e : ℕ ≃ I, Monotone (l ∘ e) := by
       have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
       have h_countable : Countable I := by
         have := h_summable.countable_support
         simp only [one_div, Function.support, ne_eq, inv_eq_zero, pow_eq_zero_iff',
-                   Nat.cast_eq_zero, Nat.pos_iff_ne_zero.mp hD_pos, false_and, not_false_eq_true] at this
+                   Nat.cast_eq_zero, Nat.pos_iff_ne_zero.mp hD_pos, false_and,
+                   not_false_eq_true] at this
         exact Set.countable_univ_iff.mp this
       -- Let `e = Encodable.encode`.
       obtain ⟨e, he⟩ : ∃ e : I ↪ ℕ, True := by
@@ -491,7 +496,8 @@ lemma exists_equiv_nat_monotone_of_infinite {I : Type*} [Infinite I] {D : ℕ} (
       have h_bij : Function.Bijective (kraftRank l e h_finite) := by
         exact ⟨ kraftRank_injective l e h_finite, kraftRank_surjective l e h_finite ⟩
       obtain ⟨e_iso, he_iso⟩ : ∃ e_iso : ℕ ≃ I, ∀ n, kraftRank l e h_finite (e_iso n) = n := by
-        exact ⟨ Equiv.symm (Equiv.ofBijective _ h_bij), fun n => Equiv.apply_symm_apply (Equiv.ofBijective _ h_bij) n ⟩
+        exact ⟨Equiv.symm (Equiv.ofBijective _ h_bij),
+          fun n => Equiv.apply_symm_apply (Equiv.ofBijective _ h_bij) n⟩
       refine ⟨e_iso, fun n m hnm => ?_⟩
       contrapose! hnm
       have := kraftRank_lt_of_KraftOrder l e h_finite (KraftOrder_iff.mpr (Or.inl hnm))

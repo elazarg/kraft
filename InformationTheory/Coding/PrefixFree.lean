@@ -43,7 +43,8 @@ def PrefixFree (S : Set (List α)) : Prop :=
 
 /-- If a prefix-free set contains the empty string, it must be the singleton `{[]}`.
 
-The empty string is a prefix of every string, so prefix-freeness forces all elements to equal `[]`. -/
+The empty string is a prefix of every string, so prefix-freeness forces all elements to equal
+`[]`. -/
 lemma PrefixFree.epsilon_singleton {S : Set (List α)} (hS : PrefixFree S) :
     [] ∈ S → S = {[]} := by
   intro h_nil
@@ -71,7 +72,8 @@ theorem PrefixFree.uniquely_decodable
     (h0 : [] ∉ S)
     (hS : PrefixFree S) :
     UniquelyDecodable S := by
-  -- We prove that for any two lists of codewords L₁ and L₂, if they flatten to the same string, they are identical.
+  -- We prove that for any two lists of codewords L₁ and L₂, if they flatten to the same string,
+  -- they are identical.
   intro L₁ L₂ hL₁ hL₂ hflatten
 
   -- Structural induction on L₁ generalizing L₂ handles the "peeling off" logic automatically.

@@ -60,8 +60,6 @@ reuses); `InformationTheory.Divergence.Pinsker.miss_add_falseAlarm_ge`, the test
 
 namespace InformationTheory
 
-open scoped Classical
-
 /-! ## The two-factor tensorization identity -/
 
 /-- Termwise engine of `klFin_prod_two`: for termwise absolute continuity
@@ -326,6 +324,7 @@ theorem pathBudget {I : Type*} [Fintype I] (T : ℕ) (r s : Fin T → I → ℝ)
 
 /-! ## The detection-fence corollary -/
 
+open scoped Classical in
 /-- **The finite-horizon linear-debt/quadratic-information detection fence.** Composing
 `pathBudget` with `InformationTheory.Divergence.Pinsker.miss_add_falseAlarm_ge` via `Real.exp`
 antitonicity: for every rejection region `A`, false alarm under the prescribed (base) product law

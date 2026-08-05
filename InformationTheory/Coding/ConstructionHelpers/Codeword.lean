@@ -133,7 +133,8 @@ private lemma digitsLE_fixed_drop_eq_div
       Nat.ofDigits D ((digitsLE_fixed D m v).drop (v-w))
           = Nat.ofDigits D (digitsLE_fixed D m v) / D^(v-w) := h_ofDigits_L
       _   = m / D^(v-w) := by simp [ofDigits_digitsLE_fixed hD hm]
-      _   = Nat.ofDigits D (digitsLE_fixed D (m / D^(v-w)) w) := by simp [ofDigits_digitsLE_fixed hD hq]
+      _   = Nat.ofDigits D (digitsLE_fixed D (m / D^(v-w)) w) := by
+              simp [ofDigits_digitsLE_fixed hD hq]
 
 /-- BE bridge: taking `w` MSB digits corresponds to dividing by `D^(v-w)`. -/
 private lemma digitsBE_fixed_take_eq_div
@@ -169,7 +170,8 @@ private lemma digitsBE_fixed_prefix_iff_div
       -- `take w (A ++ t) = A` when `A.length = w`.
       have hlenA : (digitsBE_fixed D n w).length = w := digitsBE_fixed_length D n w
       -- rewrite, then simplify
-      -- `List.take_append` is the standard lemma: `take n (l1++l2) = take n l1 ++ take (n-l1.length) l2`.
+      -- `List.take_append` is the standard lemma:
+      -- `take n (l1++l2) = take n l1 ++ take (n-l1.length) l2`.
       -- With `n = l1.length`, it collapses to `l1`.
       calc
         (digitsBE_fixed D m v).take w
