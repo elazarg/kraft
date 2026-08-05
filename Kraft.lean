@@ -3,19 +3,21 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.InformationTheory.Coding.UniquelyDecodable
-import Mathlib.InformationTheory.Coding.KraftMcMillan
-import InformationTheory.Coding.PrefixFree
-import InformationTheory.Coding.Kraft
-import InformationTheory.Coding.KraftConverse
-import InformationTheory.Coding.KraftNatural
-import InformationTheory.Coding.KraftGeneralized
-import InformationTheory.Coding.Example
-import InformationTheory.Coding.SourceCodingLowerBound
-import InformationTheory.Entropy.ConditionalEntropy
-import InformationTheory.Divergence.Basic
-import InformationTheory.Divergence.Binary
-import InformationTheory.Divergence.ChainRule
-import InformationTheory.Divergence.Pinsker
-import InformationTheory.Divergence.Tensorization
-import InformationTheory.Entropy.Uniform
+module
+
+public import Mathlib.InformationTheory.Coding.KraftMcMillan
+public import Mathlib.InformationTheory.Coding.UniquelyDecodable
+public import InformationTheory.Coding.Example
+public import InformationTheory.Coding.Kraft
+public import InformationTheory.Coding.KraftConverse
+public import InformationTheory.Coding.KraftGeneralized
+public import InformationTheory.Coding.KraftNatural
+public import InformationTheory.Coding.PrefixFree
+public import InformationTheory.Coding.SourceCodingLowerBound
+public import InformationTheory.Divergence.Basic
+public import InformationTheory.Divergence.Binary
+public import InformationTheory.Divergence.ChainRule
+public import InformationTheory.Divergence.Pinsker
+public import InformationTheory.Divergence.Tensorization
+public import InformationTheory.Entropy.ConditionalEntropy
+public import InformationTheory.Entropy.Uniform

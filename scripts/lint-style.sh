@@ -66,11 +66,16 @@ for f in $files; do
   fi
 done
 
-# 9. `module` header coverage: informational only until Mathlibify.md Phase 2 completes,
-#    then this should become a hard gate (flip the check below to `fail=1` on any miss).
+# 9. `module` header coverage (Mathlibify.md Phase 2, completed): now a hard gate.
 total=$(echo "$files" | wc -w)
 withmod=$(grep -l '^module' $files 2>/dev/null | wc -l)
-echo "module-header coverage: $withmod/$total files (informational until Phase 2 is done)"
+if [ "$withmod" -ne "$total" ]; then
+  for f in $files; do
+    [ -f "$f" ] || continue
+    grep -q '^module' "$f" || { echo "$f: missing 'module' header"; fail=1; }
+  done
+fi
+echo "module-header coverage: $withmod/$total files"
 
 if [ "$fail" -ne 0 ]; then
   echo "lint-style: FAILED"
