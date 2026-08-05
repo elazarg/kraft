@@ -97,19 +97,30 @@ was "deliberately left untouched" — i.e. queued exactly for this pass). Now
 `gibbs_sum_log_ratio_nonneg_of_ac` in `Entropy.Basic` is a two-line wrapper around
 `klFin_nonneg`. The measure-theoretic `gibbs_sum_log_ratio_nonneg` was *not* touched — see next.
 
-**The `klFin`/`klDiv` bridge lemma is still open — not yet done, and not just a delete.** The
-instinct after the reroute above is to drop `pmfMeasure` and `integral_llr_pmfMeasure`
-(`SourceCodingLowerBound.lean:93`) entirely, now that they're no longer feeding
-`gibbs_sum_log_ratio_nonneg_of_ac`. Don't: a reviewer will ask how `klFin` relates to
-mathlib's existing `InformationTheory.KullbackLeibler.klDiv`, and `integral_llr_pmfMeasure` is
-already most of the proof of exactly that compatibility lemma —
-`klFin p q = (klDiv (pmfMeasure p) (pmfMeasure q)).toReal` (or the finite-measure equivalent).
-Ship that bridge lemma in or immediately after PR 2. It turns "here's a second KL divergence
-definition" — precisely the "why do you need both" objection this plan already flags elsewhere
-— into "here's the finite/elementary API, linked to the measure-theoretic one you already have."
-The same pattern applies to `klBin`: state its relation to `klFin` restricted to `Fin 2`/`Bool`,
-and note the connection to mathlib's existing `Real.binEntropy` in the PR description (not
-necessarily as a proved lemma, but the reviewer will ask, so answer it up front).
+**The `klFin`/`klDiv` bridge lemma — done, 2026-08-05.** The instinct after the reroute above is
+to drop `pmfMeasure` and `integral_llr_pmfMeasure` entirely, now that they're no longer feeding
+`gibbs_sum_log_ratio_nonneg_of_ac`. That would have been a mistake: a reviewer will ask how
+`klFin` relates to mathlib's existing `InformationTheory.KullbackLeibler.klDiv`, and
+`integral_llr_pmfMeasure` was already most of the proof of exactly that compatibility lemma.
+Added `toReal_klDiv_pmfMeasure_eq_klFin` (`SourceCodingLowerBound.lean`, right after
+`integral_llr_pmfMeasure`): for strictly positive, normalized `p`, `q`,
+`(klDiv (pmfMeasure p) (pmfMeasure q)).toReal = klFin p q`, proved by combining
+`toReal_klDiv_of_measure_eq` (mathlib) with `integral_llr_pmfMeasure` — a four-line proof, since
+the two pieces were already sitting side by side. `gibbs_sum_log_ratio_nonneg` itself is now a
+two-line corollary of this bridge plus mathlib's `0 ≤ (klDiv _ _).toReal`, rather than an
+independent proof reaching the same conclusion by the same route a second time. This turns
+"here's a second KL divergence definition" — precisely the "why do you need both" objection this
+plan already flags elsewhere — into "here's the finite/elementary API, linked to the
+measure-theoretic one you already have."
+
+**The `klBin`/`Real.binEntropy` note — still just a note, correctly.** Checked
+`Real.binEntropy`'s actual definition (`Mathlib.Analysis.SpecialFunctions.BinaryEntropy`): it's
+the Shannon entropy of a Bernoulli law, `-p log p - (1-p) log(1-p)`, not a divergence — there is
+no clean equation directly relating it to `klBin` the way `klFin`/`klDiv` relate (entropy and
+KL divergence are different quantities; relating them needs a reference distribution, which
+`binEntropy` doesn't take). Confirms the original assessment: this stays a documentation note
+for the `Divergence.Binary` PR description ("here's the related mathlib definition, and here's
+why it's not the same thing"), not a lemma to force into existence.
 
 ## Proposed order
 

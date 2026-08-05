@@ -32,11 +32,15 @@ here; this file is genuinely just the source-coding-specific content built on to
 
 ## Main results
 
-* `gibbs_sum_log_ratio_nonneg`: The discrete Gibbs inequality via the measure-theoretic route
-  (`pmfMeasure`/`klDiv`), for strictly positive `p`, `q`: `∑ p(i) log(p(i)/q(i)) ≥ 0`. Kept
-  deliberately alongside `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` (the elementary,
-  zero-mass-tolerant proof in `Entropy.Basic`) as the bridge to mathlib's own measure-theoretic
-  `klDiv`, not as a redundant second proof.
+* `toReal_klDiv_pmfMeasure_eq_klFin`: **The bridge** between `InformationTheory.klFin`
+  (`Divergence.Basic`, the finite/elementary Kullback-Leibler divergence as a `Finset.sum`) and
+  mathlib's own measure-theoretic `klDiv`: for strictly positive, normalized `p`, `q`,
+  `(klDiv (pmfMeasure p) (pmfMeasure q)).toReal = klFin p q`. `klFin` is not a second,
+  independent KL divergence competing with mathlib's — it is `klDiv`'s finite special case,
+  connected here explicitly.
+* `gibbs_sum_log_ratio_nonneg`: The discrete Gibbs inequality via the measure-theoretic route,
+  for strictly positive `p`, `q`: `∑ p(i) log(p(i)/q(i)) ≥ 0`. Now a one-line corollary of the
+  bridge lemma above plus mathlib's nonnegativity of `klDiv.toReal`.
 * `source_coding_lower_bound`: For any uniquely decodable code over an alphabet of size `D`,
   the expected codeword length is at least the entropy: `H_D(p) ≤ E[L]`.
 
@@ -146,28 +150,39 @@ lemma pmfMeasure_univ_eq_of_sum_eq_one {p : I → ℝ}
           simpa using (ENNReal.ofReal_sum_of_nonneg (fun i _ => hp_nonneg i)).symm
     _ = 1 := by simp [hp_sum]
 
+/-- **The bridge between `klFin` and mathlib's measure-theoretic `klDiv`.** For strictly
+positive, normalized `p`, `q`, the finite/elementary `klFin` (`Divergence.Basic`) and the
+measure-theoretic `klDiv` applied to `pmfMeasure p`/`pmfMeasure q` agree. This is not a second,
+independent Kullback-Leibler divergence competing with mathlib's own: `klFin` is the finite
+special case of `klDiv`, connected here explicitly. Proved by combining
+`toReal_klDiv_of_measure_eq` (mathlib) with `integral_llr_pmfMeasure` above — the two pieces
+were already most of this proof, sitting side by side in `gibbs_sum_log_ratio_nonneg`. -/
+theorem toReal_klDiv_pmfMeasure_eq_klFin
+    {p q : I → ℝ}
+    (hp_pos : ∀ i, 0 < p i) (hp_sum : ∑ i, p i = 1)
+    (hq_pos : ∀ i, 0 < q i) (hq_sum : ∑ i, q i = 1) :
+    (klDiv (pmfMeasure p) (pmfMeasure q)).toReal = klFin p q := by
+  have hμν : pmfMeasure p ≪ pmfMeasure q := pmfMeasure_ac hq_pos
+  have hmass : pmfMeasure p univ = pmfMeasure q univ := by
+    have hμ : pmfMeasure p univ = 1 :=
+      pmfMeasure_univ_eq_of_sum_eq_one (fun i => le_of_lt (hp_pos i)) hp_sum
+    have hν : pmfMeasure q univ = 1 :=
+      pmfMeasure_univ_eq_of_sum_eq_one (fun i => le_of_lt (hq_pos i)) hq_sum
+    simp [hμ, hν]
+  rw [toReal_klDiv_of_measure_eq hμν hmass, integral_llr_pmfMeasure hp_pos hq_pos]
+  rfl
+
 /-- Finite Gibbs inequality for strictly positive pmfs.
-This is the bridge from the measure-theoretic `llr` lemma to a `Finset.sum` statement. -/
+This is the bridge from the measure-theoretic `llr` lemma to a `Finset.sum` statement. Now a
+one-line corollary of `toReal_klDiv_pmfMeasure_eq_klFin` plus mathlib's nonnegativity of
+`klDiv.toReal`, rather than an independent proof of the same fact. -/
 lemma gibbs_sum_log_ratio_nonneg
     {p q : I → ℝ}
     (hp_pos : ∀ i, 0 < p i) (hp_sum : ∑ i, p i = 1)
     (hq_pos : ∀ i, 0 < q i) (hq_sum : ∑ i, q i = 1) :
     0 ≤ ∑ i, p i * log (p i / q i) := by
-  let μ : Measure I := pmfMeasure p
-  let ν : Measure I := pmfMeasure q
-  have hμν : μ ≪ ν := pmfMeasure_ac hq_pos
-
-  have h_integral :
-      (∫ x, llr μ ν x ∂μ) = ∑ i, p i * log (p i / q i) :=
-    integral_llr_pmfMeasure hp_pos hq_pos
-
-  have hmass : μ univ = ν univ := by
-    have hμ : μ univ = 1 := pmfMeasure_univ_eq_of_sum_eq_one (fun i => le_of_lt (hp_pos i)) hp_sum
-    have hν : ν univ = 1 := pmfMeasure_univ_eq_of_sum_eq_one (fun i => le_of_lt (hq_pos i)) hq_sum
-    simp [hμ, hν]
-
-  have hk : 0 ≤ (klDiv μ ν).toReal := by simp
-  simpa [h_integral, toReal_klDiv_of_measure_eq hμν hmass] using hk
+  have hk : 0 ≤ (klDiv (pmfMeasure p) (pmfMeasure q)).toReal := by simp
+  rwa [toReal_klDiv_pmfMeasure_eq_klFin hp_pos hp_sum hq_pos hq_sum] at hk
 
 end DiscreteKL
 
