@@ -12,3 +12,4 @@ import InformationTheory.Coding.KraftNatural
 import InformationTheory.Coding.KraftGeneralized
 import InformationTheory.Coding.Example
 import InformationTheory.Coding.SourceCodingLowerBound
+import InformationTheory.Entropy.ConditionalEntropy
