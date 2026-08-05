@@ -3,12 +3,13 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Data.List.Basic
-import Mathlib.Data.Set.Basic
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Finset.Card
+module
 
-import Mathlib.InformationTheory.Coding.UniquelyDecodable
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.Finset.Card
+public import Mathlib.Data.List.Basic
+public import Mathlib.Data.Set.Basic
+public import Mathlib.InformationTheory.Coding.UniquelyDecodable
 
 /-!
 # Prefix-Free Codes
@@ -29,6 +30,8 @@ This file defines prefix-free codes and proves that they are uniquely decodable.
 * `PrefixFree.is_uniquely_decodable_of_card_ge_two`: Prefix-free codes with at least two
   codewords are uniquely decodable.
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 
