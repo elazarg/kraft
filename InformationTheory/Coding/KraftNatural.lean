@@ -3,12 +3,12 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Data.List.OfFn
-import Mathlib.Data.Finset.Basic
-import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Algebra.Order.BigOperators.Group.Finset
+module
 
-import Mathlib.Tactic.NormNum
+public import Mathlib.Algebra.BigOperators.Fin
+public import Mathlib.Algebra.Order.BigOperators.Group.Finset
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.List.OfFn
 
 /-!
 # McMillan's Counting Argument
@@ -23,8 +23,9 @@ decodable codes over natural number lists.
 * `card_pow_le_linear_mul_sum_pow_len_pow`: Relates tuple counts to Kraft sums.
 -/
 
-namespace InformationTheory
+@[expose] public section
 
+namespace InformationTheory
 
 private lemma sum_sub_eq_card_mul_sub_sum
     {ι : Type*} [Fintype ι] [DecidableEq ι]

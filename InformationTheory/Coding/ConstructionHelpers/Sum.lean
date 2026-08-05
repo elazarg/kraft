@@ -3,10 +3,12 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Algebra.BigOperators.Fin
-import Mathlib.Topology.Algebra.InfiniteSum.Defs
-import Mathlib.Analysis.SpecialFunctions.Pow.Real
-import Mathlib.Order.Interval.Finset.Nat
+module
+
+public import Mathlib.Algebra.BigOperators.Fin
+public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.Order.Interval.Finset.Nat
+public import Mathlib.Topology.Algebra.InfiniteSum.Defs
 
 /-!
 # Kraft Sum Helpers
@@ -22,7 +24,7 @@ This file provides helper lemmas for working with Kraft sums.
 * `prefix_sum_lt_one_of_fin_sum_le_one`: Variant for finite sums indexed by `Fin k`.
 -/
 
-section Sum
+@[expose] public section Sum
 
 /-- Helper: if a nonnegative series of length `k` sums to `≤ 1`,
 then every proper prefix sum is `< 1`. -/

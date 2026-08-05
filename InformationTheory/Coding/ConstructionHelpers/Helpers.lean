@@ -3,8 +3,10 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Data.List.Basic
-import Mathlib.Data.Finset.Basic
+module
+
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Data.List.Basic
 
 /-!
 # List and Finset Helpers
@@ -13,8 +15,11 @@ This file provides utility lemmas for lists, prefixes, and injective mappings.
 
 ## Main results
 
-* `List.IsPrefix.map_iff`: Mapping an injective function over lists preserves prefix relationships.
+* `List.IsPrefix.map_iff`: Mapping an injective function over lists preserves prefix
+  relationships.
 -/
+
+@[expose] public section
 
 open List
 

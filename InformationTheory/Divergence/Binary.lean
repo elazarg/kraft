@@ -3,9 +3,11 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Analysis.SpecialFunctions.Log.Basic
-import Mathlib.Analysis.SpecialFunctions.Log.Deriv
-import Mathlib.Analysis.Calculus.Deriv.MeanValue
+module
+
+public import Mathlib.Analysis.Calculus.Deriv.MeanValue
+public import Mathlib.Analysis.SpecialFunctions.Log.Basic
+public import Mathlib.Analysis.SpecialFunctions.Log.Deriv
 
 /-!
 # The quadratic information fence for binary KL divergence
@@ -52,6 +54,8 @@ argument can reuse it instead of carrying its own inlined copy.
 
 `experiments/BinaryKLQuadratic.lean` (probe E51).
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 

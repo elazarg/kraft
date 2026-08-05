@@ -3,10 +3,12 @@ Copyright (c) 2026 Elazar Gershuni. All rights reserved.
 Released under Apache 2.0 license as described in the file LICENSE.
 Authors: Elazar Gershuni
 -/
-import Mathlib.Data.Finset.Basic
-import Mathlib.Data.Fin.Basic
-import Mathlib.Order.Fin.Basic
-import Mathlib.Order.Monotone.Defs
+module
+
+public import Mathlib.Data.Fin.Basic
+public import Mathlib.Data.Finset.Basic
+public import Mathlib.Order.Fin.Basic
+public import Mathlib.Order.Monotone.Defs
 
 /-!
 # Extension of Finite Sequences
@@ -23,6 +25,8 @@ This file provides utilities for extending finite length sequences to infinite o
 * `ext_shift_monotone`: The extended sequence is monotone if the original is.
 * `ext_shift_apply_lt`: Alternative form of `ext_shift_eq` for natural number indices.
 -/
+
+@[expose] public section
 
 namespace InformationTheory
 
