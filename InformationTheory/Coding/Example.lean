@@ -36,8 +36,9 @@ gives the other direction).
 
 namespace InformationTheory
 
-variable {I : Type*} [Fintype I] [Nonempty I] {D : ℕ}
+variable {I : Type*} [Fintype I] {D : ℕ}
 
+omit [Fintype I] in
 /-- Shannon–Fano length assignment: `l(i) = ⌈ -log_D p(i) ⌉`. -/
 noncomputable def shannonFanoLength (p : I → ℝ) (i : I) : ℕ :=
   Nat.ceil (- Real.logb D (p i))
@@ -53,6 +54,9 @@ theorem exists_prefix_code_near_entropy
       PrefixFree (Set.range w) ∧
       expLength p w < entropy D p + 1 := by
   classical
+  letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
+    letI := hI
+    simp at hp_sum
   let l : I → ℕ := shannonFanoLength (D := D) p
 
   have hD_one_lt : 1 < (D : ℝ) := by exact_mod_cast hD

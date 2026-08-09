@@ -5,95 +5,64 @@ Authors: Elazar Gershuni
 -/
 module
 
-public import Mathlib.Algebra.BigOperators.Pi
-public import Mathlib.Analysis.SpecificLimits.Normed
-public import Mathlib.Data.Finset.Basic
-public import Mathlib.Data.List.Basic
-public import Mathlib.Data.Real.Basic
-public import Mathlib.InformationTheory.Coding.KraftMcMillan
-public import Mathlib.InformationTheory.Coding.UniquelyDecodable
 public import InformationTheory.Coding.PrefixFree
+public import Mathlib.Topology.Algebra.InfiniteSum.Real
+import Mathlib.InformationTheory.Coding.KraftMcMillan
 
 /-!
 # Kraft's Inequality
 
-This file proves Kraft's inequality for prefix-free codes over finite alphabets.
-
-## Main definitions
-
-* `kraftWeight`: The Kraft weight of a word `w` is `D^{-|w|}` where `D` is the alphabet size.
+This file proves Kraft's inequality for prefix-free codes over finite alphabets. The finite result
+is an immediate consequence of the Kraft–McMillan inequality; the result for arbitrary sets of
+codewords follows by bounding every finite partial sum.
 
 ## Main results
 
-* `kraft_inequality`: For a finite prefix-free code `S` over an alphabet of size `D`,
-  `∑_{w ∈ S} D^{-|w|} ≤ 1`.
-* `kraft_inequality_infinite`: Extension to infinite prefix-free codes via `tsum`.
+* `InformationTheory.kraft_inequality`: the Kraft sum of a finite prefix-free code is at most one.
+* `InformationTheory.summable_kraft_sum`: the Kraft sum of an arbitrary prefix-free code is
+  summable.
+* `InformationTheory.kraft_inequality_infinite`: the Kraft sum of an arbitrary prefix-free code
+  is at most one.
 
 ## References
 
-* Cover & Thomas, *Elements of Information Theory*, Chapter 5
+* Cover and Thomas, *Elements of Information Theory*, Chapter 5.
 -/
 
 @[expose] public section
 
 namespace InformationTheory
 
-variable {α : Type*} [DecidableEq α] [Fintype α] [Nonempty α]
+variable {α : Type*} [Fintype α] [Nonempty α]
 
-/-- The Kraft weight of a word `w` is `D^{-|w|}` where `D` is the alphabet size. -/
-noncomputable def kraftWeight (w : List α) : ℝ :=
-  (1 / (Fintype.card α : ℝ)) ^ w.length
+/-- **Kraft's inequality.** The Kraft sum of a finite prefix-free code is at most one. -/
+theorem kraft_inequality {S : Finset (List α)} (hS : PrefixFree (S : Set (List α))) :
+    ∑ w ∈ S, (1 / (Fintype.card α : ℝ)) ^ w.length ≤ 1 := by
+  by_cases hε : [] ∈ S
+  · have hS' : S = {[]} := by
+      exact_mod_cast hS.eq_singleton_empty_of_empty_mem hε
+    simp [hS']
+  · exact kraft_mcmillan_inequality (hS.uniquelyDecodable hε)
 
-/-- **Kraft's Inequality**: If `S` is a finite prefix-free code over an alphabet of size `D`,
-then `∑_{w ∈ S} D^{-|w|} ≤ 1`.
+private lemma sum_kraft_le_one {S : Set (List α)} (hS : PrefixFree S) (F : Finset S) :
+    ∑ w ∈ F, (1 / (Fintype.card α : ℝ)) ^ (w : List α).length ≤ 1 := by
+  classical
+  let T : Finset (List α) := F.image Subtype.val
+  have hTS : (T : Set (List α)) ⊆ S := by grind
+  calc
+    ∑ w ∈ F, (1 / (Fintype.card α : ℝ)) ^ (w : List α).length =
+        ∑ w ∈ T, (1 / (Fintype.card α : ℝ)) ^ w.length := by simp [T]
+    _ ≤ 1 := kraft_inequality (hS.mono hTS)
 
-This follows from the Kraft-McMillan inequality since prefix-free codes are uniquely decodable. -/
-theorem kraft_inequality {S : Finset (List α)} (h : PrefixFree (S : Set (List α))) :
-    ∑ w ∈ S, kraftWeight w ≤ 1 := by
-  unfold kraftWeight
-  by_cases he : [] ∈ S
-  · simp only [one_div, inv_pow]
-    have h_eq : S = {[]} := by
-      exact_mod_cast h.epsilon_singleton he
-    subst h_eq
-    simp only [Finset.sum_singleton, List.length_nil, pow_zero, inv_one, Std.le_refl]
-  · have hud : UniquelyDecodable (S : Set (List α)) :=
-      h.uniquely_decodable he
-    simpa using (kraft_mcmillan_inequality hud)
+/-- The Kraft sum of an arbitrary prefix-free code is summable. -/
+theorem summable_kraft_sum {S : Set (List α)} (hS : PrefixFree S) :
+    Summable (fun w : S ↦ (1 / (Fintype.card α : ℝ)) ^ (w : List α).length) :=
+  summable_of_sum_le (fun _ ↦ by positivity) (sum_kraft_le_one hS)
 
-/-- **Kraft's Inequality (Infinite)**: If `S` is a prefix-free code (possibly infinite),
-then the series `∑ D^{-|w|}` (a) converges and (b) its sum is at most 1.
-
-The proof shows that every finite subset satisfies the bound (by the finite Kraft inequality),
-which implies summability. The tsum bound then follows from summability. -/
-theorem kraft_inequality_infinite {S : Set (List α)} (h : PrefixFree S) :
-    HasSum (fun w : S => kraftWeight (w : List α))
-              (∑' w : S, kraftWeight (w : List α))
-            ∧ (∑' w : S, kraftWeight (w : List α)) ≤ 1 := by
-  -- Bound every finite partial sum
-  have h_bound :
-      ∀ (F : Finset S), (∑ w ∈ F, kraftWeight (w : List α)) ≤ 1 := by
-    intro F
-
-    let F_val : Finset (List α) := F.image Subtype.val
-
-    have h_subset : (F_val : Set (List α)) ⊆ S := by
-      intro x hx
-      rcases Finset.mem_image.mp hx with ⟨y, _, rfl⟩
-      exact y.property
-
-    -- Rewrite the sum over subtypes as a sum over values
-    have hsum : (∑ w ∈ F, kraftWeight (w : List α)) = ∑ x ∈ F_val, kraftWeight x := by
-      simp [F_val]
-
-    rw [hsum]
-    exact kraft_inequality (h.mono h_subset)
-
-  -- Prove summability using the finite bound
-  have h_summable : Summable (fun w : S => kraftWeight (w : List α)) :=
-    summable_of_sum_le (fun _ => by unfold kraftWeight; positivity) h_bound
-
-  -- Return HasSum (convergence) and the bound
-  exact ⟨h_summable.hasSum, h_summable.tsum_le_of_sum_le h_bound⟩
+/-- **Kraft's inequality for arbitrary codes.** The Kraft sum of an arbitrary prefix-free code is
+at most one. -/
+theorem kraft_inequality_infinite {S : Set (List α)} (hS : PrefixFree S) :
+    ∑' w : S, (1 / (Fintype.card α : ℝ)) ^ (w : List α).length ≤ 1 :=
+  (summable_kraft_sum hS).tsum_le_of_sum_le (sum_kraft_le_one hS)
 
 end InformationTheory

@@ -1,0 +1,432 @@
+\documentclass[11pt]{article}
+
+\usepackage[a4paper,margin=1in]{geometry}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+\usepackage{amsmath,amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{enumitem}
+\usepackage{xurl}
+
+\hypersetup{
+  colorlinks=true,
+  linkcolor=blue!50!black,
+  urlcolor=blue!50!black,
+  citecolor=blue!50!black,
+  pdftitle={Formalizing Kraft's Inequality in Lean 4},
+  pdfauthor={Elazar Gershuni}
+}
+
+\title{Formalizing Kraft's Inequality in Lean 4\\
+  \large Final project summary}
+\author{Elazar Gershuni\\
+  \small Course 2360124, \emph{Proving theorems in Lean}\\[-2pt]
+  \small Winter 2025/2026, Prof.\ Yuval Filmus, Technion}
+\date{April 19, 2026}
+
+% Concrete references (commit hashes, file paths, line numbers) are
+% intentionally kept out of the rendered prose to stay readable. They live in
+% the project's git log and in the companion notes next to this file.
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+\noindent
+This report summarises a formalization project carried out for the course
+\emph{Proving theorems in Lean}. The assigned task was to formalize the proof of Kraft's inequality; the scope ended up
+expanding to arbitrary finite alphabets, an abstract monoid-level
+formulation with nonnegative-real weights, an infinite-code variant, the
+source coding lower bound via the Gibbs inequality, and a Shannon--Fano
+application. Two small contributions were merged upstream, one to
+\textsf{Mathlib} and one to \textsf{Lean~4} itself. This report
+summarizes what was formalized, how the proofs are restructured relative
+to the original, which pieces look simple in math but turn out tricky in
+Lean, and the (uneven) experience of working with AI assistants.
+\end{abstract}
+
+\paragraph{Links.}
+\begin{itemize}[leftmargin=1.5em,itemsep=0pt]
+  \item Repository and \texttt{README.md}: \url{https://github.com/elazarg/kraft}
+  \item Mathematical specification (\texttt{kraft.tex}):
+    \url{https://github.com/elazarg/kraft/blob/main/kraft.tex}
+  \item \textsf{Mathlib} PR~\#34108 (merged):
+    \url{https://github.com/leanprover-community/mathlib4/pull/34108}
+  \item \textsf{Lean~4} PR~\#12108 (merged):
+    \url{https://github.com/leanprover/lean4/pull/12108}
+\end{itemize}
+
+\medskip\noindent
+Project duration: 2025-12-07 to 2026-01-23 (about seven weeks,
+$\approx$150 commits). Toolchain: \textsf{Lean~4.26.0} with
+\textsf{Mathlib~v4.26.0}. License: Apache~2.0.
+
+\section{The task and the original proofs}
+
+The task was to formalize the contents of the course note \texttt{kraft.tex}
+in Lean~4 with \textsf{Mathlib}. The note fixes the binary alphabet
+$\{0,1\}$ and states four results:
+
+\begin{itemize}[leftmargin=1.5em,itemsep=1pt]
+  \item \textbf{Kraft's inequality.} For a finite prefix-free $S \subseteq
+    \{0,1\}^*$, $\ \sum_{w \in S} 2^{-|w|} \le 1$.
+  \item \textbf{Converse.} For any $\ell\colon I \to \mathbb{N}$ on a finite
+    $I$ with $\sum_i 2^{-\ell(i)} \le 1$, there is an injective
+    $w\colon I \to \{0,1\}^*$ whose image is prefix-free and
+    $|w(i)| = \ell(i)$.
+  \item \textbf{Kraft--McMillan.} The same bound $\sum 2^{-|w|} \le 1$
+    holds under the weaker hypothesis that $S$ is \emph{uniquely decodable}
+    -- i.e.\ concatenation is injective on lists of codewords.
+  \item \textbf{Prefix-free $\Rightarrow$ uniquely decodable}, provided
+    $\varepsilon \notin S$.
+\end{itemize}
+
+\noindent
+The mathematical proofs, in broad strokes -- just enough to follow the rest
+of this report; see \texttt{kraft.tex} for details.
+
+\paragraph{Kraft (counting).} Let $\ell := \max_{w \in S} |w|$. For each
+$w \in S$ the extension set $E(w) = \{ wz : |z| = \ell - |w| \}$ sits inside
+$\{0,1\}^\ell$ and has size $2^{\ell - |w|}$. Prefix-freeness makes the
+$E(w)$ pairwise disjoint, so $2^\ell \ge \sum_{w \in S} 2^{\ell - |w|}$;
+divide by $2^\ell$.
+
+\paragraph{Converse.} Induct on $\max \ell(i)$. The heart is an auxiliary
+lemma: if the $\ell(i)$ are sorted nondecreasingly and
+$\sum 2^{-\ell(i)} \ge 1$, some prefix of the sequence has sum
+\emph{exactly}~$1$. A corollary gives a subset of weight
+$\tfrac{1}{2}$ when the total weight is above $\tfrac{1}{2}$ and all
+lengths are positive. The proof uses this to split $I$ into two parts
+whose Kraft weights are both at most $\tfrac{1}{2}$; shift to
+$\ell'(i) := \ell(i) - 1$; recurse on each side; prepend $0$ to the words
+on the left and $1$ on the right.
+
+\paragraph{Kraft--McMillan.} Let $C := \sum_{w \in S} 2^{-|w|}$. Then
+\[
+  C^r \;=\; \sum_{(w_1,\dots,w_r) \in S^r} 2^{-|w_1 \cdots w_r|}.
+\]
+Unique decodability makes $(w_1,\dots,w_r) \mapsto w_1 \cdots w_r$
+injective, and the image lies in $\bigcup_{s=r}^{r\ell} \{0,1\}^s$, so
+$C^r \le \sum_{s=r}^{r\ell} 2^s \cdot 2^{-s} = r\ell - r + 1$.
+Take $r$-th roots and send $r \to \infty$: $C \le 1$.
+
+\paragraph{Prefix-free $\Rightarrow$ uniquely decodable.} Induct on $|x|$.
+If $x = w_1 \cdots w_r = z_1 \cdots z_s$ with $|w_1| \le |z_1|$, then $w_1$
+is a prefix of $z_1$, hence $w_1 = z_1$ by prefix-freeness; strip and
+recurse. (The base case forces the side condition $\varepsilon \notin S$:
+otherwise $\varepsilon = \varepsilon\varepsilon$ is two decodings of the
+same string.)
+
+\section{The formalization}
+\label{sec:formalization}
+
+All four theorems are formalized, considerably generalised. None of the
+following additions appears in the course note; each emerged naturally
+while proving the originals.
+
+\begin{itemize}[leftmargin=1.5em,itemsep=1pt]
+  \item \textbf{Arbitrary finite alphabet of size $D \ge 2$.}
+  \item \textbf{Infinite codes.} Kraft's inequality and the converse are
+    proved for possibly-infinite index sets.
+  \item \textbf{Abstract monoid formulation.} Kraft--McMillan is proved
+    once for any graded monoid $M$ satisfying a $D$-ary growth bound, with
+    a multiplicative weight
+    $\mu\colon M \to \mathbb{R}_{\ge 0}$ dominated by
+    $D^{-\mathrm{cost}(x)}$, using a monoid-level injectivity hypothesis
+    in place of unique decodability.
+  \item \textbf{Real-valued weights.} The abstract theorem is stated over
+    $\mathbb{R}_{\ge 0}$, with counting and limits separated.
+  \item \textbf{Source coding lower bound.} For any injective uniquely
+    decodable code $w$ and strictly positive distribution $p$,
+    \[
+      H_D(p) := -\!\sum_i p_i \log_D p_i \;\le\; \mathbb{E}_{i \sim p}\bigl[|w(i)|\bigr].
+    \]
+  \item \textbf{Shannon--Fano.} For any strictly positive finite
+    distribution there is a prefix-free code with
+    $\mathbb{E}[|w|] < H_D(p) + 1$, obtained from the lengths
+    $\ell(i) = \lceil -\log_D p_i \rceil$.
+  \item \textbf{Two upstream PRs} (\S\ref{sec:upstream}).
+\end{itemize}
+
+\medskip
+\noindent
+The formalization reuses many of the mathematical ideas of the original
+proofs -- especially the counting behind Kraft and the $r$-fold power trick
+for McMillan -- but partitions the work so that each reusable idea appears
+once. The converse is the main exception: the final Lean proof uses a
+canonical interval construction rather than the note's recursive halving
+argument.
+
+\paragraph{Kraft mostly becomes a corollary of Kraft--McMillan.} The note
+proves Kraft's inequality first, as a standalone theorem, before
+introducing McMillan. In the formalization, the standalone counting proof
+is absent. Instead:
+\begin{enumerate}[leftmargin=1.5em,itemsep=0pt]
+  \item ``Prefix-free $\Rightarrow$ uniquely decodable'' is proved as its
+    own theorem under the necessary side condition $\varepsilon \notin S$.
+  \item Kraft--McMillan is proved for uniquely decodable codes.
+  \item Kraft's inequality for prefix-free codes is then the trivial
+    $\{\varepsilon\}$ case plus the Kraft--McMillan corollary.
+\end{enumerate}
+The counting argument of the original Kraft proof is still there -- but it
+appears once, as part of McMillan, not twice.
+
+\paragraph{McMillan is split along $\mathbb{N}$ vs.\ $\mathbb{R}$.} The
+original does counting and the $r \to \infty$ limit in a single paragraph.
+The formalization separates them into two statements at different levels
+of abstraction:
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=0pt]
+  \item \textbf{Counting (pure $\mathbb{N}$, monoid-level).} For a finite
+    $S$ in a graded monoid satisfying a $D$-ary growth bound, if $r$-fold
+    products are injective, the scaled tuple-counting sum is bounded by
+    \[
+      \sum_{w \in S^r}
+        D^{N-\mathrm{cost}(w_1\cdots w_r)}
+      \;\le\; (N+1)D^N,
+      \qquad N := r \cdot \max_{x \in S} \mathrm{cost}(x).
+    \]
+    This is the original's counting argument with the alphabet, codes, and
+    real numbers all stripped away.
+  \item \textbf{Limit (pure $\mathbb{R}_{\ge 0}$).} If $K^r$ is bounded by
+    a linear function of $r$ for every $r$, then $K \le 1$. This is where
+    the formalization introduces a multiplicative weight
+    $\mu\colon M \to \mathbb{R}_{\ge 0}$ dominated by
+    $D^{-\mathrm{cost}(x)}$.
+  \item \textbf{Specialisation to lists.} About ten lines: list length is
+    additive, there are at most $D^s$ strings of length $s$, unique
+    decodability means injectivity of $r$-fold concatenation.
+\end{enumerate}
+
+\paragraph{The same machine drives the source coding bound.} The source
+coding lower bound uses the same abstract machinery with a different weight
+on lists: the normalised Kraft weight $q_i := D^{-|w(i)|} / K$. Applying
+the Gibbs inequality $0 \le \sum p_i \log(p_i / q_i)$ to $p$ and $q$ --
+itself a statement about two probability distributions, not about codes --
+gives, after cancelling $\log K \le 0$,
+\[
+  H_D(p) \;\le\; \mathbb{E}_p \bigl[|w|\bigr].
+\]
+Shannon--Fano then falls out of the \emph{converse} by choosing
+$\ell(i) = \lceil -\log_D p_i \rceil$: a small calculation shows
+$\sum D^{-\ell(i)} \le 1$, the converse supplies a code, and
+$\mathbb{E}[|w|] < H_D(p) + 1$ because $\lceil x \rceil < x + 1$.
+
+\paragraph{The converse stays separate, because it isn't a counting argument.}
+It is algorithmic: the proof \emph{produces} a code. Here the
+formalization deliberately diverges from the recursive halving proof in
+the note. It sorts the indices by nondecreasing length, assigns each index
+a $D$-adic interval start
+\[
+  A_n/D^{\ell_n}
+  = \sum_{k<n} D^{-\ell_k},
+\]
+and encodes $A_n$ as a fixed-width base-$D$ word of length $\ell_n$.
+The strict prefix-sum bound keeps $A_n < D^{\ell_n}$, while a division
+separation lemma proves prefix-freeness. Finite, infinite, and arbitrary
+alphabet cases are then wrappers around this construction.
+
+\section{Math vs Lean}
+\label{sec:mathvslean}
+
+A tour of steps where the original proof is a single sentence and the
+formalization has to set up machinery; plus a few \textsf{Mathlib}
+concepts a reader of the course note might not recognise.
+
+\paragraph{``Arrange the lengths in order.''} The converse reorders
+silently on paper. For the subset-sum lemma, and also for the formalized
+interval construction, the useful order is nondecreasing length -- shorter
+codewords first. Lean wants the ordering as an explicit object: a monotone
+bijection
+$\mathrm{Fin}\,n \simeq I$ for finite $I$, or $\mathbb{N} \simeq I$ for
+infinite $I$ once the sequence is known summable. Two helper equivalences
+isolate the existence of the ordering from its use, so the main proof can
+quote them without repeating the construction.
+
+\paragraph{``Take $r$-th roots and let $r \to \infty$.''} One sentence in
+the original; avoided in Lean, because real-valued $r$-th roots in
+$\mathbb{R}_{\ge 0}$ are awkward to manipulate. The contradiction
+argument sketched in \S\ref{sec:formalization} replaces them: the
+relevant \textsf{Mathlib} fact is $r \cdot c^r \to 0$ whenever $|c| < 1$,
+and setting $c = 1/K$ closes the gap without ever computing a root.
+
+\paragraph{Infinite codes, and what \texttt{tsum} is.} \textsf{Mathlib}
+has two summation notations. For a finite $S$, \texttt{$\sum$ i $\in$ S, f i}
+is the ordinary finite sum. For a possibly-infinite index type,
+\texttt{$\sum$' i, f i} (read ``\texttt{tsum}'', for ``topological sum'')
+denotes the limit of finite partial sums \emph{when the family is
+summable} -- the predicate \texttt{Summable} -- and is defined to be $0$
+otherwise, for convenience. So ``Kraft's inequality for infinite
+prefix-free codes'' really says two things: the family $i \mapsto
+D^{-|w_i|}$ is summable, and its \texttt{tsum} is at most $1$. The
+formalization proves both together by bounding every finite partial sum
+by $1$ via the finite Kraft theorem -- a pattern that applies to any
+``convergent by finite subsums'' statement.
+
+\paragraph{Truncated subtraction in $\mathbb{N}$.} The original writes
+$N - |w|$ freely, assuming $|w| \le N$ from context. Lean's
+$\mathbb{N}$-subtraction is truncated to $0$ on the overflow case, so any
+algebraic manipulation of an expression like $D^{N-|w|}$ carries a side
+condition $|w| \le N$. A midway refactor rewrote the counting bound so
+that invariants use only additive identities, confining subtraction to
+one boundary lemma.
+
+\paragraph{$\mathbb{R}_{\ge 0}$ is its own type.} \textsf{Mathlib}'s
+\texttt{NNReal} (denoted $\mathbb{R}_{\ge 0}$) is implemented as the
+subtype of real numbers satisfying $0 \le x$, but it is still a separate
+Lean type with its own arithmetic instances. Positivity is baked in, so
+$0 \le x$ hypotheses do not float around, and $(\cdot)^{-1}$ behaves
+sensibly at $0$. The cost is that casts between $\mathbb{R}_{\ge 0}$ and
+$\mathbb{R}$ must be done deliberately. The abstract Kraft theorem is
+stated in $\mathbb{R}_{\ge 0}$; a small wrapper provides the
+$\mathbb{R}$-valued version that the list and source-coding theorems
+consume.
+
+\paragraph{KL divergence and the $0 \log 0$ convention.} The textbook
+source coding lower bound uses the Gibbs inequality
+\[
+  \sum_i p_i \log(p_i/q_i) \ge 0,
+\]
+which in prose relies on $0 \log 0 = 0$. \textsf{Mathlib} bakes the
+convention into \texttt{Real.negMulLog}; the current theorem assumes
+strictly positive probabilities, but this is the convention needed for the
+usual zero-probability extension. The formalization goes further: it
+re-expresses $p$ and $q$ as finite measures, invokes \textsf{Mathlib}'s
+KL-divergence API \texttt{klDiv}, and transports its non-negativity
+theorem back to the finite-sum form.
+The price is that the KL-based route proves and uses the absolute
+continuity $p \ll q$, and the finite-sum/log transport is currently
+written for strictly positive $p_i$ and $q_i$. The normalized Kraft weights
+give $q_i>0$ automatically; the public theorem therefore assumes
+$p_i > 0$. A relaxation via support truncation is noted in the code as
+future work.
+
+\section{Upstream contributions}
+\label{sec:upstream}
+
+\paragraph{\textsf{Mathlib} PR~\#34108 (merged, $\approx$\,240 lines).}
+\emph{feat(InformationTheory/Coding): Kraft--McMillan inequality for
+uniquely decodable codes.} Establishes new
+\path{Mathlib.InformationTheory.Coding} modules in the
+\texttt{InformationTheory} namespace, adding the
+definition of uniquely decodable codes, the impossibility of containing
+the empty word, and the Kraft--McMillan inequality itself. A small
+supporting lemma about filtered sums was added to \textsf{Mathlib}'s
+\texttt{BigOperators} infrastructure. Much of the work on the PR was golfing, which actually turned the proof into a cleaner one.
+
+\paragraph{\textsf{Lean~4} PR~\#12108 (merged, $8$ lines).} Adds two
+small utility lemmas stating that, for injective $f$, $l_1.\mathrm{map}\,f$
+is a prefix (respectively a suffix) of $l_2.\mathrm{map}\,f$ if and only
+if $l_1$ is a prefix (suffix) of $l_2$. This is the exact fact needed
+when lifting a code over one alphabet to one over a larger alphabet via
+an embedding -- small, but reusable enough to upstream.
+
+\section{AI interaction}
+\label{sec:ai}
+
+Three assistants contributed, with very uneven weights. \textbf{ChatGPT}
+(versions 5.2 and 5.3) was the primary tool, driving most day-to-day proof
+drafting and refactoring. \textbf{Gemini~3} was a secondary opinion,
+consulted when ChatGPT stalled; it sometimes agreed with ChatGPT in a way
+that turned out to be wrong. \textbf{Aristotle} (Harmonic) was used once,
+for one critical step, with outsized impact. A coding agent was essentially
+not used during the project, except for a little polish near the end.
+
+\subsection*{The Aristotle episode}
+
+One mid-January morning I was stuck on the auxiliary subset-sum lemma then
+underpinning the converse: given sorted lengths with $\sum 2^{-\ell_i} \ge
+1$, find a prefix whose sum is \emph{exactly}~$1$. I asked Aristotle for a
+proof and, in parallel, ChatGPT and Gemini for their opinions on it. Both
+ChatGPT and Gemini insisted Aristotle's approach was the wrong direction
+and should be discarded in favor of their own preferred route. I
+committed Aristotle's proof anyway, cleaned it up, and discovered that
+the ``wrong'' proof needed only small gaps filled. By the end of the same
+day, that version of the converse was closed. The final code later moved
+to the interval construction described above, so this episode survives as
+project history rather than as a lemma in the current files.
+
+The lesson: \emph{``both mainstream models agree this is wrong'' is not
+authoritative}. Two frontier LLMs dismissing a proof is at most weak
+evidence. If the goals close, the proof is right.
+
+\subsection*{Where AI was strong}
+
+\begin{itemize}[leftmargin=1.5em,itemsep=0pt]
+  \item Bookkeeping-heavy algebra. Rearranging
+    $\bigl(\sum_x \mu(x)\bigr)^r$ into $\sum_{w \in S^r} \mu(w_1 \cdots w_r)$
+    and chasing cancellations like $D^{N-c}(D^N)^{-1} = D^{-c}$ are
+    tedious, mechanical, and suit an LLM well. Drafts were usually right
+    after a revision or two.
+  \item Golfing. ``Can this be shorter?'' often produced a real
+    simplification, especially after a first working version.
+  \item Naming. The abstractions named \texttt{WeightModel} and
+    \texttt{ExpBounded} carry the generalized proof; both were
+    AI-suggested and survived external review.
+  \item Boilerplate. Case splits and type-transport plumbing -- the
+    finite/infinite split in the converse, lifting a code over
+    \texttt{Fin}~$D$ into one over a general alphabet -- were easy wins.
+\end{itemize}
+
+\subsection*{Where AI was weak, and the cleanup it triggered}
+
+\begin{itemize}[leftmargin=1.5em,itemsep=0pt]
+  \item \textbf{Hallucinated lemma names.} Pervasive. Any named lemma that
+    looked plausible had to be grep-verified before it was trusted. The
+    discipline that emerged: always search (\texttt{loogle},
+    \texttt{leansearch}, or plain grep in \textsf{Mathlib}) before using
+    a name.
+    
+  \item \textbf{Stale conventions.} Old lemma names, old syntax (Lean 3). Old conventions (``avoid golfing'').
+
+  \item \textbf{Makes it easy to lose track.} It's tempting to let the AI write the code. And it works - until it doesn't, and then you're at a loss.
+\end{itemize}
+
+\subsection*{Division of labour and external review}
+
+Architecture decisions (when to generalize, file layout, what to upstream)
+and every final-commit decision were mine. The AI drafted short tactic
+blocks and proposed refactors; each block was read in full before being
+committed, and many commits titled ``cleanup'' or ``simplify'' are
+follow-ups on AI-produced proofs.
+
+The external check came from the \textsf{Mathlib} PR (\S\ref{sec:upstream}).
+Across three rounds of review, the only requests were stylistic: calc-block
+indentation, inlining of intermediate types, and a reformulation to an
+indexed-family form. No mathematical revisions were requested.
+
+\section{Advice for future students}
+
+\begin{enumerate}[leftmargin=1.5em,itemsep=1pt]
+  \item \textbf{Budget a generalisation pass.} The first end-to-end proof
+    is rarely the one you keep. Plan to revisit the main theorem once in
+    a more abstract setting; it usually simplifies the concrete case too.
+  \item \textbf{Keep $\mathbb{N}$ and $\mathbb{R}$ apart.} Subtraction
+    and division break differently. Splitting the natural-number counting
+    bound from the real-valued limit argument was a late but decisive
+    refactor.
+  \item \textbf{Use automation where agents are stuck.} Try
+    \texttt{grind}, \texttt{simp\_all}, \texttt{aesop?}, and
+    \texttt{exact?}; they often close goals that an agent keeps circling.
+  \item \textbf{Search before guessing lemma names.} One edit-compile
+    cycle saved per correct guess. A language-server MCP like
+    \texttt{lean-lsp-mcp} lets the assistant query goal state, look up
+    signatures, and search local declarations instead of inventing names.
+  \item \textbf{Don't be surprised if an important utility does not exist.} 
+  \item \textbf{Let \textsf{Mathlib} do the heavy lifting.} If a concept
+    has a classical name, grep for it before rolling your own. The
+    source coding lower bound, for instance, fits into \textsf{Mathlib}'s
+    existing KL-divergence API almost for free (by sheer luck - there's not much information theory in \textsf{Mathlib}).
+  \item \textbf{In a small project, experiment freely; allow complete rewrites from an LLM agent.} Sunk costs are not large, and a clean-slate pass can resolve an architectural knot faster than a sequence of local edits. It also  tends to expose the real structural lemmas -- the ones the next draft will factor out.
+  \item \textbf{Listen to the proofs.} they may contain interesting abstractions hidden within.
+  \item \textbf{Never trust a definition written by an agent.} An agent
+    asked to \emph{prove} a claim will quietly \emph{weaken} it when the
+    proof fails: drop a hypothesis, strengthen a premise. Definitions are worse: a slightly shifted definition can
+    make the statement trivially true in the wrong way. Read every
+    definition the agent introduces, by hand, against your own mental
+    statement of what it should mean.
+\end{enumerate}
+
+\end{document}

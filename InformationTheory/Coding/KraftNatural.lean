@@ -36,7 +36,7 @@ to it would just invite "why do we need both."
 namespace InformationTheory
 
 private lemma sum_sub_eq_card_mul_sub_sum
-    {ι : Type*} [Fintype ι] [DecidableEq ι]
+    {ι : Type*} [Fintype ι]
     {sup : ℕ} {f : ι → ℕ} (hf : ∀ i, f i ≤ sup) :
     (∑ i : ι, (sup - f i)) = (Fintype.card ι) * sup - ∑ i : ι, f i := by
   have h :
@@ -169,10 +169,7 @@ private lemma sum_eq_sum_image_of_inj
     (hg : Set.InjOn g A)
     {f : β → ℕ} :
     (∑ a ∈ A, f (g a)) = ∑ b ∈ A.image g, f b := by
-  have hinj : ∀ a ∈ A, ∀ a' ∈ A, g a = g a' → a = a' := by
-    intro a ha a' ha' h
-    exact hg ha ha' h
-  simpa using (Finset.sum_image hinj).symm
+  simpa using (Finset.sum_image fun _ ha _ ha' h => hg ha ha' h).symm
 
 /--
 **McMillan counting bound (unnormalized, ℕ-valued).**

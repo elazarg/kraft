@@ -80,52 +80,47 @@ lemma kraftNumerator.eq_sum_pow_range
   intro n
   induction n with
   | zero =>
-      simp [kraftNumerator]
+    simp [kraftNumerator]
   | succ n ih =>
-      -- Notation
-      have hln : l n ≤ l (n+1) := hmono (Nat.le_succ n)
-      set a : ℕ := l (n+1) - l n
+    -- Notation
+    have hln : l n ≤ l (n + 1) := hmono (Nat.le_succ n)
+    set a : ℕ := l (n + 1) - l n
 
-      -- Start from the RHS for `n+1`
-      -- split off last term, then factor out `D^a` from the prefix sum
-      simp [Finset.sum_range_succ, kraftNumerator, ih]
+    -- Start from the RHS for `n + 1`
+    -- split off last term, then factor out `D ^ a` from the prefix sum
+    simp [Finset.sum_range_succ, kraftNumerator, ih]
 
-      -- Goal after simp is essentially:
-      --   (∑ t∈range n, D^(l(n+1)-l t)) + D^(l(n+1)-l n)
-      -- = ( (∑ t∈range n, D^(l n - l t)) + 1 ) * D^(l(n+1)-l n)
+    -- Goal after simp is essentially:
+    --   (∑ t ∈ range n, D ^ (l (n + 1) - l t)) + D ^ (l (n + 1) - l n)
+    -- = ((∑ t ∈ range n, D ^ (l n - l t)) + 1) * D ^ (l (n + 1) - l n)
 
-      -- Turn the prefix sum into a factored form
-      have hfac :
-          (∑ t ∈ Finset.range n, D ^ (l (n+1) - l t))
-            = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
-        -- rewrite each term using exponent arithmetic:
-        -- (l(n+1)-l t) = (l(n+1)-l n) + (l n - l t)
-        -- then use `pow_add` and pull out `D^a`
-        calc
-          (∑ t ∈ Finset.range n, D ^ (l (n+1) - l t))
-              = ∑ t ∈ Finset.range n, (D ^ a) * (D ^ (l n - l t)) := by
-                  refine Finset.sum_congr rfl ?_
-                  intro t ht
-                  have ht' : t < n := Finset.mem_range.mp ht
-                  have hlt : l t ≤ l n := hmono (Nat.le_of_lt_succ (Nat.lt_succ_of_lt ht'))
-                  have hlt' : l t ≤ l (n+1) := le_trans hlt hln
-                  -- exponent identity
-                  have hexp : (l (n+1) - l t) = a + (l n - l t) := by
-                    -- `a = l(n+1)-l n`
-                    dsimp [a]
-                    omega
-                  -- finish
-                  simp [hexp, pow_add, mul_comm]
-          _   = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
-                  -- pull out constant
-                  simp [Finset.mul_sum]
+    -- Turn the prefix sum into a factored form
+    have hfac :
+        (∑ t ∈ Finset.range n, D ^ (l (n + 1) - l t)) =
+          D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
+      -- rewrite each term using exponent arithmetic:
+      -- (l (n + 1) - l t) = (l (n + 1) - l n) + (l n - l t)
+      -- then use `pow_add` and pull out `D ^ a`
+      calc
+        (∑ t ∈ Finset.range n, D ^ (l (n + 1) - l t)) =
+            ∑ t ∈ Finset.range n, D ^ a * D ^ (l n - l t) := by
+          refine Finset.sum_congr rfl ?_
+          intro t ht
+          have ht' : t < n := Finset.mem_range.mp ht
+          have hlt : l t ≤ l n := hmono (Nat.le_of_lt_succ (Nat.lt_succ_of_lt ht'))
+          have hlt' : l t ≤ l (n + 1) := le_trans hlt hln
+          -- exponent identity
+          have hexp : l (n + 1) - l t = a + (l n - l t) := by
+            -- `a = l (n + 1) - l n`
+            dsimp [a]
+            omega
+          simp [hexp, pow_add, mul_comm]
+        _ = D ^ a * (∑ t ∈ Finset.range n, D ^ (l n - l t)) := by
+          simp [Finset.mul_sum]
 
-      -- Now finish the `succ` step by rewriting with `hfac`
-      -- and using `l(n+1)-l n = a`
-      -- also: the last term is exactly `D^a`
-      have hlast : D ^ (l (n+1) - l n) = D ^ a := by simp [a]
-      -- substitute and algebra
-      simp [hfac, hlast, Nat.mul_add, Nat.mul_comm]
+    -- Now finish the `succ` step by rewriting with `hfac`; the last term is `D ^ a`.
+    have hlast : D ^ (l (n + 1) - l n) = D ^ a := by simp [a]
+    simp [hfac, hlast, Nat.mul_add, Nat.mul_comm]
 
 /--
 Separation property for `A = kraftNumerator D l`:

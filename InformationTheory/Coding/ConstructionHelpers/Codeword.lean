@@ -223,19 +223,19 @@ end BE
 /- ========== PUBLIC API ========== -/
 
 /-- Fixed-width, MSB-first digits of `n` base `D`, as `Fin D`. -/
-public def kraftCodeword {D: ℕ} (hD : 1 < D) (n width : ℕ) : List (Fin D) :=
+public def kraftCodeword {D : ℕ} (hD : 1 < D) (n width : ℕ) : List (Fin D) :=
   (digitsBE_fixed D n width).pmap
     (fun d hd => ⟨d, hd⟩)
     (fun _ hd => digitsBE_fixed_lt_base hD hd)
 
 @[simp]
-public lemma kraftCodeword_length {D: ℕ} (hD : 1 < D) (n width : ℕ) :
+public lemma kraftCodeword_length {D : ℕ} (hD : 1 < D) (n width : ℕ) :
     (kraftCodeword hD n width).length = width := by
   simp [kraftCodeword, digitsBE_fixed_length]
 
 /-- Internal bridge: forgetting `Fin` gives the underlying Nat BE digits. -/
 @[simp]
-private lemma kraftCodeword_map_val {D: ℕ} (n width : ℕ) (hD : 1 < D) :
+private lemma kraftCodeword_map_val {D : ℕ} (n width : ℕ) (hD : 1 < D) :
     (kraftCodeword hD n width).map (fun x => x.val)
       = digitsBE_fixed D n width := by
   -- general lemma: mapping `val` over `pmap (Fin.mk)` returns the original list
@@ -245,19 +245,15 @@ private lemma kraftCodeword_map_val {D: ℕ} (n width : ℕ) (hD : 1 < D) :
     intro xs hx
     induction xs with
     | nil =>
-        simp [List.pmap]
+      simp [List.pmap]
     | cons a tl ih =>
-        have ha : a < D := hx a (by simp)
-        have htl : ∀ d ∈ tl, d < D := by
-          intro d hd
-          exact hx d (by simp [hd])
-        simp [List.pmap, ih htl]
+      have ha : a < D := hx a (by simp)
+      have htl : ∀ d ∈ tl, d < D := by grind
+      simp [List.pmap, ih htl]
 
   unfold kraftCodeword
   simpa using map_val_pmap_mk (digitsBE_fixed D n width)
-    (by
-      intro d hd
-      exact digitsBE_fixed_lt_base hD hd)
+    (fun _ hd => digitsBE_fixed_lt_base hD hd)
 
 /-- Prefix characterization (MSB-first): prefix iff quotient agrees. -/
 public lemma kraftCodeword_prefix_iff_div

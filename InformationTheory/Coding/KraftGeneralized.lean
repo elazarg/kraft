@@ -248,7 +248,8 @@ exponential weight.
 
 This is a convenience wrapper around `kraft_inequality_of_injective'` that avoids constructing
 a `WeightModel` explicitly: given `μ : M →* ℝ` and a cost `ℓ : M → ℕ` with
-`μ x ≤ (1/D)^ℓ x`, it proves `∑ x ∈ S, μ x ≤ 1` under the same growth and injectivity hypotheses. -/
+`μ x ≤ (1/D)^ℓ x`, it proves `∑ x ∈ S, μ x ≤ 1` under the same growth and
+injectivity hypotheses. -/
 theorem kraft_inequality_of_injective_of_le
     {ℓ : M → ℕ}
     {S : Finset M} {base : ℕ}

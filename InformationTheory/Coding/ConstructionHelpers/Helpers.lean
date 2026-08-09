@@ -5,13 +5,12 @@ Authors: Elazar Gershuni
 -/
 module
 
-public import Mathlib.Data.Finset.Basic
 public import Mathlib.Data.List.Basic
 
 /-!
-# List and Finset Helpers
+# List Helpers
 
-This file provides utility lemmas for lists, prefixes, and injective mappings.
+This file provides a utility lemma for list prefixes and injective mappings.
 
 ## Main results
 

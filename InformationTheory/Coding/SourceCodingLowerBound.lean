@@ -9,12 +9,13 @@ public import Mathlib.Analysis.SpecialFunctions.Log.Base
 public import Mathlib.Analysis.SpecialFunctions.Log.Basic
 public import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
 public import Mathlib.Analysis.SpecialFunctions.Pow.Real
+public import Mathlib.InformationTheory.Coding.UniquelyDecodable
 public import Mathlib.InformationTheory.KullbackLeibler.Basic
 public import Mathlib.MeasureTheory.Measure.Count
 public import Mathlib.MeasureTheory.Measure.LogLikelihoodRatio
 public import Mathlib.MeasureTheory.Measure.WithDensity
-public import InformationTheory.Coding.Kraft
 public import InformationTheory.Entropy.Basic
+import Mathlib.InformationTheory.Coding.KraftMcMillan
 
 /-!
 # Source Coding Lower Bound
@@ -68,7 +69,8 @@ section DiscreteKL
 variable {I : Type*} [Fintype I]
 local instance : MeasurableSpace I := ⊤
 
-/-- The finite measure with mass `p i` at each point `i`, implemented as `count.withDensity`. -/
+omit [Fintype I] in
+/-- The measure with mass `p i` at each point `i`, implemented as `count.withDensity`. -/
 noncomputable def pmfMeasure (p : I → ℝ) : Measure I :=
   Measure.count.withDensity (fun i => ENNReal.ofReal (p i))
 
@@ -190,7 +192,7 @@ section SourceCodingLower
 
 open Real
 
-variable {I : Type*} [Fintype I] [Nonempty I]
+variable {I : Type*} [Fintype I]
 variable {D : ℕ}
 
 noncomputable def expLength (p : I → ℝ) (w : I → List (Fin D)) : ℝ :=
@@ -222,6 +224,9 @@ theorem source_coding_lower_bound
     (hw : Function.Injective w)
     (hud : UniquelyDecodable (Set.range w)) :
     entropy D p ≤ expLength p w := by
+  letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
+    letI := hI
+    simp at hp_sum
   let L : I → ℕ := fun i => (w i).length
   let K : ℝ := ∑ i, (1 / (D : ℝ)) ^ (L i)
   have hK_pos : 0 < K := by positivity

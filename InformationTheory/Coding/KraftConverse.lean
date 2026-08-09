@@ -239,7 +239,7 @@ theorem exists_code_fin
   -- 1) extend lengths to ℕ
   let lastL := l ⟨k - 1, by omega⟩
   let lNat := extShift lastL 0 l
-  have hmonoNat : Monotone lNat := ext_shift_monotone k l h_mono hk 0
+  have hmonoNat : Monotone lNat := extShift_monotone k l h_mono hk 0
   have h_sumNat : (∑ i : Fin k, (1 / D : ℝ) ^ lNat i.val) ≤ 1 := by
     simpa [lNat] using h_sum
 

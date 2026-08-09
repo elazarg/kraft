@@ -60,7 +60,7 @@ for f in $files; do
   fi
 
   # 8. Copyright header present (Header.lean, simplified: first line is the comment opener)
-  if [ "$(head -1 "$f")" != "/-" ]; then
+  if [ "$(head -1 "$f" | tr -d '\r')" != "/-" ]; then
     echo "$f: missing copyright header"
     fail=1
   fi

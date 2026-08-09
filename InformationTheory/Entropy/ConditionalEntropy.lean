@@ -56,9 +56,11 @@ variable {I J : Type*} [Fintype I] [Fintype J]
 
 /-! ### Marginals -/
 
+omit [Fintype I] in
 /-- The first marginal of a joint distribution. -/
 noncomputable def fst (p : I × J → ℝ) : I → ℝ := fun i => ∑ j, p (i, j)
 
+omit [Fintype J] in
 /-- The second marginal of a joint distribution. -/
 noncomputable def snd (p : I × J → ℝ) : J → ℝ := fun j => ∑ i, p (i, j)
 
@@ -191,15 +193,16 @@ theorem condEntropy_of_graph (D : ℕ) {p : I × J → ℝ} {g : I → J}
       rw [hfst_eq, div_self hpx, log_one, mul_zero]
   simp [hterm]
 
-variable [DecidableEq J] in
+omit [Fintype I] [Fintype J] in
 /-- The joint distribution with law `q` on `I`, supported on the graph of `g : I → J`. -/
-noncomputable def jointOfGraph (g : I → J) (q : I → ℝ) : I × J → ℝ :=
-  fun x => if x.2 = g x.1 then q x.1 else 0
+noncomputable def jointOfGraph (g : I → J) (q : I → ℝ) : I × J → ℝ := by
+  classical
+  exact fun x => if x.2 = g x.1 then q x.1 else 0
 
-variable [DecidableEq J] in
 /-- Embedding a distribution onto the graph of a function preserves entropy. -/
 theorem entropy_jointOfGraph (D : ℕ) (g : I → J) (q : I → ℝ) :
     entropy D (jointOfGraph g q) = entropy D q := by
+  classical
   unfold entropy jointOfGraph
   congr 1
   rw [Fintype.sum_prod_type]
@@ -272,9 +275,12 @@ theorem condEntropy_le_entropy_snd (D : ℕ) (hD : 1 < D) {p : I × J → ℝ}
 /-! ### Max-entropy bound -/
 
 /-- **Max-entropy bound**: `H(p) ≤ log_D |I|`, Gibbs against the uniform distribution. -/
-theorem entropy_le_logb_card (D : ℕ) (hD : 1 < D) [Nonempty I]
+theorem entropy_le_logb_card (D : ℕ) (hD : 1 < D)
     {p : I → ℝ} (hp : ∀ i, 0 ≤ p i) (hp_sum : ∑ i, p i = 1) :
     entropy D p ≤ logb D (Fintype.card I) := by
+  letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
+    letI := hI
+    simp at hp_sum
   have hlogD_pos : 0 < log D := log_pos (by exact_mod_cast hD)
   have hcardR_pos : (0 : ℝ) < (Fintype.card I : ℝ) := by exact_mod_cast Fintype.card_pos
   set q : I → ℝ := fun _ => 1 / (Fintype.card I : ℝ) with hqdef
@@ -304,12 +310,12 @@ theorem entropy_le_logb_card (D : ℕ) (hD : 1 < D) [Nonempty I]
 
 /-! ### Data processing -/
 
-variable [DecidableEq J] in
+omit [Fintype J] in
 /-- The pushforward of `p : I → ℝ` along `f : I → J`. -/
-noncomputable def push (f : I → J) (p : I → ℝ) : J → ℝ :=
-  fun j => ∑ i ∈ Finset.univ.filter (fun i => f i = j), p i
+noncomputable def push (f : I → J) (p : I → ℝ) : J → ℝ := by
+  classical
+  exact fun j => ∑ i ∈ Finset.univ.filter (fun i => f i = j), p i
 
-variable [DecidableEq J] in
 /-- **Data-processing inequality**: applying a deterministic function never increases entropy.
 Proof route: embed `p` on the graph of `f` (`entropy_jointOfGraph`), swap the two coordinates
 (a bijection, `entropy_relabel`), then the chain rule on the swapped joint gives
@@ -317,6 +323,7 @@ Proof route: embed `p` on the graph of `f` (`entropy_jointOfGraph`), swap the tw
 nonnegative. -/
 theorem entropy_push_le (D : ℕ) (hD : 1 < D) {f : I → J} {p : I → ℝ} (hp : ∀ i, 0 ≤ p i) :
     entropy D (push f p) ≤ entropy D p := by
+  classical
   set joint : I × J → ℝ := jointOfGraph f p with hjointdef
   set swapped : J × I → ℝ := joint ∘ (Equiv.prodComm J I) with hswappeddef
   have hswap_nonneg : ∀ y : J × I, 0 ≤ swapped y := by

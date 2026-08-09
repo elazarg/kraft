@@ -129,8 +129,9 @@ of these can run in parallel with different reviewers.
 
 ### Wave 1 — no dependencies beyond the merged PR
 
-**PR 1 — `PrefixFree` + `Kraft`** (Track A) — ~253 lines. `PrefixFree.lean` (154) +
-`Coding/Kraft.lean` (99, `kraft_inequality` / `kraft_inequality_infinite`). Same
+**PR 1 — `PrefixFree` + `Kraft`** (Track A) — ~160 lines. `PrefixFree.lean` (92) +
+`Coding/Kraft.lean` (68, `kraft_inequality` / `summable_kraft_sum` /
+`kraft_inequality_infinite`). Same
 "definition, then the named theorem" shape as #34108, direct continuation of the same series.
 Lowest-risk PR in the whole plan.
 
@@ -248,7 +249,7 @@ overlooked.
 
 | PR | Content | Lines | Needs | Track | Wave |
 |---|---|---|---|---|---|
-| 1 | PrefixFree + Kraft | ~253 | merged PR only | A | 1 |
+| 1 | PrefixFree + Kraft | ~160 | merged PR only | A | 1 |
 | 2 | Divergence.Basic (+ klFin/klDiv bridge) | ~125+ | — | B | 1 |
 | 3 | Sum + ExtShift | ~166 | — | C | 1 |
 | 4 | Codeword + Helpers | ~340 | — | C | 1 |

@@ -5,7 +5,7 @@ Investigation note, 2026-08-05 (revised after review; phases 0-4 executed same d
 effort. Everything identified below gets done; the phases below are a sequencing of that work
 by risk and dependency, not a triage of what to skip.
 
-**Status: all five phases complete.** 20/20 files use `module`; `scripts/lint-style.sh` passes
+**Status: all five phases complete.** 22/22 files use `module`; `scripts/lint-style.sh` passes
 with the `module`-coverage check as a hard gate; all object-level ASCII-digit indices (not
 hypothesis names, see Phase 3's note) are subscripted. See the commit history for the per-phase
 breakdown — one commit per phase (Phase 2 split into 4 dependency-ordered batches, rebuilding
@@ -81,12 +81,10 @@ expects, which the rest of this document checks the other 18 files against.
 language feature, not a Mathlib-specific tool, so it should work unmodified in this project at
 `v4.32.2` (confirmed: mathlib's own `lakefile.toml` sets no module-related options beyond what's
 already in this repo's). Pilot it on `PrefixFree.lean` first — small, but not trivial: it
-currently has **five** imports (`List.Basic`, `Set.Basic`, `Finset.Basic`, `Finset.Card`,
-`InformationTheory.Coding.UniquelyDecodable`), all five plausibly `public` since `PrefixFree`
-and `PrefixFree.uniquely_decodable` expose `List`/`Set`/`UniquelyDecodable` types in their
-signatures — so the per-file classification work in Phase 2 is real work, not a rubber stamp,
-even on a small file. Add `module`, convert all five to `public import`, verify `lake build`
-still succeeds and downstream importers (`InformationTheory/Coding/Kraft.lean`,
+now has two public imports (`Set.Subsingleton` and
+`InformationTheory.Coding.UniquelyDecodable`) because `PrefixFree` and
+`PrefixFree.uniquelyDecodable` expose `Set`/`UniquelyDecodable` types in their signatures.
+Verify `lake build` still succeeds and downstream importers (`InformationTheory/Coding/Kraft.lean`,
 `KraftConverse.lean`, the root `Kraft.lean` aggregator) still resolve `PrefixFree` correctly.
 
 **Phase 1 — mechanical, low-risk, can be scripted (1 day).**

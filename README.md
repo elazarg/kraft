@@ -18,11 +18,12 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 | Theorem | Statement |
 |---------|-----------|
 | `kraft_inequality` | For finite prefix-free S: `∑_{w ∈ S} D^{-\|w\|} ≤ 1` |
+| `summable_kraft_sum` | The Kraft series of an arbitrary prefix-free code is summable |
 | `kraft_inequality_infinite` | Extension to infinite prefix-free codes (as a tsum) |
 | `kraft_mcmillan_inequality` | Same bound for uniquely decodable codes |
 | `kraft_inequality_of_injective` | Abstract version for monoids with injective products |
 | `exists_code` | Converse: lengths with `∑ D^{-l_i} ≤ 1` admit a prefix-free code |
-| `PrefixFree.uniquely_decodable` | Prefix-free codes are uniquely decodable |
+| `PrefixFree.uniquelyDecodable` | Prefix-free codes are uniquely decodable |
 | `source_coding_lower_bound` | Entropy is a lower bound on expected length: `H_D(p) ≤ E[L]` |
 
 ## Project Structure
@@ -33,10 +34,8 @@ Kraft.lean                          -- Root import file
 InformationTheory/
   Coding/
     PrefixFree.lean                 -- Definition of prefix-free codes
-    UniquelyDecodable.lean          -- Definition of uniquely decodable codes
     Kraft.lean                      -- Kraft's inequality (main theorem)
     KraftConverse.lean              -- Converse of Kraft's inequality
-    KraftMcMillan.lean              -- Kraft-McMillan inequality for lists
     KraftNatural.lean               -- ℕ-valued counting bounds (foundation)
     KraftGeneralized.lean           -- Abstract Kraft-McMillan for monoids (ℝ≥0)
     SourceCodingLowerBound.lean     -- Source coding lower bound (entropy ≤ E[L])
@@ -54,13 +53,15 @@ InformationTheory/
 
 - **PrefixFree.lean**: Defines `PrefixFree` (no codeword is a prefix of another) and proves prefix-free codes are uniquely decodable
 
-- **UniquelyDecodable.lean**: Defines `UniquelyDecodable` (distinct concatenations yield distinct strings)
+- **Mathlib's UniquelyDecodable API**: Defines `UniquelyDecodable` (distinct concatenations yield
+  distinct strings); this project imports the upstream mathlib module
 
 - **Kraft.lean**: Proves Kraft's inequality for finite prefix-free codes, deriving it from the Kraft-McMillan inequality
 
 - **KraftConverse.lean**: Constructs a prefix-free code for any length sequence satisfying the Kraft condition, via D-adic interval allocation; handles both finite (`Fin k`) and infinite (`ℕ`) index sets
 
-- **KraftMcMillan.lean**: Proves the Kraft-McMillan inequality for uniquely decodable codes over lists
+- **Mathlib's KraftMcMillan API**: Proves the Kraft-McMillan inequality for uniquely decodable
+  codes over lists; this project imports the upstream mathlib module
 
 - **KraftNatural.lean**: Natural number approach to Kraft-style bounds; defines the core `ExpBounded` axiom and `prodTuple` abstraction; proves `mcmillan_counting_of_inj` (ℕ-valued counting bound) and `scaled_sum_pow_le_linear`
 
@@ -90,8 +91,8 @@ lake build
 
 ## Requirements
 
-- **Lean**: 4.26.0
-- **Mathlib**: v4.26.0
+- **Lean**: 4.32.2
+- **Mathlib**: v4.32.2
 
 See `lean-toolchain` and `lake-manifest.json` for exact versions.
 
