@@ -11,17 +11,17 @@ public import Mathlib.Data.Fintype.Card
 public import Mathlib.Data.List.Basic
 public import Mathlib.Data.Real.Basic
 public import Mathlib.Data.Set.Basic
-public import InformationTheory.Coding.ConstructionHelpers.Codeword
-public import InformationTheory.Coding.ConstructionHelpers.Construction
-public import InformationTheory.Coding.ConstructionHelpers.ExtShift
-public import InformationTheory.Coding.ConstructionHelpers.KraftOrder
-public import InformationTheory.Coding.ConstructionHelpers.Sum
 public import InformationTheory.Coding.PrefixFree
 
 import Mathlib.Algebra.BigOperators.Field
 import Mathlib.Analysis.SpecificLimits.Normed
 import Mathlib.Data.Finset.Basic
+import InformationTheory.Coding.ConstructionHelpers.Codeword
+import InformationTheory.Coding.ConstructionHelpers.Construction
+import InformationTheory.Coding.ConstructionHelpers.ExtShift
 import InformationTheory.Coding.ConstructionHelpers.Helpers
+import InformationTheory.Coding.ConstructionHelpers.KraftOrder
+import InformationTheory.Coding.ConstructionHelpers.Sum
 
 /-!
 # Constructive Converse of Kraft's Inequality
@@ -52,7 +52,8 @@ the Kraft condition, a prefix-free code with those lengths exists.
   index and alphabet types, no monotonicity hypothesis on the lengths.
 - `exists_code_nat`, `exists_code_fin`: the `Monotone l` special cases for `l : ℕ → ℕ` and
   `l : Fin k → ℕ` respectively that `exists_code` reduces to, after reordering indices by length
-  (`exists_equiv_nat_monotone_of_infinite`/`exists_equiv_fin_monotone` in `Construction.lean`).
+  (`exists_equiv_nat_monotone_of_summable`/`exists_equiv_fin_monotone` in
+  `ConstructionHelpers.KraftOrder`).
   Not themselves the textbook statement — the monotonicity is an artifact of the construction,
   not a real restriction — but exposed since `Monotone l` is sometimes already in hand.
 -/
@@ -71,7 +72,7 @@ Logic for converting strict prefix bounds into valid prefix-free codes. -/
 
 section Construction
 
-lemma kraftCodeword_injective_of_A_injective
+private lemma kraftCodeword_injective_of_A_injective
     {I : Type*} {l : I → ℕ} {A : I → ℕ}
     (hD : 1 < D)
     (hA_bound : ∀ i, A i < D ^ l i)
@@ -106,7 +107,7 @@ private lemma prefixFree_of_div_separated
       (kraftCodeword_prefix_iff_div hD (h_bound i) (h_bound j)).1 hpre
     exact (h_sep hij ⟨hle, hdiv⟩).elim
 
-theorem exists_code_from_A
+private theorem exists_code_from_A
     {I : Type*}
     (hD : 1 < D)
     {l : I → ℕ} {A : I → ℕ}
@@ -124,7 +125,7 @@ theorem exists_code_from_A
 
 /-- **The Algorithm**: Given strictly bounded prefix sums, we construct the code.
 This is the internal engine used by both finite and infinite theorems. -/
-theorem exists_code_of_strict_prefix_sum
+private theorem exists_code_of_strict_prefix_sum
     (hD : 1 < D) {l : ℕ → ℕ} (h_mono : Monotone l)
     (h_prefix_lt_one : ∀ n, (∑ k < n, (1 / D : ℝ) ^ l k) < 1) :
     ∃ w : ℕ → List (Fin D),
@@ -133,9 +134,11 @@ theorem exists_code_of_strict_prefix_sum
       (∀ i, (w i).length = l i) := by
   -- define A and basic facts
   let A : ℕ → ℕ := kraftNumerator D l
-  have hA_strict : StrictMono A := by simpa [A] using kraftNumerator.strictMono (D := D) hD
+  have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
+  have hA_strict : StrictMono A := by
+    simpa [A] using kraftNumerator.strictMono (D := D) hD_pos
   have hA_bound : ∀ i, A i < D ^ l i := by
-    simpa [A] using kraftNumerator.bound (D := D) (l := l) h_mono hD h_prefix_lt_one
+    simpa [A] using kraftNumerator.bound (D := D) (l := l) h_mono hD_pos h_prefix_lt_one
   have hA_inj : Function.Injective A := hA_strict.injective
 
   -- separation for all i≠j
@@ -143,8 +146,9 @@ theorem exists_code_of_strict_prefix_sum
       ¬ (l i ≤ l j ∧ A j / D ^ (l j - l i) = A i) := by
     intro i j hij
     rcases lt_or_gt_of_ne hij with hlt | hgt
-    · -- forward direction is exactly the lemma you already proved
-      simpa [A] using (kraftNumerator.div_separated_of_lt (D := D) (l := l) hD h_mono hlt)
+    · rintro ⟨-, hdiv⟩
+      exact (kraftNumerator.div_pow_ne_of_lt (D := D) (l := l) hD_pos h_mono hlt)
+        (by simpa [A] using hdiv)
     · -- backward direction: monotonicity forces equal lengths, then strictMono contradicts i≠j
       rintro ⟨hle, hdiv⟩
       have hlen_le : l j ≤ l i := h_mono (Nat.le_of_lt hgt)
@@ -245,8 +249,9 @@ theorem exists_code_fin
 
   -- 2) define A₀ on ℕ and restrict it to Fin k
   let A₀ : ℕ → ℕ := kraftNumerator D lNat
+  have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
   have hA0_strict : StrictMono A₀ := by
-    simpa [A₀] using (kraftNumerator.strictMono (l:=lNat) hD)
+    simpa [A₀] using (kraftNumerator.strictMono (l:=lNat) hD_pos)
 
   let AFin : Fin k → ℕ := fun i => A₀ i.val
 
@@ -258,7 +263,7 @@ theorem exists_code_fin
       prefix_sum_lt_one_of_fin_sum_le_one hD h_sumNat i
     -- this gives: A₀ i.val < D ^ lNat i.val; rewrite lNat i.val = l i
     simpa [AFin, A₀, lNat] using
-      (kraftNumerator.lt_pow_of_sum_range_lt_one hD hmonoNat h_pref_lt1)
+      (kraftNumerator.lt_pow_of_sum_range_lt_one hD_pos hmonoNat h_pref_lt1)
 
   -- 4) injectivity of AFin
   have hAFin_inj : Function.Injective AFin := by
@@ -274,11 +279,11 @@ theorem exists_code_fin
     rcases lt_trichotomy i.val j.val with hlt | heq | hgt
     · -- i.val < j.val: use separation on ℕ for A₀ = kraftNumerator D lNat
       have hsepNat :
-          ¬ (lNat i.val ≤ lNat j.val ∧
-              A₀ j.val / D ^ (lNat j.val - lNat i.val) = A₀ i.val) :=
-        kraftNumerator.div_separated_of_lt (D:=D) (l:=lNat) hD hmonoNat hlt
+          A₀ j.val / D ^ (lNat j.val - lNat i.val) ≠ A₀ i.val :=
+        kraftNumerator.div_pow_ne_of_lt (D := D) (l := lNat) hD_pos hmonoNat hlt
       -- rewrite lNat back to l on indices < k, and AFin/A₀
-      simpa [AFin, A₀, lNat, extShift, i.isLt, j.isLt] using hsepNat
+      rintro ⟨-, hdiv⟩
+      exact hsepNat (by simpa [AFin, A₀, lNat, extShift, i.isLt, j.isLt] using hdiv)
     · exact (hij (Fin.ext heq)).elim
     · -- i.val > j.val: monotone forces equal lengths, then strictMono contradicts i≠j
       rintro ⟨hle, hdiv⟩
@@ -344,7 +349,7 @@ theorem exists_code [Fintype α] [Nontrivial α]
 
   · -- Infinite Case
     haveI : Infinite I := not_finite_iff_infinite.mp h_finite
-    obtain ⟨e, he_mono⟩ := exists_equiv_nat_monotone_of_infinite hD h_summable
+    obtain ⟨e, he_mono⟩ := exists_equiv_nat_monotone_of_summable hD h_summable
 
     have h_sum_nat : ∑' i : ℕ, (1 / D : ℝ) ^ l (e i) ≤ 1 := by
       convert h_sum using 1
@@ -374,34 +379,11 @@ theorem exists_code_of_embedding
       Function.Injective w ∧
       PrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
-  -- Use a dummy type with cardinality D to generate the code structure
-  let AlphaD := Fin D
-
-  -- Pin down the cardinality explicitly
-  have hcard_eq : Fintype.card AlphaD = D := by
-    exact (Fintype.card_fin D)
-
-  -- card AlphaD = D, so transport hD / summability / tsum bound
-  have hcard : 1 < Fintype.card AlphaD := by simpa [hcard_eq] using hD
-
-  haveI : Nontrivial AlphaD := (Fintype.one_lt_card_iff_nontrivial).1 hcard
-
-  have h_summable' :
-      Summable (fun i => (1 / (Fintype.card AlphaD : ℝ)) ^ l i) := by
-    simpa [hcard_eq] using h_summable
-
-  have h_sum' :
-      (∑' i, (1 / (Fintype.card AlphaD : ℝ)) ^ l i) ≤ 1 := by
-    simpa [hcard_eq] using h_sum
-
-  obtain ⟨w_D, hw_inj, hw_pf, hw_len⟩ := exists_code l h_summable' h_sum'
-
+  letI : Nontrivial (Fin D) := Fin.nontrivial_iff_two_le.mpr hD
+  obtain ⟨w_D, hw_inj, hw_pf, hw_len⟩ := exists_code (α := Fin D) l
+    (by simpa using h_summable) (by simpa using h_sum)
   have htp := transport_code (e := Equiv.refl I) (f := ι) hw_inj hw_pf
-
-  rcases htp with ⟨h_inj', h_pf'⟩
-  refine ⟨fun i => (w_D i).map ι, h_inj', ?_, ?_⟩
-  · simpa using h_pf'
-  · simp [hw_len]
+  exact ⟨fun i => (w_D i).map ι, htp.1, htp.2, by simp [hw_len]⟩
 
 /-- **Converse of Kraft's Inequality** (Binary). -/
 theorem exists_code_binary

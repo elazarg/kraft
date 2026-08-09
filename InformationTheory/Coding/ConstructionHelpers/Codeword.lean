@@ -272,22 +272,7 @@ public lemma kraftCodeword_inj
   (hn : n < D^w) (hm : m < D^w)
   (h : kraftCodeword hD n w = kraftCodeword hD m w) :
   n = m := by
-  -- forget `Fin` and reduce to Nat BE equality
-  have h_map := congrArg (List.map (fun x => x.val)) h
-  have h_nat : digitsBE_fixed D n w = digitsBE_fixed D m w := by
-    simpa [kraftCodeword_map_val] using h_map
-
-  -- cancel reverse to get LE equality
-  have h_le : digitsLE_fixed D n w = digitsLE_fixed D m w := by
-    -- `digitsBE_fixed = reverse digitsLE_fixed`
-    have := congrArg List.reverse h_nat
-    simpa [digitsBE_fixed] using this
-
-  -- apply `ofDigits` and use the reconstruction lemma under bounds
-  have h_of := congrArg (Nat.ofDigits D) h_le
-  simpa
-    [ ofDigits_digitsLE_fixed hD hn
-    , ofDigits_digitsLE_fixed hD hm
-    ] using h_of
+  have hpre : kraftCodeword hD n w <+: kraftCodeword hD m w := h ▸ List.prefix_rfl
+  simpa using ((kraftCodeword_prefix_iff_div hD hn hm).mp hpre).2.symm
 
 end InformationTheory

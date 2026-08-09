@@ -10,10 +10,6 @@ public import Mathlib.Analysis.SpecialFunctions.Log.Basic
 public import Mathlib.Analysis.SpecialFunctions.Log.NegMulLog
 public import Mathlib.Analysis.SpecialFunctions.Pow.Real
 public import Mathlib.InformationTheory.Coding.UniquelyDecodable
-public import Mathlib.InformationTheory.KullbackLeibler.Basic
-public import Mathlib.MeasureTheory.Measure.Count
-public import Mathlib.MeasureTheory.Measure.LogLikelihoodRatio
-public import Mathlib.MeasureTheory.Measure.WithDensity
 public import InformationTheory.Entropy.Basic
 import Mathlib.InformationTheory.Coding.KraftMcMillan
 
@@ -28,20 +24,10 @@ here; this file is genuinely just the source-coding-specific content built on to
 
 ## Main definitions
 
-* `pmfMeasure`: Converts a probability mass function `p : I → ℝ` to a finite measure.
-* `expLength`: Expected codeword length `E[L] = ∑ p(i) * |w(i)|`.
+* `expectedLength`: Expected codeword length `E[L] = ∑ p(i) * |w(i)|`.
 
 ## Main results
 
-* `toReal_klDiv_pmfMeasure_eq_klFin`: **The bridge** between `InformationTheory.klFin`
-  (`Divergence.Basic`, the finite/elementary Kullback-Leibler divergence as a `Finset.sum`) and
-  mathlib's own measure-theoretic `klDiv`: for strictly positive, normalized `p`, `q`,
-  `(klDiv (pmfMeasure p) (pmfMeasure q)).toReal = klFin p q`. `klFin` is not a second,
-  independent KL divergence competing with mathlib's — it is `klDiv`'s finite special case,
-  connected here explicitly.
-* `gibbs_sum_log_ratio_nonneg`: The discrete Gibbs inequality via the measure-theoretic route,
-  for strictly positive `p`, `q`: `∑ p(i) log(p(i)/q(i)) ≥ 0`. Now a one-line corollary of the
-  bridge lemma above plus mathlib's nonnegativity of `klDiv.toReal`.
 * `source_coding_lower_bound`: For any uniquely decodable code over an alphabet of size `D`,
   the expected codeword length is at least the entropy: `H_D(p) ≤ E[L]`.
 
@@ -61,169 +47,33 @@ drop this term in the final inequality.
 
 namespace InformationTheory
 
-open scoped ENNReal
-open MeasureTheory Real Set
-
-section DiscreteKL
-
-variable {I : Type*} [Fintype I]
-local instance : MeasurableSpace I := ⊤
-
-omit [Fintype I] in
-/-- The measure with mass `p i` at each point `i`, implemented as `count.withDensity`. -/
-noncomputable def pmfMeasure (p : I → ℝ) : Measure I :=
-  Measure.count.withDensity (fun i => ENNReal.ofReal (p i))
-
-/-- If `q i > 0` for all i, then `pmfMeasure p ≪ pmfMeasure q`. -/
-lemma pmfMeasure_ac {I : Type*} {p q : I → ℝ} (hq : ∀ i, 0 < q i) :
-    pmfMeasure p ≪ pmfMeasure q := by
-  intro s hs0
-  have hs_empty : s = ∅ := by
-    by_contra hne
-    have hsne : s.Nonempty := Set.nonempty_iff_ne_empty.2 hne
-    rcases hsne with ⟨i, his⟩
-    have hle : pmfMeasure q {i} ≤ pmfMeasure  q s :=
-      measure_mono (by
-        intro x hx
-        have : x = i := by simpa [Set.mem_singleton_iff] using hx
-        simpa [this] using his)
-    have hpos_singleton : 0 < pmfMeasure q {i} := by
-      have : 0 < ENNReal.ofReal (q i) := ENNReal.ofReal_pos.mpr (hq i)
-      simpa [pmfMeasure] using this
-    exact ne_of_gt (lt_of_lt_of_le hpos_singleton hle) hs0
-  simp [hs_empty]
-
-instance (p : I → ℝ) : IsFiniteMeasure (pmfMeasure p) := by
-  exact ⟨by simp [pmfMeasure, lintegral_count]⟩
-
-lemma integral_llr_pmfMeasure {p q : I → ℝ}
-  (hp_pos : ∀ i, 0 < p i)
-  (hq_pos : ∀ i, 0 < q i) :
-  (∫ x, llr (pmfMeasure p) (pmfMeasure q) x ∂(pmfMeasure p)) = ∑ i, p i * log (p i / q i) := by
-  let ρ : Measure I := Measure.count
-  let μ : Measure I := pmfMeasure p
-  let ν : Measure I := pmfMeasure q
-
-  have hμρ : μ ≪ ρ := by
-    simpa [μ, pmfMeasure] using
-      (withDensity_absolutelyContinuous (μ := ρ) (f := fun i => ENNReal.ofReal (p i)))
-
-  have h_rn_μρ : μ.rnDeriv ρ =ᵐ[ρ] fun i => ENNReal.ofReal (p i) := by
-    simpa [μ, pmfMeasure] using (Measure.rnDeriv_withDensity (ν := ρ) (fun i => by simp))
-
-  have h_rn_μν_ρ :
-      μ.rnDeriv ν =ᵐ[ρ] fun i =>
-        (ENNReal.ofReal (q i))⁻¹ * (ENNReal.ofReal (p i)) := by
-    have hf : AEMeasurable (fun i => ENNReal.ofReal (q i)) ρ :=
-      (Measurable.of_discrete : Measurable (fun i : I => ENNReal.ofReal (q i))).aemeasurable
-    have h := Measure.rnDeriv_withDensity_right (μ := μ) (ν := ρ) hf
-      (by simp [ρ]; grind) (by simp [ρ])
-    filter_upwards [h, h_rn_μρ] with i hi hip
-    simpa [ν, pmfMeasure, hip] using hi
-
-  have h_llr :
-      llr μ ν  =ᵐ[μ] fun i => log (p i / q i) := by
-    filter_upwards [hμρ h_rn_μν_ρ] with i hi
-    simp [MeasureTheory.llr_def, hi, div_eq_mul_inv, le_of_lt (hp_pos i), le_of_lt (hq_pos i),
-      CommMonoid.mul_comm]
-
-  calc
-    (∫ x, llr μ ν x ∂μ)
-        = ∫ x, log (p x / q x) ∂μ := by
-            refine integral_congr_ae ?_
-            simpa using h_llr
-    _ = ∑ i, p i * log (p i / q i) := by
-          simpa [μ, pmfMeasure, fun i => le_of_lt (hp_pos i)]
-            using integral_withDensity_eq_integral_toReal_smul
-              (μ := Measure.count)
-              (f := fun i : I => ENNReal.ofReal (p i))
-              (g := fun i => log (p i / q i))
-              (by simp [Measurable])
-              (by simp)
-
-lemma pmfMeasure_univ_eq_of_sum_eq_one {p : I → ℝ}
-    (hp_nonneg : ∀ i, 0 ≤ p i)
-    (hp_sum : ∑ i, p i = 1) :
-    pmfMeasure p univ = 1 := by
-  calc
-    pmfMeasure p univ
-      = ∑ i, ENNReal.ofReal (p i) := by simp [pmfMeasure, lintegral_count]
-    _ = ENNReal.ofReal (∑ i, p i) := by
-          simpa using (ENNReal.ofReal_sum_of_nonneg (fun i _ => hp_nonneg i)).symm
-    _ = 1 := by simp [hp_sum]
-
-/-- **The bridge between `klFin` and mathlib's measure-theoretic `klDiv`.** For strictly
-positive, normalized `p`, `q`, the finite/elementary `klFin` (`Divergence.Basic`) and the
-measure-theoretic `klDiv` applied to `pmfMeasure p`/`pmfMeasure q` agree. This is not a second,
-independent Kullback-Leibler divergence competing with mathlib's own: `klFin` is the finite
-special case of `klDiv`, connected here explicitly. Proved by combining
-`toReal_klDiv_of_measure_eq` (mathlib) with `integral_llr_pmfMeasure` above — the two pieces
-were already most of this proof, sitting side by side in `gibbs_sum_log_ratio_nonneg`. -/
-theorem toReal_klDiv_pmfMeasure_eq_klFin
-    {p q : I → ℝ}
-    (hp_pos : ∀ i, 0 < p i) (hp_sum : ∑ i, p i = 1)
-    (hq_pos : ∀ i, 0 < q i) (hq_sum : ∑ i, q i = 1) :
-    (klDiv (pmfMeasure p) (pmfMeasure q)).toReal = klFin p q := by
-  have hμν : pmfMeasure p ≪ pmfMeasure q := pmfMeasure_ac hq_pos
-  have hmass : pmfMeasure p univ = pmfMeasure q univ := by
-    have hμ : pmfMeasure p univ = 1 :=
-      pmfMeasure_univ_eq_of_sum_eq_one (fun i => le_of_lt (hp_pos i)) hp_sum
-    have hν : pmfMeasure q univ = 1 :=
-      pmfMeasure_univ_eq_of_sum_eq_one (fun i => le_of_lt (hq_pos i)) hq_sum
-    simp [hμ, hν]
-  rw [toReal_klDiv_of_measure_eq hμν hmass, integral_llr_pmfMeasure hp_pos hq_pos]
-  rfl
-
-/-- Finite Gibbs inequality for strictly positive pmfs.
-This is the bridge from the measure-theoretic `llr` lemma to a `Finset.sum` statement. Now a
-one-line corollary of `toReal_klDiv_pmfMeasure_eq_klFin` plus mathlib's nonnegativity of
-`klDiv.toReal`, rather than an independent proof of the same fact. -/
-lemma gibbs_sum_log_ratio_nonneg
-    {p q : I → ℝ}
-    (hp_pos : ∀ i, 0 < p i) (hp_sum : ∑ i, p i = 1)
-    (hq_pos : ∀ i, 0 < q i) (hq_sum : ∑ i, q i = 1) :
-    0 ≤ ∑ i, p i * log (p i / q i) := by
-  have hk : 0 ≤ (klDiv (pmfMeasure p) (pmfMeasure q)).toReal := by simp
-  rwa [toReal_klDiv_pmfMeasure_eq_klFin hp_pos hp_sum hq_pos hq_sum] at hk
-
-end DiscreteKL
+open Real Set
 
 section SourceCodingLower
 
 open Real
 
 variable {I : Type*} [Fintype I]
-variable {D : ℕ}
 
-noncomputable def expLength (p : I → ℝ) (w : I → List (Fin D)) : ℝ :=
+/-- Expected codeword length under the weights `p`. -/
+noncomputable def expectedLength {α : Type*} (p : I → ℝ) (w : I → List α) : ℝ :=
   ∑ i, p i * ((w i).length : ℝ)
 
-/-
-We assume hp_pos : ∀ i, 0 < p i. That's stronger than what source coding typically needs
-(usually 0 ≤ p i, sum=1, plus convention 0*log 0 = 0).
-The route via pmfMeasure_ac and the llr algebra is what forces the strict positivity.
-
-TODO:
-Relax strict positivity by
-(1) keeping p i ≥ 0, ∑ p = 1, and using the convention Real.negMulLog 0 = 0 (already true), and
-(2) handling the KL/Gibbs step with an a.e. statement:
-prove llr μ ν = log(p/q) only on the set {i | p i > 0 ∧ q i > 0},
-and show the complement is μ-null (because μ {i | p i = 0} = 0).
-
-Practically, we either truncate to the support s := {i | p i > 0} (work on s as a finite type)
-or regularize with q_ε := (1-ε) q + ε r for a strictly positive r,
-prove the bound for q_ε, then take ε → 0 using continuity/monotone convergence
-to recover the non-strict case.
--/
+/-- The source-coding lower bound: the entropy of a source is at most the expected length of
+any injective uniquely decodable code over a finite nontrivial alphabet. -/
 theorem source_coding_lower_bound
-    (hD : 1 < D)
+    {α : Type*} [Fintype α] [Nontrivial α]
     (p : I → ℝ)
-    (hp_pos : ∀ i, 0 < p i)
+    (hp_nonneg : ∀ i, 0 ≤ p i)
     (hp_sum : ∑ i, p i = 1)
-    (w : I → List (Fin D))
+    (w : I → List α)
     (hw : Function.Injective w)
     (hud : UniquelyDecodable (Set.range w)) :
-    entropy D p ≤ expLength p w := by
+    entropy (Fintype.card α) p ≤ expectedLength p w := by
+  classical
+  let D := Fintype.card α
+  change entropy D p ≤ expectedLength p w
+  have hD : 1 < D := Fintype.one_lt_card
   letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
     letI := hI
     simp at hp_sum
@@ -248,18 +98,20 @@ theorem source_coding_lower_bound
       nlinarith
     have hgibbs :
         0 ≤ ∑ i, p i * log (p i / q i) := by
-      simpa using gibbs_sum_log_ratio_nonneg hp_pos hp_sum hq_pos hq_sum
-    have h_log_p_div_q (i : I) := by
-      calc  log (p i / q i)
-        _ = log (p i * (K * D ^ L i)) := by simp [q, div_eq_mul_inv, mul_comm]
-        _ = log (p i) + log (K * D ^ L i) := by
-              have hp0 : 0 < p i := hp_pos i
-              exact log_mul (by positivity) (by positivity)
-        _ = log (p i) + (log K + log (D ^ L i)) := by
-              simpa using Real.log_mul (ne_of_gt hK_pos) (ne_of_gt (pow_pos hD0 _))
-        _ = log (p i) + log K + L i * log D := by
-              simp [log_pow, add_left_comm, add_comm]
-    simp_rw [h_log_p_div_q] at hgibbs
+      exact gibbs_sum_log_ratio_nonneg_of_ac hp_nonneg hp_sum (fun i => (hq_pos i).le)
+        hq_sum.le fun i hi => ((hq_pos i).ne' hi).elim
+    have h_gibbs_term (i : I) :
+        p i * log (p i / q i) =
+          p i * log (p i) + p i * log K + p i * (L i * log D) := by
+      have hlogq : log (q i) = -log K - L i * log D := by
+        rw [show q i = (1 / K) * (1 / (D : ℝ)) ^ L i by rfl,
+          Real.log_mul (by positivity) (by positivity), log_pow]
+        simp [one_div]
+        ring
+      rw [mul_log_div_of_ac (hp_nonneg i) (hq_pos i).le
+        (fun hi => ((hq_pos i).ne' hi).elim), hlogq]
+      ring
+    simp_rw [h_gibbs_term] at hgibbs
     calc
       0 ≤ (∑ i, p i * log (p i))
           + (∑ i, p i * log K)
@@ -291,7 +143,7 @@ theorem source_coding_lower_bound
             have : 0 ≤ ∑ i, p i * log (p i) + log K + log D * ∑ i, p i * (L i : ℝ) := by
               simpa [hp_sum] using hgibbs'
             linarith
-      _ = log D * expLength p w + log K := by simp [expLength, L, add_comm]
+      _ = log D * expectedLength p w + log K := by simp [expectedLength, L, add_comm]
   have hlogD_pos : 0 < log D := by
     have : 1 < (D : ℝ) := by exact_mod_cast hD
     simpa using log_pos this
@@ -303,20 +155,19 @@ theorem source_coding_lower_bound
               simp [K, L]
               simp_all only [Finset.coe_univ, injOn_univ, Finset.sum_image]
         _ ≤ 1 := by
-              have hudS : UniquelyDecodable (Finset.univ.image w : Set (List (Fin D))) := by
+              have hudS : UniquelyDecodable (Finset.univ.image w : Set (List α)) := by
                 simp [hud]
-              haveI : Nonempty (Fin D) := ⟨⟨0, by positivity⟩⟩
-              simpa using kraft_mcmillan_inequality hudS
+              simpa [D] using kraft_mcmillan_inequality hudS
     simpa using log_le_log hK_pos hK_le_one
   -- Now show `log K / log D ≤ 0` and conclude
   have hlogK_div_le0 : log K / log D ≤ 0 :=
     div_nonpos_of_nonpos_of_nonneg hlogK_le0 (by positivity)
   calc entropy D p
-       ≤ (log D * expLength p w + log K) / log D :=
+       ≤ (log D * expectedLength p w + log K) / log D :=
             div_le_div_of_nonneg_right h_negMulLog_le (le_of_lt hlogD_pos)
-    _  = expLength p w + log K / log D := by
+    _  = expectedLength p w + log K / log D := by
             simp [add_div, ne_of_gt hlogD_pos]
-    _ ≤ expLength p w := by linarith
+    _ ≤ expectedLength p w := by linarith
 
 end SourceCodingLower
 

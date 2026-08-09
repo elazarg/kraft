@@ -1,7 +1,7 @@
 # Upstream order
 
-Proposal, 2026-08-05 (revised after review — three dependency-graph errors fixed, one
-structural refactor added). `UniquelyDecodable.lean`/`KraftMcMillan.lean` are already merged
+Proposal, 2026-08-05 (revised after proof mining on 2026-08-09).
+`UniquelyDecodable.lean`/`KraftMcMillan.lean` are already merged
 ([#34108](https://github.com/leanprover-community/mathlib4/pull/34108)). This proposes an order
 for the rest, scored on the four things a mathlib reviewer actually reacts to — confirmed
 against how #34108 itself went (dupuisf and vlad902 pushed on: minimal-necessary imports, no
@@ -30,54 +30,60 @@ Track A (coding theory, needs the merged PR):
   PrefixFree -> Kraft.lean
   Entropy.Basic (new, extracted below) -> SourceCodingLowerBound (shrunk)
                                         -> ConditionalEntropy + Uniform
+                                        -> Entropy.PMF adapter
 Track B (divergence, needs nothing from A):
-  Basic (standalone)  -> Pinsker
-  Binary (standalone) -^
-  Basic -> Tensorization (partial, see below)
+  Basic -> Binary -> Pinsker
+    |\-------------> Tensorization (partial, see below)
+    \--------------> FiniteMeasure (`klFin`/`klDiv` bridge)
 
 Bridge: ChainRule needs ConditionalEntropy (A) AND Basic (B)
 
-Track C (converse, two independent branches meeting at the end):
-  Sum + ExtShift       -\
-                         -> Construction -\
-  Codeword + Helpers    -/                -> KraftConverse (also needs PrefixFree from A)
+Track C (converse, five independent inputs meeting only at the end):
+  Sum + ExtShift          -\
+  Helpers -> Codeword      \
+  Construction             > KraftConverse (also needs PrefixFree from A)
+  finite-fiber enumeration/
 
 Orphaned: KraftNatural + KraftGeneralized (733 lines) — nothing outside themselves depends
 on them anymore; see the note below before deciding whether to upstream these at all.
 ```
 
-Three corrections to the first draft of this map, verified directly against the files:
+Corrections to the first draft of this map, verified directly against the files:
 
-- **`Binary.lean` has zero local dependencies** — it imports only mathlib (`Log.Basic`,
-  `Log.Deriv`, `Calculus.Deriv.MeanValue`), not `Divergence.Basic`. The two files are
-  independent, not sequential.
-- **`Construction.lean` does not import `Codeword.lean`** — it imports only `Sum.lean` (+
-  mathlib). `Codeword` and `Construction` are parallel branches that only meet at
-  `KraftConverse.lean`, not a chain.
+- **`Binary.lean` now intentionally depends on `Divergence.Basic`.** The bridge
+  `klFin_bernoulli` identifies `klBin` with `klFin` on Bernoulli laws, and `klBin_nonneg` is a
+  short corollary of the general finite Gibbs theorem instead of a second proof. This costs one
+  dependency edge but gives the two divergence APIs the compatibility lemma a reviewer is
+  likely to demand.
+- **`Construction.lean` has no local dependencies.** It does not import either `Codeword` or
+  `Sum`; numerator arithmetic, sum bounds, extension, codewords, and reordering are parallel
+  inputs that meet only in `KraftConverse.lean`.
 - **Track C is far less constrained than it looks.** Only `KraftConverse` itself needs
-  `PrefixFree` (Track A). `Sum + ExtShift` and `Codeword + Helpers` need nothing at all;
-  `Construction` needs `Sum` only. So three of Track C's four PRs can start immediately,
-  alongside PR 1 and PR 2 — a stronger scheduling lever than "start after PR 1."
+  `PrefixFree` (Track A). Every other Track C component can start immediately alongside PR 1
+  and PR 2.
 
 ## The missing refactor: extract `Entropy.Basic` — done, 2026-08-05
 
 `ConditionalEntropy.lean` and `Uniform.lean` imported all of `SourceCodingLowerBound.lean` — but
-checked what they actually used: only `entropy` (previously defined at
-`SourceCodingLowerBound.lean:216`) and the Gibbs lemma. Conditional entropy has no mathematical
+checked what they actually used: only `entropy` (previously defined in
+`SourceCodingLowerBound.lean`) and the Gibbs lemma. Conditional entropy has no mathematical
 dependence on a source-coding theorem; the edge existed purely because `entropy` happened to
 live in a coding-theory file. A mathlib reviewer would not accept `entropy` — this plan's own
 candidate for "the single most obviously-missing definition" — defined inside
 `Coding/SourceCodingLowerBound.lean`. Done, in `InformationTheory/Entropy/Basic.lean`:
 
-- `Entropy/Basic.lean` (76 lines): `entropy`, `entropy_nonneg` (moved from
+- `Entropy/Basic.lean` (~149 lines): `entropy`, `entropy_nonneg` (moved from
   `ConditionalEntropy.lean`), and `gibbs_sum_log_ratio_nonneg_of_ac` (moved from
   `SourceCodingLowerBound.lean`, rerouted through `Divergence.Basic.klFin_nonneg` — see below).
-  Depends on `Divergence.Basic` only, not on any coding-theory file.
-- `SourceCodingLowerBound.lean` (341 → 307 lines) imports `Entropy.Basic` and now holds only
-  what's actually source-coding-specific: `pmfMeasure`, `expLength`,
-  `gibbs_sum_log_ratio_nonneg` (kept, see the bridge-lemma note below), and
-  `source_coding_lower_bound` itself.
-- `ConditionalEntropy.lean` (356 → 348 lines) and `Uniform.lean` import `Entropy.Basic` instead
+  It also includes the point-mass characterization and base-change theorem. Depends on
+  `Divergence.Basic` only, not on any coding-theory file.
+- `Entropy/PMF.lean` (~66 lines) is a separate adapter with `PMF.sum_toReal`, `entropyPMF`, and
+  its nonnegativity and zero-entropy API, so `Entropy.Basic` does not import the PMF hierarchy.
+- `SourceCodingLowerBound.lean` imports `Entropy.Basic` and now holds only generic
+  `expectedLength` and `source_coding_lower_bound`.
+- `Divergence/FiniteMeasure.lean` holds `pmfMeasure` and the `klFin`/`klDiv` compatibility
+  bridge, with no coding-theory dependency.
+- `ConditionalEntropy.lean` and `Uniform.lean` import `Entropy.Basic` instead
   of `SourceCodingLowerBound`.
 
 This decouples `ConditionalEntropy` (the crown jewel) from `SourceCodingLowerBound` entirely —
@@ -85,30 +91,23 @@ they're siblings depending on the same small base now, not a chain — and avoid
 otherwise be a permanent, odd upstream layout: `Mathlib.InformationTheory.Entropy.*` importing
 `Mathlib.InformationTheory.Coding.*` for a definition that has nothing to do with codes.
 
-## Prep work before PR 4 — the Gibbs reroute is done, the bridge lemma is still open
+## Prep work before PR 4 — Gibbs reroute and compatibility bridges done
 
-**Reroute the Gibbs proof — done.** `SourceCodingLowerBound.lean` had *two* elementary Gibbs
-proofs sitting side by side: `gibbs_sum_log_ratio_nonneg` (measure-theoretic, via
-`pmfMeasure`/`klDiv`, strict positivity) and `gibbs_sum_log_ratio_nonneg_of_ac` (already
-elementary, zero-mass-tolerant) — and the second one duplicated `Divergence.Basic.klFin_nonneg`,
-which is proved the same way and already generalizes it (`klFin_nonneg`'s own docstring said so
-explicitly: it weakens the mass condition from `∑ q = ∑ p` to `∑ q ≤ ∑ p`, and noted this reroute
-was "deliberately left untouched" — i.e. queued exactly for this pass). Now
-`gibbs_sum_log_ratio_nonneg_of_ac` in `Entropy.Basic` is a two-line wrapper around
-`klFin_nonneg`. The measure-theoretic `gibbs_sum_log_ratio_nonneg` was *not* touched — see next.
+**Reroute the Gibbs proof — done.** `gibbs_sum_log_ratio_nonneg_of_ac` in `Entropy.Basic` is a
+thin wrapper around the more general `klFin_nonneg`. The older strictly-positive
+`gibbs_sum_log_ratio_nonneg` was removed after the bridge below was added: it was unused and
+strictly subsumed by the zero-mass-tolerant theorem.
 
 **The `klFin`/`klDiv` bridge lemma — done, 2026-08-05.** The instinct after the reroute above is
 to drop `pmfMeasure` and `integral_llr_pmfMeasure` entirely, now that they're no longer feeding
 `gibbs_sum_log_ratio_nonneg_of_ac`. That would have been a mistake: a reviewer will ask how
 `klFin` relates to mathlib's existing `InformationTheory.KullbackLeibler.klDiv`, and
 `integral_llr_pmfMeasure` was already most of the proof of exactly that compatibility lemma.
-Added `toReal_klDiv_pmfMeasure_eq_klFin` (`SourceCodingLowerBound.lean`, right after
-`integral_llr_pmfMeasure`): for strictly positive, normalized `p`, `q`,
+Added `toReal_klDiv_pmfMeasure_eq_klFin` (`Divergence/FiniteMeasure.lean`, right after
+`integral_llr_pmfMeasure`): for equal-mass nonnegative `p`, `q` satisfying absolute continuity,
 `(klDiv (pmfMeasure p) (pmfMeasure q)).toReal = klFin p q`, proved by combining
-`toReal_klDiv_of_measure_eq` (mathlib) with `integral_llr_pmfMeasure` — a four-line proof, since
-the two pieces were already sitting side by side. `gibbs_sum_log_ratio_nonneg` itself is now a
-two-line corollary of this bridge plus mathlib's `0 ≤ (klDiv _ _).toReal`, rather than an
-independent proof reaching the same conclusion by the same route a second time. This turns
+`pmfMeasure_eq_withDensity`, `toReal_klDiv_of_measure_eq` (mathlib), and
+`integral_llr_pmfMeasure`. This turns
 "here's a second KL divergence definition" — precisely the "why do you need both" objection this
 plan already flags elsewhere — into "here's the finite/elementary API, linked to the
 measure-theoretic one you already have."
@@ -135,41 +134,49 @@ of these can run in parallel with different reviewers.
 "definition, then the named theorem" shape as #34108, direct continuation of the same series.
 Lowest-risk PR in the whole plan.
 
-**PR 2 — `Divergence.Basic`** (Track B) — ~125 lines, plus the `klFin`/`klDiv` bridge lemma from
-the prep-work note above. The highest-leverage single file in the plan: `Entropy.Basic`, every
-other file in Track B, and `ChainRule` all need it.
+**PR 2 — `Divergence.Basic`** (Track B) — ~137 lines. The highest-leverage single file in the
+plan: `Entropy.Basic`, every other file in Track B, and `ChainRule` all need it.
 
-**PR 3 — `Sum` + `ExtShift`** (Track C) — 94 + 72 = 166 lines. Numeric prefix-sum and
+**PR 3 — `Sum` + `ExtShift`** (Track C) — 82 + 54 = 136 lines. Numeric prefix-sum and
 sequence-extension lemmas. Not independently motivated on their own, but small and genuinely
 dependency-free — a fine low-risk warm-up that de-risks the review relationship before the
 bigger Track C PRs land. (`ExtShift` is used only by `KraftConverse` in the end, so it could
 equally well ride along with PR 13 instead — either placement is fine.)
 
-**PR 4 — `Codeword` + `Helpers`** (Track C) — 297 + 43 = 340 lines. Explicit fixed-width base-`D`
+**PR 4 — `Codeword` + `Helpers`** (Track C) — 278 + 42 = 320 lines. Explicit fixed-width base-`D`
 digit encoding, with a clean 4-declaration public API the file already documents itself.
 Independent of PR 3 — genuinely parallel, not sequential, despite both being "Track C."
 
-**PR 5 — `Divergence.Binary`** (Track B) — 273 lines. `klBin`, Gibbs, the sharp-constant (`2`)
-binary Pinsker inequality via a real second-derivative-monotonicity argument, and the
-chi-squared upper bound. Zero local dependencies, independently citable (binary
-hypothesis-testing bounds are standard) — but the derivative-monotonicity proof is real analysis
-a reviewer will read carefully; budget more review time than the line count suggests.
+**PR 7a — finite-fiber monotone enumeration** (generic order theory) — ~229 lines, no local
+dependencies. The public API includes `exists_equiv_nat_monotone_of_finite_fibers` and a wrapper
+using mathlib's existing `Northcott` abstraction; the private `KraftOrder`/rank machinery is only
+their implementation. Upstream this should be renamed and placed in a general order/countability
+file, not presented as coding theory.
+
+**PR 7b — Kraft numerator arithmetic** (Track C) — ~160 lines, no local dependencies.
+`kraftNumerator.div_pow_eq_sum` and the positive interval-separation invariant
+`kraftNumerator.add_one_mul_pow_le` are the core results. The latter replaced an unused
+50-line closed form plus a long negative-only separation proof.
 
 ### Wave 2 — one prerequisite each
 
-**PR 6 — `Entropy.Basic`** (Track A, new) — 76 lines, already extracted locally (see above).
+**PR 2b — `Divergence.FiniteMeasure`** (Track B) — ~134 lines. Needs PR 2. This is the isolated
+compatibility layer between elementary `klFin` and mathlib's measure-theoretic `klDiv`; keeping
+it separate avoids forcing measure theory on every finite-divergence or source-coding user.
+
+**PR 6 — `Entropy.Basic`** (Track A, new) — ~149 lines, already extracted locally (see above).
 Needs PR 2 only. Ships `entropy` itself, which makes this arguably the PR to lead with once PR 2
 lands — it's small, it's the plan's own headline gap-filler, and nothing about it is
 coding-theory-specific.
 
-**PR 7 — `Construction`** (Track C) — 573 lines, the single largest file in the repo.
-`kraftNumerator`, `KraftOrder`, `kraftRank`, the reordering machinery. Needs PR 3 only. This is
-the technical core of the converse and the hardest to split further — the three pieces all serve
-one purpose (reorder indices by length) and don't factor the way `ConditionalEntropy` does. Flag
-as the highest-risk single PR in the entire plan on complexity grounds, independent of its
-dependencies: 573 lines of real-analysis-plus-order-theory is the size where mathlib reviewers
-ask for a design discussion before the code. Consider a Zulip thread describing the approach
-before the diff.
+**PR 6b — `Entropy.PMF`** (Track A) — ~66 lines. Needs PR 6. This is deliberately separate from
+the elementary finite-sum API and supplies the adapter downstream probability developments need.
+
+**PR 5 — `Divergence.Binary`** (Track B) — ~260 lines. Needs PR 2. `klFin_bernoulli` connects
+the binary and finite APIs; the file then proves the sharp-constant (`2`) binary Pinsker
+inequality via a real second-derivative-monotonicity argument and the chi-squared upper bound.
+The derivative proof is real analysis a reviewer will read carefully; budget more review time
+than the line count suggests.
 
 **PR 8 — `Divergence.Pinsker`** (Track B) — 546 lines, split in two. Needs PR 2 and PR 5. Largest
 file in the plan and the one most likely to draw a "please split this" request — split
@@ -189,11 +196,10 @@ below); the remainder is genuinely general and worth having on its own.
 
 ### Wave 3 — two prerequisites
 
-**PR 10 — `SourceCodingLowerBound`, shrunk** (Track A) — ~150 lines after the extraction
-(`expLength`, `source_coding_lower_bound`). Needs PR 1 and PR 6. Note the file's own TODO (relax
-`hp_pos : ∀ i, 0 < p i` to `0 ≤ p i`): worth doing before this PR, since `ConditionalEntropy`
-already needed that relaxation for its own Gibbs use and the technique is proven — inconsistent
-to upstream the stricter version now and relax it later.
+**PR 10 — `SourceCodingLowerBound`, shrunk** (Track A) — ~174 lines after the extraction
+(`expectedLength`, `source_coding_lower_bound`). Needs PR 1 and PR 6. The theorem now assumes only
+`0 ≤ p i`: the normalized Kraft weights are strictly positive, so the zero-mass-tolerant Gibbs
+lemma from `Entropy.Basic` handles vanishing source probabilities directly.
 
 **PR 11 — `ConditionalEntropy` + `Uniform`** (Track A) — ~448 lines. Needs PR 6 *only* — after
 the extraction, this no longer waits on PR 10 at all, which is the main scheduling win of the
@@ -207,7 +213,7 @@ preemptively split it, since the whole thing is one coherent concept.
 
 **PR 12 — `Divergence.ChainRule`** (bridge) — 232 lines. Needs PR 11 *and* PR 2 — first point
 where Tracks A and B both have to have landed. Small, well-motivated companion PR mirroring
-`ConditionalEntropy.chain_rule` once both prerequisites exist.
+`entropy_chain_rule` once both prerequisites exist.
 
 ### Wave 4 — the payoff
 
@@ -250,18 +256,21 @@ overlooked.
 | PR | Content | Lines | Needs | Track | Wave |
 |---|---|---|---|---|---|
 | 1 | PrefixFree + Kraft | ~160 | merged PR only | A | 1 |
-| 2 | Divergence.Basic (+ klFin/klDiv bridge) | ~125+ | — | B | 1 |
-| 3 | Sum + ExtShift | ~166 | — | C | 1 |
-| 4 | Codeword + Helpers | ~340 | — | C | 1 |
-| 5 | Divergence.Binary | ~273 | — | B | 1 |
-| 6 | Entropy.Basic (extracted, done locally) | 76 | 2 | A | 2 |
-| 7 | Construction | ~573 | 3 | C | 2 |
+| 2 | Divergence.Basic | ~137 | — | B | 1 |
+| 2b | Divergence.FiniteMeasure | ~134 | 2 | B | 2 |
+| 3 | Sum + ExtShift | ~136 | — | C | 1 |
+| 4 | Codeword + Helpers | ~320 | — | C | 1 |
+| 5 | Divergence.Binary | ~260 | 2 | B | 2 |
+| 6 | Entropy.Basic (extracted, done locally) | ~149 | 2 | A | 2 |
+| 6b | Entropy.PMF | ~66 | 6 | A | 2 |
+| 7a | Finite-fiber monotone enumeration | ~229 | — | generic | 1 |
+| 7b | Kraft numerator arithmetic | ~160 | — | C | 1 |
 | 8 | Divergence.Pinsker (split in two) | ~546 | 2, 5 | B | 2 |
 | 9 | Tensorization (minus the fence corollary) | ~325 | 2 | B | 2 |
-| 10 | SourceCodingLowerBound, shrunk | ~150 | 1, 6 | A | 3 |
+| 10 | SourceCodingLowerBound, shrunk | ~174 | 1, 6 | A | 3 |
 | 11 | ConditionalEntropy + Uniform | ~448 | 6 | A | 3 |
 | 12 | Divergence.ChainRule | ~232 | 11, 2 | bridge | 3 |
-| 13 | KraftConverse | ~414 | 1, 3, 4, 7 | C | 4 |
+| 13 | KraftConverse | ~398 | 1, 3, 4, 7a, 7b | C | 4 |
 
 Not proposed: `detector_miss_of_pathBudget` (application-specific), `Example.lean`
 (pedagogical), `KraftNatural.lean` + `KraftGeneralized.lean` (orphaned, redundant with the

@@ -30,32 +30,14 @@ namespace InformationTheory
 
 section Sum
 
-/-- Helper: if a nonnegative series of length `k` sums to `≤ 1`,
-then every proper prefix sum is `< 1`. -/
+/-- A proper prefix of a nonnegative finite sum bounded by `1` is strictly below `1` when its
+first omitted term is positive. -/
 lemma sum_range_lt_one_of_sum_range_le_one
-    {r : ℝ} (hr : 0 < r) {k n : ℕ} (hnk : n < k)
-    {lNat : ℕ → ℕ}
-    (h_le : (∑ t ∈ Finset.range k, r ^ lNat t) ≤ 1) :
-    (∑ t ∈ Finset.range n, r ^ lNat t) < 1 := by
-  -- `S(n) < S(n+1) ≤ S(k) ≤ 1`
-  refine lt_of_lt_of_le ?_ h_le
-
-  have hlt_succ : (∑ t ∈ Finset.range n, r ^ lNat t)
-      < (∑ t ∈ Finset.range (n+1), r ^ lNat t) := by
-    simp [Finset.sum_range_succ]
-    have : 0 < r ^ lNat n := by
-      exact pow_pos hr _
-    linarith
-
-  apply lt_of_lt_of_le hlt_succ
-
-  refine le_trans ?_ le_rfl
-
-  have hsub : Finset.range (n+1) ⊆ Finset.range k :=
-    Finset.range_mono (Nat.succ_le_of_lt hnk)
-  refine Finset.sum_le_sum_of_subset_of_nonneg hsub ?_
-  intro _ _ _
-  exact le_of_lt (pow_pos hr _)
+    {f : ℕ → ℝ} (hf : ∀ i, 0 ≤ f i) {k n : ℕ} (hfn : 0 < f n) (hnk : n < k)
+    (h_le : (∑ t ∈ Finset.range k, f t) ≤ 1) :
+    (∑ t ∈ Finset.range n, f t) < 1 :=
+  (Finset.sum_lt_sum_of_subset (Finset.range_mono hnk.le) (Finset.mem_range.mpr hnk)
+      (by simp) hfn fun i _ _ => hf i).trans_le h_le
 
 /-- From `Summable` + `tsum ≤ 1`, every proper finite prefix sum is `< 1`. -/
 lemma prefix_sum_lt_one_of_tsum_le_one
@@ -77,7 +59,8 @@ lemma prefix_sum_lt_one_of_tsum_le_one
     exact le_trans h_le_tsum' h_sum_le_one
 
   simpa [Nat.Iio_eq_range] using
-    sum_range_lt_one_of_sum_range_le_one h_pos (Nat.lt_succ_self n) h_le
+    sum_range_lt_one_of_sum_range_le_one (fun i => (pow_pos h_pos (l i)).le)
+      (pow_pos h_pos (l n)) (Nat.lt_succ_self n) h_le
 
 lemma prefix_sum_lt_one_of_fin_sum_le_one
     {D k : ℕ} (hD : 1 < D)
@@ -86,9 +69,8 @@ lemma prefix_sum_lt_one_of_fin_sum_le_one
     ∀ i : Fin k,
       (∑ t ∈ Finset.range i.val, (1 / D : ℝ) ^ l t) < 1 := by
   intro i
-  refine sum_range_lt_one_of_sum_range_le_one ?_ i.isLt ?_
-  · rw [one_div_pos]
-    exact_mod_cast Nat.zero_lt_of_lt hD
+  refine sum_range_lt_one_of_sum_range_le_one (fun t => ?_) (by positivity) i.isLt ?_
+  · positivity
   · -- rewrite `h_sum` from a `Fin`-sum to a `range`-sum
     have h_eq : (∑ j : Fin k, (1 / (D : ℝ)) ^ l j)
      = (∑ t ∈ Finset.range k, (1 / (D : ℝ)) ^ l t) := by

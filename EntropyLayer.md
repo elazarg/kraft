@@ -18,42 +18,37 @@ consumer's unblock and the natural next slice of the mathlib contribution.
 
 - `entropy (D : ℕ) (p : I → ℝ) : ℝ := (∑ i, Real.negMulLog (p i)) / log D`
   over `{I : Type*} [Fintype I] [Nonempty I]` — base-`D` via nats/`log D`.
-- `gibbs_sum_log_ratio_nonneg` (discrete Gibbs / KL nonnegativity) and the
-  `pmfMeasure` bridge to mathlib's measure-theoretic `klDiv`.
-- `source_coding_lower_bound` as the existing consumer of `entropy`.
+- `gibbs_sum_log_ratio_nonneg_of_ac` (zero-mass-tolerant discrete Gibbs / KL
+  nonnegativity) and, in `Divergence/FiniteMeasure.lean`, the `pmfMeasure`
+  bridge to mathlib's measure-theoretic `klDiv`.
+- `source_coding_lower_bound` as the existing consumer of `entropy`; it now
+  assumes only `0 ≤ p i`.
 - Hypothesis style: per-theorem `(hp : …) (hsum : ∑ i, p i = 1)`, `hD : 1 < D`.
 
 ## Prerequisite: the zero-mass discipline
 
-`SourceCodingLowerBound.lean` carries strict positivity `∀ i, 0 < p i` and
-its own TODO about relaxing to `0 ≤ p i` with the `negMulLog 0 = 0`
-convention. For this layer the relaxation is not optional: marginals and
+The source-coding theorem and the entropy layer consistently use `0 ≤ p i`
+with the `negMulLog 0 = 0` convention. This relaxation is essential: marginals and
 conditional slices hit zero mass constantly (a deterministic stream has
 almost all joint mass at zero), so every definition and lemma below must be
 stated with `0 ≤ p i` and total functions with documented junk values
 (mathlib style). `Real.negMulLog` already has the right convention; the
 division in conditional weights needs the `p₁ i = 0 → term = 0` convention
 made explicit at the definition. The discipline's one nontrivial deliverable
-is the zero-mass-tolerant Gibbs inequality — stated as item 0 of the core
-below, since four of the nine core items consume it and the current
-strict-positivity form blocks them.
+is the zero-mass-tolerant Gibbs inequality — item 0 of the core below, now
+implemented as `gibbs_sum_log_ratio_nonneg_of_ac`.
 
 ## Requested API — minimal core
 
 Joint distributions are `p : I × J → ℝ` (with `[Fintype I] [Fintype J]`,
 nonneg, sums to 1). All entropies base-`D` with `hD : 1 < D`.
 
-0. **Zero-mass-tolerant Gibbs — step zero, plausibly the hardest single
-   piece.** Generalize `gibbs_sum_log_ratio_nonneg` from strict positivity
-   on both arguments to: `0 ≤ p`, `0 ≤ q`, `∑ p = 1`, `∑ q ≤ 1`, and
+0. **Zero-mass-tolerant Gibbs.** `gibbs_sum_log_ratio_nonneg_of_ac` assumes
+   `0 ≤ p`, `0 ≤ q`, `∑ p = 1`, `∑ q ≤ 1`, and
    absolute continuity `∀ i, q i = 0 → p i = 0`, with the junk-value
    conventions carrying the zero terms. Items 2, 3, 4, and 7 all consume
-   this; the current strict-positivity form blocks them (item 4 compares
-   against the marginal product, which can vanish; item 7 compares `p`
-   itself, which can vanish, against uniform). The proof strategies are the
-   ones already sketched in `SourceCodingLowerBound.lean`'s own TODO:
-   truncate to the support `{i | 0 < p i}` as a finite type, or regularize
-   `q` and pass to the limit. Note the a.c. hypothesis is automatically
+   this (item 4 compares against the marginal product, which can vanish;
+   item 7 compares `p` itself, which can vanish, against uniform). The a.c. hypothesis is automatically
    satisfied at both internal use sites: against the marginal product
    because `p (i, j) ≤ fst p i` termwise, and against uniform because
    uniform never vanishes.
@@ -101,16 +96,16 @@ nonneg, sums to 1). All entropies base-`D` with `hD : 1 < D`.
    equivalently `entropy D (jointOfGraph g q) = entropy D q`. This is the
    lemma the seed-budget argument actually pivots on.
 
-## Nice-to-have (not blocking)
+## Follow-up API (completed)
 
-- `entropy_eq_zero_iff` (point mass characterization).
-- A `PMF` adapter: `entropyPMF D (q : PMF I) := entropy D (fun i => (q i).toReal)`
-  with hypothesis-transport lemmas — the consumer's game layer is
-  `PMF`-valued throughout, and E55-style uniformity results would then feed
+- `entropy_eq_zero_iff` gives the point-mass characterization.
+- `Entropy/PMF.lean` provides
+  `entropyPMF D (q : PMF I) := entropy D (fun i => (q i).toReal)` together with normalization,
+  nonnegativity, and zero-entropy transport lemmas — the consumer's game layer is
+  `PMF`-valued throughout, and E55-style uniformity results can now feed
   chain-rule computations without manual `toReal` plumbing.
-- Base-change: `entropy D p = entropy D' p * (log D' / log D)`.
-- The strict-positivity relaxation of `source_coding_lower_bound` itself
-  (the file's existing TODO) — same discipline, same techniques.
+- `entropy_base_change` states
+  `entropy D p = entropy D' p * (log D' / log D)` for nontrivial bases.
 
 ## Acceptance tests (the consumer's three statements)
 

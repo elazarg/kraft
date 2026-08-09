@@ -139,7 +139,7 @@ while proving the originals.
   \item \textbf{Real-valued weights.} The abstract theorem is stated over
     $\mathbb{R}_{\ge 0}$, with counting and limits separated.
   \item \textbf{Source coding lower bound.} For any injective uniquely
-    decodable code $w$ and strictly positive distribution $p$,
+    decodable code $w$ and nonnegative distribution $p$,
     \[
       H_D(p) := -\!\sum_i p_i \log_D p_i \;\le\; \mathbb{E}_{i \sim p}\bigl[|w(i)|\bigr].
     \]
@@ -290,18 +290,14 @@ source coding lower bound uses the Gibbs inequality
   \sum_i p_i \log(p_i/q_i) \ge 0,
 \]
 which in prose relies on $0 \log 0 = 0$. \textsf{Mathlib} bakes the
-convention into \texttt{Real.negMulLog}; the current theorem assumes
-strictly positive probabilities, but this is the convention needed for the
-usual zero-probability extension. The formalization goes further: it
-re-expresses $p$ and $q$ as finite measures, invokes \textsf{Mathlib}'s
-KL-divergence API \texttt{klDiv}, and transports its non-negativity
-theorem back to the finite-sum form.
-The price is that the KL-based route proves and uses the absolute
-continuity $p \ll q$, and the finite-sum/log transport is currently
-written for strictly positive $p_i$ and $q_i$. The normalized Kraft weights
-give $q_i>0$ automatically; the public theorem therefore assumes
-$p_i > 0$. A relaxation via support truncation is noted in the code as
-future work.
+convention into \texttt{Real.negMulLog}. The formalization connects the
+finite sum to \textsf{Mathlib}'s measure-theoretic \texttt{klDiv} through
+\texttt{pmfMeasure} in a separate divergence module, while the source-coding
+theorem itself uses the elementary, zero-mass-tolerant
+\texttt{klFin\_nonneg}. The normalized Kraft
+weights satisfy $q_i>0$, so absolute continuity is automatic even when
+$p_i=0$. The public theorem therefore assumes only $p_i\geq 0$; its
+weighted logarithm calculation treats the $p_i=0$ case separately.
 
 \section{Upstream contributions}
 \label{sec:upstream}

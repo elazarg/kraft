@@ -31,7 +31,7 @@ rather than `0 < p`.
 
 ## Main results
 
-* `chain_rule`: `entropy D p = entropy D (fst p) + condEntropy D p`.
+* `entropy_chain_rule`: `entropy D p = entropy D (fst p) + condEntropy D p`.
 * `condEntropy_le_entropy_snd`: conditioning reduces entropy, `condEntropy D p ≤ entropy D (snd p)`.
 * `entropy_push_le`: the data-processing inequality, `entropy D (push f p) ≤ entropy D p`.
 * `entropy_relabel`: entropy is invariant under relabeling by an equivalence.
@@ -119,7 +119,7 @@ noncomputable def condEntropy (D : ℕ) (p : I × J → ℝ) : ℝ :=
 omit [Fintype I] in
 /-- Pointwise splitting of the conditional-entropy summand: holds unconditionally, including at
 `p x = 0` where both sides collapse to `0`. -/
-lemma pointwise_split_fst {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) (x : I × J) :
+private lemma pointwise_split_fst {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) (x : I × J) :
     p x * log (fst p x.1 / p x) = p x * log (fst p x.1) - p x * log (p x) := by
   rcases (hp x).lt_or_eq with hpx | hpx
   · rw [log_div (ne_of_gt (lt_of_lt_of_le hpx (le_fst hp x))) (ne_of_gt hpx), mul_sub]
@@ -127,17 +127,17 @@ lemma pointwise_split_fst {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) (x : I ×
 
 omit [Fintype I] in
 /-- Grouping a row of the joint sum by its first coordinate collapses to the marginal term. -/
-lemma sum_fst_mul_log_fst {p : I × J → ℝ} (i : I) :
+private lemma sum_fst_mul_log_fst {p : I × J → ℝ} (i : I) :
     ∑ j, p (i, j) * log (fst p i) = fst p i * log (fst p i) := by
   rw [← Finset.sum_mul]; rfl
 
 omit [Fintype J] in
 /-- Grouping a column of the joint sum by its second coordinate collapses to the marginal term. -/
-lemma sum_snd_mul_log_snd {p : I × J → ℝ} (j : J) :
+private lemma sum_snd_mul_log_snd {p : I × J → ℝ} (j : J) :
     ∑ i, p (i, j) * log (snd p j) = snd p j * log (snd p j) := by
   rw [← Finset.sum_mul]; rfl
 
-lemma sum_condEntropy_split {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) :
+private lemma sum_condEntropy_split {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) :
     ∑ x : I × J, p x * log (fst p x.1 / p x)
       = ∑ i, fst p i * log (fst p i) - ∑ x : I × J, p x * log (p x) := by
   simp_rw [pointwise_split_fst hp]
@@ -147,7 +147,7 @@ lemma sum_condEntropy_split {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) :
   exact Finset.sum_congr rfl (fun i _ => sum_fst_mul_log_fst i)
 
 /-- **Chain rule**: `H(X,Y) = H(X) + H(Y|X)`. -/
-theorem chain_rule (D : ℕ) {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) :
+theorem entropy_chain_rule (D : ℕ) {p : I × J → ℝ} (hp : ∀ x, 0 ≤ p x) :
     entropy D p = entropy D (fst p) + condEntropy D p := by
   have key : ∑ x : I × J, negMulLog (p x)
       = ∑ i, negMulLog (fst p i) + ∑ x : I × J, p x * log (fst p x.1 / p x) := by
@@ -294,10 +294,8 @@ theorem entropy_le_logb_card (D : ℕ) (hD : 1 < D)
   have hqconst : ∀ i, log (q i) = -log (Fintype.card I) := fun i => by rw [hqdef]; simp
   have hsum2 : ∑ i, p i * log (p i / q i) = ∑ i, p i * log (p i) + log (Fintype.card I) := by
     have hsplit : ∀ i, p i * log (p i / q i) = p i * log (p i) - p i * log (q i) := by
-      intro i
-      rcases (hp i).lt_or_eq with hpi | hpi
-      · rw [log_div (ne_of_gt hpi) (ne_of_gt (hq_pos i)), mul_sub]
-      · simp [← hpi]
+      exact fun i => mul_log_div_of_ac (hp i) (hq_pos i).le
+        (fun hi => ((hq_pos i).ne' hi).elim)
     simp_rw [hsplit, hqconst]
     rw [Finset.sum_sub_distrib, ← Finset.sum_mul, hp_sum, one_mul, sub_neg_eq_add]
   rw [hsum2] at hgibbs
@@ -343,7 +341,7 @@ theorem entropy_push_le (D : ℕ) (hD : 1 < D) {f : I → J} {p : I → ℝ} (hp
     by_cases h : f i = j
     · simp [h]
     · simp [h, Ne.symm h]
-  have hchain := chain_rule D hswap_nonneg
+  have hchain := entropy_chain_rule D hswap_nonneg
   rw [hfst_swapped] at hchain
   have hcond_nonneg := condEntropy_nonneg D hD hswap_nonneg
   have hrelabel : entropy D swapped = entropy D joint := by

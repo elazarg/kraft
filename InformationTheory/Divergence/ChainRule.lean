@@ -11,7 +11,7 @@ public import InformationTheory.Entropy.ConditionalEntropy
 /-!
 # The chain rule for finite Kullback-Leibler divergence
 
-This file is the Kullback-Leibler mirror of `InformationTheory.chain_rule`, namely
+This file is the Kullback-Leibler mirror of `InformationTheory.entropy_chain_rule`, namely
 `klFin p q = klFin (fst p) (fst q) + condKL p q` for two joint distributions `p, q` on the
 *same* product type, rather than the entropy chain rule's single distribution `p`. It reuses
 `InformationTheory.fst`/`InformationTheory.snd` (the marginals already built in
@@ -31,15 +31,16 @@ previously duplicated local definitions.
 
 * `fst_ac` : joint-level absolute continuity descends to the marginals,
   `∀ i, fst q i = 0 → fst p i = 0`.
-* `chain_rule_kl` : **the chain rule**, `klFin p q = klFin (fst p) (fst q) + condKL p q`, under
-  only nonnegativity and `hac` — no normalization hypothesis, exactly as `chain_rule` needs none.
+* `klFin_chain_rule` : **the chain rule**,
+  `klFin p q = klFin (fst p) (fst q) + condKL p q`, under only nonnegativity and `hac` — no
+  normalization hypothesis, exactly as `entropy_chain_rule` needs none.
 * `condKL_nonneg` : `0 ≤ condKL p q` under nonnegativity and `hac` alone — no global
   normalization hypothesis is needed, since a row's own conditional slices are automatically
   normalized regardless of the joint's total mass.
 * `klFin_fst_le` : the marginal data-processing corollary, `klFin (fst p) (fst q) ≤ klFin p q`
   (dropping to the marginal projection `I × J → I` only decreases KL divergence). This is new
   relative to the source: `experiments/FiniteKLChainRule.lean`'s docstring only *noted* that
-  `chain_rule_kl` and `condKL_nonneg` together give this "free", without stating it as a
+  `klFin_chain_rule` and `condKL_nonneg` together give this "free", without stating it as a
   declaration; this port makes it one.
 
 ## Nonclaims
@@ -53,7 +54,7 @@ previously duplicated local definitions.
 ## References
 
 `experiments/FiniteKLChainRule.lean` (probe E59); `InformationTheory.condEntropy` and
-`InformationTheory.chain_rule` in `InformationTheory/Entropy/ConditionalEntropy.lean`.
+`InformationTheory.entropy_chain_rule` in `InformationTheory/Entropy/ConditionalEntropy.lean`.
 -/
 
 @[expose] public section
@@ -128,10 +129,10 @@ private theorem sum_mul_log_fst_ratio {p q : I × J → ℝ} (i : I) :
   rw [← Finset.sum_mul]; rfl
 
 /-- **Chain rule for `klFin`**: `klFin p q = klFin (fst p) (fst q) + condKL p q`. No
-normalization hypothesis is needed (the identity is purely algebraic, like `chain_rule`); only
-nonnegativity and absolute continuity are used, to keep every term on the correct side of the
-sign trap. -/
-theorem chain_rule_kl {p q : I × J → ℝ}
+normalization hypothesis is needed (the identity is purely algebraic, like
+`entropy_chain_rule`); only nonnegativity and absolute continuity are used, to keep every term
+on the correct side of the sign trap. -/
+theorem klFin_chain_rule {p q : I × J → ℝ}
     (hp0 : ∀ x, 0 ≤ p x) (hq0 : ∀ x, 0 ≤ q x) (hac : ∀ x, q x = 0 → p x = 0) :
     klFin p q = klFin (fst p) (fst q) + condKL p q := by
   show ∑ x : I × J, p x * Real.log (p x / q x)
@@ -220,12 +221,12 @@ theorem condKL_nonneg {p q : I × J → ℝ}
 /-! ### The marginal data-processing corollary -/
 
 /-- **Marginal data-processing corollary.** Dropping to the first marginal never increases KL
-divergence: `klFin (fst p) (fst q) ≤ klFin p q`. Immediate from `chain_rule_kl` (the difference
+divergence: `klFin (fst p) (fst q) ≤ klFin p q`. Immediate from `klFin_chain_rule` (the difference
 is exactly `condKL p q`) and `condKL_nonneg` (which is nonnegative). -/
 theorem klFin_fst_le {p q : I × J → ℝ}
     (hp0 : ∀ x, 0 ≤ p x) (hq0 : ∀ x, 0 ≤ q x) (hac : ∀ x, q x = 0 → p x = 0) :
     klFin (fst p) (fst q) ≤ klFin p q := by
-  have hchain := chain_rule_kl hp0 hq0 hac
+  have hchain := klFin_chain_rule hp0 hq0 hac
   have hcond := condKL_nonneg hp0 hq0 hac
   linarith
 

@@ -26,13 +26,14 @@ consolidating previously duplicated local definitions.
 
 ## Main results
 
+* `mul_log_div_of_ac` : the zero-mass-tolerant identity
+  `a * log (a / b) = a * log a - a * log b` under absolute continuity.
 * `sum_sub_sum_le_klFin` : the mass-free termwise Gibbs bound,
   `(∑ i, p i) - (∑ i, q i) ≤ klFin p q`, under nonnegativity and absolute continuity alone (no
   normalization hypothesis at all).
 * `klFin_nonneg` : Gibbs' inequality, `0 ≤ klFin p q`, whenever `q` carries no more total mass
   than `p`. This *generalizes* `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` (the
-  normalized special case, `∑ p = 1`, `∑ q ≤ 1`), which becomes derivable from it; the existing
-  lemma is deliberately left untouched in this pass.
+  normalized special case, `∑ p = 1`, `∑ q ≤ 1`), which is implemented as a wrapper around it.
 * `klFin_relabel` : `klFin` is invariant under relabeling by an equivalence, mirroring
   `InformationTheory.entropy_relabel`.
 
@@ -51,7 +52,7 @@ is a hypothesis, not an accident of the junk conventions.
 
 `experiments/FiniteKLChainRule.lean` (probe E59); `experiments/EntropyProduction.lean` (probe
 E58); `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` in
-`InformationTheory/Coding/SourceCodingLowerBound.lean`.
+`InformationTheory/Entropy/Basic.lean`.
 -/
 
 @[expose] public section
@@ -67,6 +68,16 @@ rows of `p` vanish by `mul_zero`-style junk regardless of `q i`; rows with `p i 
 the sign trap documented in the module docstring, so every theorem about `klFin` carries the
 absolute-continuity hypothesis `hac`. -/
 noncomputable def klFin (p q : I → ℝ) : ℝ := ∑ i, p i * Real.log (p i / q i)
+
+/-- The logarithmic quotient identity, including zero-mass rows: if `a, b ≥ 0` and `b = 0`
+forces `a = 0`, then `a * log (a / b) = a * log a - a * log b`. -/
+theorem mul_log_div_of_ac {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b) (hab : b = 0 → a = 0) :
+    a * Real.log (a / b) = a * Real.log a - a * Real.log b := by
+  rcases hb.eq_or_lt with hb | hb
+  · simp [hab hb.symm, ← hb]
+  · rcases ha.eq_or_lt with ha | ha
+    · simp [← ha]
+    · rw [Real.log_div ha.ne' hb.ne', mul_sub]
 
 /-! ### The mass-free Gibbs inequality -/
 
@@ -104,8 +115,7 @@ theorem sum_sub_sum_le_klFin {p q : I → ℝ} (hp0 : ∀ i, 0 ≤ p i) (hq0 : �
 
 /-- **Gibbs' inequality for `klFin`.** `0 ≤ klFin p q` whenever `q` carries no more total mass
 than `p` (`hmass`). This generalizes `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac`, which
-is exactly the normalized special case `∑ p = 1`, `∑ q ≤ 1`; the existing lemma is deliberately
-left untouched in this pass. -/
+is exactly the normalized special case `∑ p = 1`, `∑ q ≤ 1`. -/
 theorem klFin_nonneg {p q : I → ℝ} (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hac : ∀ i, q i = 0 → p i = 0) (hmass : ∑ i, q i ≤ ∑ i, p i) :
     0 ≤ klFin p q := by

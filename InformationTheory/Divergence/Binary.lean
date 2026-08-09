@@ -8,6 +8,7 @@ module
 public import Mathlib.Analysis.Calculus.Deriv.MeanValue
 public import Mathlib.Analysis.SpecialFunctions.Log.Basic
 public import Mathlib.Analysis.SpecialFunctions.Log.Deriv
+public import InformationTheory.Divergence.Basic
 
 /-!
 # The quadratic information fence for binary KL divergence
@@ -35,6 +36,7 @@ argument can reuse it instead of carrying its own inlined copy.
 
 ## Main results
 
+* `klFin_bernoulli` : `klBin` is `klFin` specialized to Bernoulli laws.
 * `klBin_nonneg` : Gibbs' inequality, `0 ≤ klBin q p`.
 * `two_mul_sq_le_klBin` : the binary Pinsker inequality with the sharp constant,
   `2 * (q - p) ^ 2 ≤ klBin q p`.
@@ -66,6 +68,12 @@ closed form rather than through Mathlib's measure-theoretic `klDiv`. Meaningful 
 noncomputable def klBin (q p : ℝ) : ℝ :=
   q * Real.log (q / p) + (1 - q) * Real.log ((1 - q) / (1 - p))
 
+/-- Binary KL divergence is finite KL divergence specialized to Bernoulli laws. -/
+theorem klFin_bernoulli (q p : ℝ) :
+    klFin (fun b : Bool => if b then q else 1 - q)
+        (fun b : Bool => if b then p else 1 - p) = klBin q p := by
+  simp [klFin, klBin]
+
 /-- For `a, b > 0`, `Real.log (a / b) ≥ 1 - b / a`. This is `Real.log x ≤ x - 1` applied to the
 reciprocal ratio `b / a`, after converting `log (a / b)` to `-log (b / a)`. It is the one-line
 engine behind Gibbs' inequality below, and is reused by
@@ -80,20 +88,12 @@ theorem one_sub_div_le_log_div {a b : ℝ} (ha : 0 < a) (hb : 0 < b) :
 /-- Gibbs' inequality: binary KL divergence is nonnegative on the open square. -/
 theorem klBin_nonneg {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q ∈ Set.Ioo (0 : ℝ) 1) :
     0 ≤ klBin q p := by
-  obtain ⟨hp0, hp1⟩ := hp
-  obtain ⟨hq0, hq1⟩ := hq
-  have h1p : (0:ℝ) < 1 - p := by linarith
-  have h1q : (0:ℝ) < 1 - q := by linarith
-  have h1 : 1 - p / q ≤ Real.log (q / p) := one_sub_div_le_log_div hq0 hp0
-  have h2 : 1 - (1 - p) / (1 - q) ≤ Real.log ((1 - q) / (1 - p)) :=
-    one_sub_div_le_log_div h1q h1p
-  have e1 : q * (1 - p / q) = q - p := by field_simp
-  have e2 : (1 - q) * (1 - (1 - p) / (1 - q)) = p - q := by field_simp; ring
-  have h1' : q - p ≤ q * Real.log (q / p) := e1 ▸ mul_le_mul_of_nonneg_left h1 hq0.le
-  have h2' : p - q ≤ (1 - q) * Real.log ((1 - q) / (1 - p)) :=
-    e2 ▸ mul_le_mul_of_nonneg_left h2 h1q.le
-  unfold klBin
-  linarith
+  rw [← klFin_bernoulli]
+  apply klFin_nonneg
+  · grind
+  · grind
+  · grind
+  · simp
 
 /-- The chi-squared identity behind the upper bound: `q²/p + (1-q)²/(1-p) - 1` equals
 `(q - p)² / (p * (1 - p))`. -/

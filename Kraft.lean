@@ -17,8 +17,10 @@ public import InformationTheory.Coding.SourceCodingLowerBound
 public import InformationTheory.Divergence.Basic
 public import InformationTheory.Divergence.Binary
 public import InformationTheory.Divergence.ChainRule
+public import InformationTheory.Divergence.FiniteMeasure
 public import InformationTheory.Divergence.Pinsker
 public import InformationTheory.Divergence.Tensorization
 public import InformationTheory.Entropy.Basic
 public import InformationTheory.Entropy.ConditionalEntropy
+public import InformationTheory.Entropy.PMF
 public import InformationTheory.Entropy.Uniform

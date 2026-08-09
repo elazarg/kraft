@@ -52,7 +52,7 @@ theorem exists_prefix_code_near_entropy
     ∃ w : I → List (Fin D),
       Function.Injective w ∧
       PrefixFree (Set.range w) ∧
-      expLength p w < entropy D p + 1 := by
+      expectedLength p w < entropy D p + 1 := by
   classical
   letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
     letI := hI
@@ -99,7 +99,7 @@ theorem exists_prefix_code_near_entropy
   refine ⟨w, h_inj, h_pf, ?_⟩
 
   --------------------------------------------------------------------
-  -- Step 3: Expected length bound expLength p w < H_D(p) + 1
+  -- Step 3: Expected length bound expectedLength p w < H_D(p) + 1
   --------------------------------------------------------------------
   have hp0 : ∀ x : I, 0 ≤ p x := fun x => (hp_pos x).le
 
@@ -128,9 +128,9 @@ theorem exists_prefix_code_near_entropy
   have hrhs : (∑ x, p x * (a x + 1)) = (∑ x, p x * a x) + (∑ x, p x) := by
     simp [mul_add, Finset.sum_add_distrib]
 
-  -- `expLength p w` unfolds to exactly `∑ x, p x * (l x : ℝ) = ∑ x, p x * ⌈a x⌉₊`
-  have hexp_eq : expLength p w = ∑ x, p x * (⌈a x⌉₊ : ℝ) := by
-    unfold expLength
+  -- `expectedLength p w` unfolds to exactly `∑ x, p x * (l x : ℝ) = ∑ x, p x * ⌈a x⌉₊`
+  have hexp_eq : expectedLength p w = ∑ x, p x * (⌈a x⌉₊ : ℝ) := by
+    unfold expectedLength
     refine Finset.sum_congr rfl (fun x _ => ?_)
     rw [h_len x]
     simp [l, shannonFanoLength, a]
@@ -152,6 +152,6 @@ theorem exists_prefix_code_near_entropy
       < ∑ x, p x * (a x + 1) := havg_lt
     _ = (∑ x, p x * a x) + (∑ x, p x) := hrhs
     _ = (∑ x, - p x * Real.logb (D : ℝ) (p x)) + (∑ x, p x) := by rw [ha]
-    _ = entropy D p + 1 := by rw [entropy_eq_sum_neg_logb D hD p, hp_sum]
+    _ = entropy D p + 1 := by rw [entropy_eq_sum_neg_logb D p, hp_sum]
 
 end InformationTheory

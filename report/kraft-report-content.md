@@ -80,10 +80,10 @@ Sizes (.lean lines): `KraftConverse` 408, `KraftNatural` 408, `KraftGeneralized`
 - `InformationTheory.kraft_inequality_infinite` (`Kraft.lean:69`) — infinite via `HasSum` + bound.
 - `InformationTheory.kraft_mcmillan_inequality` (`KraftMcMillan.lean:86`) — uniquely decodable, general `D`.
 - `InformationTheory.kraft_inequality_of_injective` / `_real` (`KraftGeneralized.lean:278`, `:293`) — abstract monoid.
-- `InformationTheory.exists_code` (`KraftConverse.lean:300`) — converse for arbitrary index type, finite or infinite.
-- `InformationTheory.exists_code_binary` (`KraftConverse.lean:395`) — converse specialized to `List Bool`.
-- `InformationTheory.source_coding_lower_bound` (`SourceCodingLowerBound.lean:198`) — `H_D(p) ≤ E[L]`.
-- `InformationTheory.exists_prefix_code_near_entropy` (`Example.lean:100`) — Shannon-Fano bound.
+- `InformationTheory.exists_code` (`KraftConverse.lean:317`) — converse for arbitrary index type, finite or infinite.
+- `InformationTheory.exists_code_binary` (`KraftConverse.lean:389`) — converse specialized to `List Bool`.
+- `InformationTheory.source_coding_lower_bound` (`SourceCodingLowerBound.lean:64`) — `H_D(p) ≤ E[L]`.
+- `InformationTheory.exists_prefix_code_near_entropy` (`Example.lean:48`) — Shannon-Fano bound.
 - `InformationTheory.PrefixFree.uniquely_decodable` — prefix-free ⟹ uniquely decodable.
 - `InformationTheory.UniquelyDecodable.prod_injective` — uniquely decodable ⟹ concatenation injective on list-tuples.
 
@@ -95,7 +95,7 @@ A running list of concrete problems that consumed real time, with the commit or 
 
 ### 3.1 Constructive converse
 
-The converse required an algorithmic allocator of D-ary intervals. The spec says "there exists a prefix-free code"; the proof had to name one. `ConstructionHelpers/Construction.lean` (568 lines) implements it via `kraftNumerator` (interval start positions) and `kraftCodeword` (fixed-width digit representations). The public theorem `exists_code` packages finite (`Fin k`) and infinite (`ℕ`) paths and transports through `exists_equiv_fin_monotone` / `exists_equiv_nat_monotone_of_infinite` so callers never pick. Commits `83847cd`, `f469698` ("Converse complete"), then cleanup `128b4c0`, `53b24d7`.
+The converse required an algorithmic allocator of D-ary intervals. The spec says "there exists a prefix-free code"; the proof had to name one. The construction uses `kraftNumerator` (interval start positions) and `kraftCodeword` (fixed-width digit representations). The public theorem `exists_code` packages finite (`Fin k`) and infinite (`ℕ`) paths and transports through `exists_equiv_fin_monotone` / `exists_equiv_nat_monotone_of_summable` so callers never pick. Commits `83847cd`, `f469698` ("Converse complete"), then cleanup `128b4c0`, `53b24d7`.
 
 ### 3.2 Eliminating subtraction in ℕ (`96fd642`, 2026-01-23)
 
@@ -132,9 +132,12 @@ The construction orders codewords lexicographically by `(length, index)`. Rollin
 
 ### 3.9 Gibbs inequality for the source coding bound
 
-The last sorry (`33503f6`) was the discrete Gibbs step `0 ≤ ∑ p·log(p/q)`. Rather than prove non-negativity of KL from scratch, the final version routes through Mathlib's `klDiv` for measures: define `pmfMeasure`, show absolute continuity, transport `MeasureTheory.toReal_klDiv_of_measure_eq`, then specialize back to a `Finset.sum` (`gibbs_sum_log_ratio_nonneg` at `SourceCodingLowerBound.lean:141`). This is a small example of when buying into Mathlib's heavy measure-theoretic stack pays for itself.
-
-A known limitation: `source_coding_lower_bound` currently requires `hp_pos : ∀ i, 0 < p i`; the file has a `TODO` sketching how to relax to `p i ≥ 0` via support truncation or `q_ε = (1-ε)q + εr` regularization.
+The last sorry (`33503f6`) was the discrete Gibbs step `0 ≤ ∑ p·log(p/q)`. The separate
+`Divergence.FiniteMeasure` module connects the finite sum to Mathlib's measure-theoretic `klDiv`
+through `pmfMeasure`, while the source-coding theorem itself uses the elementary
+zero-mass-tolerant `klFin_nonneg`. Consequently `source_coding_lower_bound` needs only
+`0 ≤ p i`, including sources with impossible symbols; the weighted logarithm identity handles
+the `p i = 0` case separately.
 
 ### 3.10 Finite ↔ infinite bookkeeping
 
