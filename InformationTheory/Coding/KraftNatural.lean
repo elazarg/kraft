@@ -123,7 +123,7 @@ private lemma sum_eq_sum_Icc_filter_len {M : Type*}
 variable {M : Type*} [Monoid M]
 
 /-- Growth axiom: ∈ any finite `T`, the number of elements of len exactly `s` is ≤ base^s. -/
-def ExpBounded (len : M → ℕ) (base : ℕ) : Prop :=
+def IsExpBounded (len : M → ℕ) (base : ℕ) : Prop :=
   ∀ (T : Finset M) (s : ℕ), (T.filter (fun x => len x = s)).card ≤ base ^ s
 
 /-- The r-fold product of elements from a finite set, defined via Lists. -/
@@ -175,7 +175,7 @@ private lemma sum_eq_sum_image_of_inj
 **McMillan counting bound (unnormalized, ℕ-valued).**
 
 Assume:
-* `ExpBounded len base` (capacity-by-level),
+* `IsExpBounded len base` (capacity-by-level),
 * len additivity,
 * injectivity of `prodTuple` on `r`-tuples from `S`.
 
@@ -188,7 +188,7 @@ theorem mcmillan_counting_of_inj
     {S : Finset M} {base : ℕ}
     {len : M → ℕ}
     (hmap_mul : ∀ a b, len (a * b) = len a + len b)
-    (hbound : ExpBounded len base)
+    (hbound : IsExpBounded len base)
     {r : ℕ}
     (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ w : Fin r → S, base ^ ((r * S.sup len) - len (prodTuple w)))
@@ -246,7 +246,7 @@ lemma scaled_sum_pow_eq_sum_prodTuple
 theorem scaled_sum_pow_le_linear
     {S : Finset M} {base : ℕ} {len : M → ℕ}
     (hmap_mul : ∀ a b, len (a * b) = len a + len b)
-    (hbound : ExpBounded len base)
+    (hbound : IsExpBounded len base)
     {r : ℕ}
     (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ x ∈ S, base ^ (S.sup len - len x)) ^ r
@@ -260,7 +260,7 @@ theorem card_pow_le_linear_mul_sum_pow_len_pow
     {S : Finset M} {base : ℕ} {len : M → ℕ}
     (hbase : 0 < base)
     (hmap_mul : ∀ a b, len (a * b) = len a + len b)
-    (hbound : ExpBounded len base)
+    (hbound : IsExpBounded len base)
     {r : ℕ}
     (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (S.card ^ r) ≤ (r * S.sup len + 1) * (∑ x ∈ S, base ^ (len x)) ^ r := by
@@ -367,7 +367,7 @@ theorem card_pow_le_linear_mul_sum_pow_len_pow
 lemma sum_pow_len_le
     {M : Type*} {S : Finset M} {base : ℕ} {len : M → ℕ}
     (base_nontrivial : base > 1)
-    (hbound : ExpBounded (M := M) len base) :
+    (hbound : IsExpBounded (M := M) len base) :
     (∑ x ∈ S, base ^ (len x))
       ≤ (S.sup len + 1) * base ^ (2 * S.sup len) := by
   let L := S.sup len

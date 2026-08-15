@@ -14,17 +14,17 @@ public import InformationTheory.Coding.SourceCodingLowerBound
 
 This file demonstrates an application of Kraft's inequality to source coding: the Shannon-Fano
 length assignment `⌈-log_D p(i)⌉` satisfies Kraft's condition, so the constructive converse
-(`InformationTheory.exists_code`) produces an actual prefix-free code from it, with expected
-length within one symbol of the entropy lower bound (`InformationTheory.source_coding_lower_bound`
+(`exists_code`) produces an actual prefix-free code from it, with expected
+length within one symbol of the entropy lower bound (`entropy_le_expectedLength`
 gives the other direction).
 
 ## Main definitions
 
-* `InformationTheory.shannonFanoLength`: the length assignment `⌈-log_D p(i)⌉`.
+* `shannonFanoLength`: the length assignment `⌈-log_D p(i)⌉`.
 
 ## Main results
 
-* `InformationTheory.exists_prefix_code_near_entropy`: for any probability distribution, there
+* `exists_prefix_code_near_entropy`: for any probability distribution, there
   exists a prefix-free code with expected length strictly less than `H_D(p) + 1`.
 
 ## References
@@ -51,7 +51,7 @@ theorem exists_prefix_code_near_entropy
     (hp_sum : ∑ i, p i = 1) :    -- normalization
     ∃ w : I → List (Fin D),
       Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
+      IsPrefixFree (Set.range w) ∧
       expectedLength p w < entropy D p + 1 := by
   classical
   letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
@@ -137,14 +137,14 @@ theorem exists_prefix_code_near_entropy
 
   rw [hexp_eq]
 
-  -- Strict inequality: pick one index `x0` where `hceil_lt` is used, `hceil_le` elsewhere.
-  let x0 : I := Classical.arbitrary I
+  -- Strict inequality: pick one index `x₀` where `hceil_lt` is used, `hceil_le` elsewhere.
+  let x₀ : I := Classical.arbitrary I
 
-  have hstrict_one : p x0 * (⌈a x0⌉₊ : ℝ) < p x0 * (a x0 + 1) :=
-    mul_lt_mul_of_pos_left (hceil_lt x0) (hp_pos x0)
+  have hstrict_one : p x₀ * (⌈a x₀⌉₊ : ℝ) < p x₀ * (a x₀ + 1) :=
+    mul_lt_mul_of_pos_left (hceil_lt x₀) (hp_pos x₀)
 
   have havg_lt : (∑ x, p x * (⌈a x⌉₊ : ℝ)) < ∑ x, p x * (a x + 1) := by
-    apply Finset.sum_lt_sum _ ⟨x0, Finset.mem_univ x0, hstrict_one⟩
+    apply Finset.sum_lt_sum _ ⟨x₀, Finset.mem_univ x₀, hstrict_one⟩
     intro i _
     exact mul_le_mul_of_nonneg_left (hceil_le i) (hp0 i)
 

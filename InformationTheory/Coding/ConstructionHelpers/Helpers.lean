@@ -18,7 +18,7 @@ This file provides a utility lemma for list prefixes and injective mappings.
   relationships.
 -/
 
-@[expose] public section
+public section
 
 open List
 

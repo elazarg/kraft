@@ -17,14 +17,14 @@ All results are generalized to arbitrary finite alphabets (not just binary).
 
 | Theorem | Statement |
 |---------|-----------|
-| `kraft_inequality` | For finite prefix-free S: `∑_{w ∈ S} D^{-\|w\|} ≤ 1` |
-| `summable_kraft_sum` | The Kraft series of an arbitrary prefix-free code is summable |
-| `kraft_inequality_infinite` | Extension to infinite prefix-free codes (as a tsum) |
+| `IsPrefixFree.finsetSum_one_div_card_pow_length_le_one` | For finite prefix-free `S`: `∑_{w ∈ S} D^{-\|w\|} ≤ 1` |
+| `summable_one_div_card_pow_length` | The Kraft series of an arbitrary prefix-free code is summable |
+| `tsum_one_div_card_pow_length_le_one` | Extension to infinite prefix-free codes (as a tsum) |
 | `kraft_mcmillan_inequality` | Same bound for uniquely decodable codes |
 | `kraft_inequality_of_injective` | Abstract version for monoids with injective products |
 | `exists_code` | Converse: lengths with `∑ D^{-l_i} ≤ 1` admit a prefix-free code |
-| `PrefixFree.uniquelyDecodable` | Prefix-free codes are uniquely decodable |
-| `source_coding_lower_bound` | Entropy is a lower bound on expected length: `H_D(p) ≤ E[L]` |
+| `IsPrefixFree.isUniquelyDecodable` | Prefix-free codes are uniquely decodable |
+| `entropy_le_expectedLength` | Entropy is a lower bound on expected length: `H_D(p) ≤ E[L]` |
 
 ## Project Structure
 
@@ -51,10 +51,12 @@ InformationTheory/
 
 ### File Descriptions
 
-- **PrefixFree.lean**: Defines `PrefixFree` (no codeword is a prefix of another) and proves prefix-free codes are uniquely decodable
+- **PrefixFree.lean**: Defines `IsPrefixFree` (no codeword is a prefix of another) and proves prefix-free codes are uniquely decodable
 
 - **Mathlib's UniquelyDecodable API**: Defines `UniquelyDecodable` (distinct concatenations yield
-  distinct strings); this project imports the upstream mathlib module
+  distinct strings); this project imports the upstream mathlib module. The project remains pinned
+  to mathlib `v4.32.2`, so this imported predicate keeps its pre-rename name until the dependency
+  is updated to a release containing `IsUniquelyDecodable`.
 
 - **Kraft.lean**: Proves Kraft's inequality for finite prefix-free codes, deriving it from the Kraft-McMillan inequality
 
@@ -63,7 +65,7 @@ InformationTheory/
 - **Mathlib's KraftMcMillan API**: Proves the Kraft-McMillan inequality for uniquely decodable
   codes over lists; this project imports the upstream mathlib module
 
-- **KraftNatural.lean**: Natural number approach to Kraft-style bounds; defines the core `ExpBounded` axiom and `prodTuple` abstraction; proves `mcmillan_counting_of_inj` (ℕ-valued counting bound) and `scaled_sum_pow_le_linear`
+- **KraftNatural.lean**: Natural number approach to Kraft-style bounds; defines the core `IsExpBounded` axiom and `prodTuple` abstraction; proves `mcmillan_counting_of_inj` (ℕ-valued counting bound) and `scaled_sum_pow_le_linear`
 
 - **KraftGeneralized.lean**: Builds on KraftNatural with the `WeightModel` structure for ℝ≥0-valued weights; proves the abstract Kraft inequality via limit arguments when r-fold products are injective
 

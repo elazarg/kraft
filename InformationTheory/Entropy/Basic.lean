@@ -36,7 +36,7 @@ it directly.
   conversion factor.
 * `gibbs_sum_log_ratio_nonneg_of_ac` : the zero-mass-tolerant Gibbs inequality for `0 ≤ p`,
   `0 ≤ q`, `∑ q ≤ 1`, and absolute continuity `q i = 0 → p i = 0`. Rerouted through
-  `InformationTheory.klFin_nonneg` (`Divergence.Basic`), which already generalizes this exact
+  `klFin_nonneg` (`Divergence.Basic`), which already generalizes this exact
   statement, rather than reproving it from scratch — the two were previously independent
   elementary proofs of the same fact.
 
@@ -51,14 +51,14 @@ namespace InformationTheory
 
 open Real
 
-variable {I : Type*} [Fintype I]
+variable {I : Type*} [Fintype I] {p q : I → ℝ}
 
 /-- Entropy in **base D** (so measured in "D-ary digits"), defined via `negMulLog`. -/
 noncomputable def entropy (D : ℕ) (p : I → ℝ) : ℝ :=
   (∑ i, Real.negMulLog (p i)) / log D
 
 /-- `entropy` is nonnegative for a nonnegative subprobability mass function. -/
-theorem entropy_nonneg (D : ℕ) (hD : 1 < D) {p : I → ℝ} (hp : ∀ i, 0 ≤ p i)
+theorem entropy_nonneg (D : ℕ) (hD : 1 < D) (hp : ∀ i, 0 ≤ p i)
     (hp_sum : ∑ i, p i ≤ 1) :
     0 ≤ entropy D p := by
   have hlogD_pos : 0 < log D := log_pos (by exact_mod_cast hD)
@@ -79,7 +79,7 @@ private lemma negMulLog_eq_zero_iff_of_nonneg_of_le_one {x : ℝ} (hx0 : 0 ≤ x
   · rintro (rfl | rfl) <;> simp
 
 /-- A probability mass function has zero entropy exactly when one point has all the mass. -/
-theorem entropy_eq_zero_iff (D : ℕ) (hD : 1 < D) {p : I → ℝ} (hp : ∀ i, 0 ≤ p i)
+theorem entropy_eq_zero_iff (D : ℕ) (hD : 1 < D) (hp : ∀ i, 0 ≤ p i)
     (hp_sum : ∑ i, p i = 1) :
     entropy D p = 0 ↔ ∃ i, p i = 1 := by
   classical
@@ -139,7 +139,6 @@ is required. This is the zero-mass-tolerant form conditional entropy needs, sinc
 conditional slices routinely hit zero mass. A thin wrapper around `klFin_nonneg`
 (`Divergence.Basic`), which already generalizes this to `∑ q ≤ ∑ p`. -/
 theorem gibbs_sum_log_ratio_nonneg_of_ac
-    {p q : I → ℝ}
     (hp_nonneg : ∀ i, 0 ≤ p i) (hp_sum : ∑ i, p i = 1)
     (hq_nonneg : ∀ i, 0 ≤ q i) (hq_sum : ∑ i, q i ≤ 1)
     (hac : ∀ i, q i = 0 → p i = 0) :

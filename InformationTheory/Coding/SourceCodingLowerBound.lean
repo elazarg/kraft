@@ -28,7 +28,7 @@ here; this file is genuinely just the source-coding-specific content built on to
 
 ## Main results
 
-* `source_coding_lower_bound`: For any uniquely decodable code over an alphabet of size `D`,
+* `entropy_le_expectedLength`: For any uniquely decodable code over an alphabet of size `D`,
   the expected codeword length is at least the entropy: `H_D(p) ≤ E[L]`.
 
 ## Implementation notes
@@ -53,16 +53,16 @@ section SourceCodingLower
 
 open Real
 
-variable {I : Type*} [Fintype I]
+variable {I α : Type*} [Fintype I]
 
 /-- Expected codeword length under the weights `p`. -/
-noncomputable def expectedLength {α : Type*} (p : I → ℝ) (w : I → List α) : ℝ :=
+noncomputable def expectedLength (p : I → ℝ) (w : I → List α) : ℝ :=
   ∑ i, p i * ((w i).length : ℝ)
 
 /-- The source-coding lower bound: the entropy of a source is at most the expected length of
 any injective uniquely decodable code over a finite nontrivial alphabet. -/
-theorem source_coding_lower_bound
-    {α : Type*} [Fintype α] [Nontrivial α]
+theorem entropy_le_expectedLength
+    [Fintype α] [Nontrivial α]
     (p : I → ℝ)
     (hp_nonneg : ∀ i, 0 ≤ p i)
     (hp_sum : ∑ i, p i = 1)

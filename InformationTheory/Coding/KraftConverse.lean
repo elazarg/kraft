@@ -58,7 +58,7 @@ the Kraft condition, a prefix-free code with those lengths exists.
   not a real restriction — but exposed since `Monotone l` is sometimes already in hand.
 -/
 
-@[expose] public section
+public section
 
 namespace InformationTheory
 
@@ -96,7 +96,7 @@ private lemma prefixFree_of_div_separated
     (hD : 1 < D)
     (h_bound : ∀ i, A i < D ^ l i)
     (h_sep : ∀ {i j}, i ≠ j → ¬ (l i ≤ l j ∧ A j / D ^ (l j - l i) = A i)) :
-    PrefixFree (Set.range (fun i : I => kraftCodeword hD (A i) (l i))) := by
+    IsPrefixFree (Set.range (fun i : I => kraftCodeword hD (A i) (l i))) := by
   intro x hx y hy hpre
   rcases hx with ⟨i, rfl⟩
   rcases hy with ⟨j, rfl⟩
@@ -116,7 +116,7 @@ private theorem exists_code_from_A
     (h_sep : ∀ {i j}, i ≠ j → ¬ (l i ≤ l j ∧ A j / D ^ (l j - l i) = A i)) :
     ∃ w : I → List (Fin D),
       Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
+      IsPrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
   let w : I → List (Fin D) := fun i => kraftCodeword hD (A i) (l i)
   refine ⟨w, ?_, ?_, ?_⟩ <;> simp [w]
@@ -130,7 +130,7 @@ private theorem exists_code_of_strict_prefix_sum
     (h_prefix_lt_one : ∀ n, (∑ k < n, (1 / D : ℝ) ^ l k) < 1) :
     ∃ w : ℕ → List (Fin D),
       Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
+      IsPrefixFree (Set.range w) ∧
       (∀ i, (w i).length = l i) := by
   -- define A and basic facts
   let A : ℕ → ℕ := kraftNumerator D l
@@ -165,14 +165,14 @@ private theorem exists_code_of_strict_prefix_sum
 end Construction
 
 private lemma transport_code
-    {α β I J: Type*}
-    (e :J ≃ I)
+    {α β I J : Type*}
+    (e : J ≃ I)
     (f : α ↪ β)
     {w : I → List α}
     (hw_inj : Function.Injective w)
-    (hw_pf : PrefixFree (Set.range w)) :
+    (hw_pf : IsPrefixFree (Set.range w)) :
     Function.Injective (fun j : J => (w (e j)).map f) ∧
-      PrefixFree (Set.range (fun j : J => (w (e j)).map f)) := by
+      IsPrefixFree (Set.range (fun j : J => (w (e j)).map f)) := by
   constructor
   · -- Injective
     intro j₁ j₂ hj
@@ -184,7 +184,7 @@ private lemma transport_code
     -- cancel `e.symm`
     exact e.injective he
 
-  · -- PrefixFree
+  · -- IsPrefixFree
     intro x hx y hy hpre
     rcases hx with ⟨j₁, rfl⟩
     rcases hy with ⟨j₂, rfl⟩
@@ -211,7 +211,7 @@ theorem exists_code_nat
     (h_sum : ∑' i, (1 / D : ℝ) ^ l i ≤ 1) :
     ∃ w : ℕ → List (Fin D),
       Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
+      IsPrefixFree (Set.range w) ∧
       (∀ i, (w i).length = l i) := by
   have h_prefix := prefix_sum_lt_one_of_tsum_le_one hD h_summable h_sum
 
@@ -232,7 +232,7 @@ theorem exists_code_fin
     (h_sum : (∑ i, (1 / D : ℝ) ^ l i) ≤ 1) :
     ∃ w : Fin k → List (Fin D),
       Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
+      IsPrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
   by_cases hk : k = 0
   · subst k
@@ -251,7 +251,7 @@ theorem exists_code_fin
   let A₀ : ℕ → ℕ := kraftNumerator D lNat
   have hD_pos : 0 < D := Nat.zero_lt_of_lt hD
   have hA0_strict : StrictMono A₀ := by
-    simpa [A₀] using (kraftNumerator.strictMono (l:=lNat) hD_pos)
+    simpa [A₀] using (kraftNumerator.strictMono (l := lNat) hD_pos)
 
   let AFin : Fin k → ℕ := fun i => A₀ i.val
 
@@ -320,7 +320,7 @@ theorem exists_code [Fintype α] [Nontrivial α]
     (h_sum : ∑' i, (1 / Fintype.card α : ℝ) ^ l i ≤ 1) :
     ∃ w : I → List α,
       Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
+      IsPrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
   let D := Fintype.card α
   have hD : 1 < D := Fintype.one_lt_card
@@ -377,7 +377,7 @@ theorem exists_code_of_embedding
     (h_sum : ∑' i, (1 / D : ℝ) ^ l i ≤ 1) :
     ∃ w : I → List α,
       Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
+      IsPrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
   letI : Nontrivial (Fin D) := Fin.nontrivial_iff_two_le.mpr hD
   obtain ⟨w_D, hw_inj, hw_pf, hw_len⟩ := exists_code (α := Fin D) l
@@ -392,7 +392,7 @@ theorem exists_code_binary
     (h_sum : ∑' i, (1 / 2 : ℝ) ^ l i ≤ 1) :
     ∃ w : I → List Bool,
       Function.Injective w ∧
-      PrefixFree (Set.range w) ∧
+      IsPrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
   let ι : Fin 2 ↪ Bool := ⟨(Fintype.equivFin Bool).symm, (Fintype.equivFin Bool).symm.injective⟩
   exact exists_code_of_embedding (by decide) ι h_summable h_sum

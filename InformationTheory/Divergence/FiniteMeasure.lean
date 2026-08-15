@@ -15,8 +15,8 @@ public import InformationTheory.Divergence.Basic
 /-!
 # Finite and Measure-Theoretic Kullback–Leibler Divergence
 
-This file connects the elementary finite divergence `InformationTheory.klFin` to mathlib's
-measure-theoretic `InformationTheory.klDiv`. A nonnegative function on a finite discrete type is
+This file connects the elementary finite divergence `klFin` to mathlib's measure-theoretic
+`klDiv`. A nonnegative function on a finite discrete type is
 represented as a measure by taking the counting measure with that function as density.
 
 ## Main definitions

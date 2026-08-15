@@ -12,7 +12,7 @@ public import Mathlib.Analysis.SpecialFunctions.Log.Basic
 
 This file defines the finite Kullback-Leibler divergence `klFin p q` between two functions
 `p q : I → ℝ` on a `Fintype` `I`, directly as a `Finset.sum` (the same style as
-`InformationTheory.entropy` and `InformationTheory.condEntropy`), rather than through Mathlib's
+`entropy` and `condEntropy`), rather than through Mathlib's
 measure-theoretic `klDiv`. It proves the mass-free Gibbs inequality and relabeling invariance,
 the shared foundation for the rest of the `InformationTheory.Divergence` hierarchy.
 
@@ -32,10 +32,10 @@ consolidating previously duplicated local definitions.
   `(∑ i, p i) - (∑ i, q i) ≤ klFin p q`, under nonnegativity and absolute continuity alone (no
   normalization hypothesis at all).
 * `klFin_nonneg` : Gibbs' inequality, `0 ≤ klFin p q`, whenever `q` carries no more total mass
-  than `p`. This *generalizes* `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` (the
+  than `p`. This *generalizes* `gibbs_sum_log_ratio_nonneg_of_ac` (the
   normalized special case, `∑ p = 1`, `∑ q ≤ 1`), which is implemented as a wrapper around it.
 * `klFin_relabel` : `klFin` is invariant under relabeling by an equivalence, mirroring
-  `InformationTheory.entropy_relabel`.
+  `entropy_relabel`.
 
 ## The sign trap (junk-value boundary)
 
@@ -51,7 +51,7 @@ is a hypothesis, not an accident of the junk conventions.
 ## References
 
 `experiments/FiniteKLChainRule.lean` (probe E59); `experiments/EntropyProduction.lean` (probe
-E58); `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` in
+E58); `gibbs_sum_log_ratio_nonneg_of_ac` in
 `InformationTheory/Entropy/Basic.lean`.
 -/
 
@@ -59,7 +59,7 @@ E58); `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` in
 
 namespace InformationTheory
 
-variable {I : Type*} [Fintype I]
+variable {I : Type*} [Fintype I] {p q : I → ℝ}
 
 /-! ### Definition -/
 
@@ -105,7 +105,7 @@ private theorem sub_le_mul_log_div {a b : ℝ} (ha : 0 ≤ a) (hb : 0 ≤ b)
 /-- **The mass-free Gibbs bound.** `(∑ i, p i) - (∑ i, q i) ≤ klFin p q`, under nonnegativity and
 absolute continuity alone — no normalization hypothesis at all. Summing the termwise bound
 `sub_le_mul_log_div` over `Finset.univ`. -/
-theorem sum_sub_sum_le_klFin {p q : I → ℝ} (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
+theorem sum_sub_sum_le_klFin (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hac : ∀ i, q i = 0 → p i = 0) :
     (∑ i, p i) - (∑ i, q i) ≤ klFin p q := by
   have key : ∀ i, p i - q i ≤ p i * Real.log (p i / q i) :=
@@ -114,9 +114,9 @@ theorem sum_sub_sum_le_klFin {p q : I → ℝ} (hp0 : ∀ i, 0 ≤ p i) (hq0 : �
   rwa [Finset.sum_sub_distrib] at hsum
 
 /-- **Gibbs' inequality for `klFin`.** `0 ≤ klFin p q` whenever `q` carries no more total mass
-than `p` (`hmass`). This generalizes `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac`, which
+than `p` (`hmass`). This generalizes `gibbs_sum_log_ratio_nonneg_of_ac`, which
 is exactly the normalized special case `∑ p = 1`, `∑ q ≤ 1`. -/
-theorem klFin_nonneg {p q : I → ℝ} (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
+theorem klFin_nonneg (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hac : ∀ i, q i = 0 → p i = 0) (hmass : ∑ i, q i ≤ ∑ i, p i) :
     0 ≤ klFin p q := by
   have h := sum_sub_sum_le_klFin hp0 hq0 hac
@@ -125,7 +125,7 @@ theorem klFin_nonneg {p q : I → ℝ} (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 
 /-! ### Relabeling invariance -/
 
 /-- **Relabeling invariance**: `klFin` is invariant under relabeling by an equivalence, mirroring
-`InformationTheory.entropy_relabel`. -/
+`entropy_relabel`. -/
 theorem klFin_relabel {K L : Type*} [Fintype K] [Fintype L] (e : K ≃ L) (p q : K → ℝ) :
     klFin (p ∘ e.symm) (q ∘ e.symm) = klFin p q := by
   show ∑ l : L, (p ∘ e.symm) l * Real.log ((p ∘ e.symm) l / (q ∘ e.symm) l)

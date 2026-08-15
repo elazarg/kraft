@@ -117,14 +117,14 @@ private lemma digitsLE_fixed_drop_eq_div
     -- `ofDigits_div_pow_eq_ofDigits_drop` gives `/` = ofDigits(drop); rearrange
     simpa [eq_comm] using
       (Nat.ofDigits_div_pow_eq_ofDigits_drop
-        (p:=D) (i:=v-w) (hpos:=hDpos)
-        (digits:=digitsLE_fixed D m v)
-        (w₁:=fun _ => digitsLE_fixed_lt_base hD)).symm
+        (p := D) (i := v - w) (hpos := hDpos)
+        (digits := digitsLE_fixed D m v)
+        (w₁ := fun _ => digitsLE_fixed_lt_base hD)).symm
 
   have hq : m / D^(v-w) < D^w := div_pow_lt_pow_of_lt hDpos hm hvw
 
   -- conclude list equality by `ofDigits` injectivity (fixed length + digit bounds)
-  apply Nat.ofDigits_inj_of_len_eq (b:=D) hD
+  apply Nat.ofDigits_inj_of_len_eq (b := D) hD
   · -- length equality
     simp [digitsLE_fixed_length, hvw, Nat.sub_sub_right]
   · exact wL

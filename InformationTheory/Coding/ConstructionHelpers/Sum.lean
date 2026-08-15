@@ -24,7 +24,7 @@ This file provides helper lemmas for working with Kraft sums.
 * `prefix_sum_lt_one_of_fin_sum_le_one`: Variant for finite sums indexed by `Fin k`.
 -/
 
-@[expose] public section
+public section
 
 namespace InformationTheory
 

@@ -21,7 +21,7 @@ consumer's unblock and the natural next slice of the mathlib contribution.
 - `gibbs_sum_log_ratio_nonneg_of_ac` (zero-mass-tolerant discrete Gibbs / KL
   nonnegativity) and, in `Divergence/FiniteMeasure.lean`, the `pmfMeasure`
   bridge to mathlib's measure-theoretic `klDiv`.
-- `source_coding_lower_bound` as the existing consumer of `entropy`; it now
+- `entropy_le_expectedLength` as the existing consumer of `entropy`; it now
   assumes only `0 ≤ p i`.
 - Hypothesis style: per-theorem `(hp : …) (hsum : ∑ i, p i = 1)`, `hD : 1 < D`.
 
@@ -142,5 +142,5 @@ Stay on toolchain/mathlib `v4.32.2` (the consumer's pin; bumps are fine if
 coordinated — the consumer re-pins by hash). Mathlib naming and style
 throughout, since this layer is the strongest part of the upstream case:
 it fills a verified gap, arrives with a nontrivial consumer
-(`source_coding_lower_bound`) already in place, and the acceptance tests
+(`entropy_le_expectedLength`) already in place, and the acceptance tests
 above give it independent motivation.

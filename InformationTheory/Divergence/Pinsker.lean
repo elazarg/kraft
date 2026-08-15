@@ -25,7 +25,7 @@ Ported from the GameTheory experiments layer (probe E60, verified 2026-08-05), c
 previously duplicated local definitions. The source file inlined local copies of `klBin`,
 `one_sub_div_le_log_div`, and `two_mul_sq_le_klBin` (marked "pending kraft consolidation"); those
 copies are deleted here in favor of `InformationTheory.Divergence.Binary`'s declarations, and the
-source's local `klFin` and its use of `InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` are
+source's local `klFin` and its use of `gibbs_sum_log_ratio_nonneg_of_ac` are
 replaced by `InformationTheory.Divergence.Basic`'s `klFin` and `klFin_nonneg`.
 
 ## Main definitions
@@ -62,7 +62,7 @@ replaced by `InformationTheory.Divergence.Basic`'s `klFin` and `klFin_nonneg`.
 ## References
 
 `experiments/FinitePinskerBH.lean` (probe E60); `experiments/BinaryKLQuadratic.lean` (probe E51);
-`InformationTheory.gibbs_sum_log_ratio_nonneg_of_ac` in
+`gibbs_sum_log_ratio_nonneg_of_ac` in
 `InformationTheory/Coding/SourceCodingLowerBound.lean`; Tsybakov, *Introduction to Nonparametric
 Estimation*, §2.4 (Pinsker and Bretagnolle-Huber inequalities).
 -/
@@ -71,7 +71,7 @@ Estimation*, §2.4 (Pinsker and Bretagnolle-Huber inequalities).
 
 namespace InformationTheory
 
-variable {I : Type*} [Fintype I]
+variable {I : Type*} [Fintype I] {p q : I → ℝ}
 
 /-! ### Definition -/
 
@@ -84,7 +84,7 @@ noncomputable def tvDist (p q : I → ℝ) : ℝ := (1 / 2) * ∑ i, |p i - q i|
 the set where `p` dominates. Needs only the normalization `hp1, hq1` (not nonnegativity): on
 `A := {q ≤ p}`, `|p - q| = p - q`; on `Aᶜ`, `|p - q| = q - p`; and `∑_A (p - q) = ∑_{Aᶜ} (q - p)`
 because the two differ by `∑ (p - q) = ∑ p - ∑ q = 0`. -/
-theorem tvDist_eq_max_set {p q : I → ℝ} (hp1 : ∑ i, p i = 1) (hq1 : ∑ i, q i = 1) :
+theorem tvDist_eq_max_set (hp1 : ∑ i, p i = 1) (hq1 : ∑ i, q i = 1) :
     tvDist p q = ∑ i ∈ Finset.univ.filter (fun i => q i ≤ p i), (p i - q i) := by
   have hsplit := Finset.sum_filter_add_sum_filter_not Finset.univ (fun i => q i ≤ p i)
       (fun i => |p i - q i|)
@@ -122,7 +122,7 @@ only decrease it. For nonnegative `a, b` on `S` with the absolute-continuity con
 `b i = 0 → a i = 0`, writing `A := ∑ i ∈ S, a i` and `B := ∑ i ∈ S, b i`,
 `A * log (A / B) ≤ ∑ i ∈ S, a i * log (a i / b i)`. Proved by the same `log x ≥ 1 - 1/x` termwise
 trick as `klFin_nonneg`, with an extra `A / B` renormalization factor, reusing
-`InformationTheory.Divergence.Binary.one_sub_div_le_log_div`; the degenerate case `B = 0`
+`one_sub_div_le_log_div`; the degenerate case `B = 0`
 (forcing `A = 0` by the a.c. hypothesis, via `b`'s nonnegativity) is handled separately since
 junk values make both sides `0` there. -/
 theorem logSum_ineq {I : Type*} {S : Finset I} {a b : I → ℝ}
@@ -193,7 +193,7 @@ theorem logSum_ineq {I : Type*} {S : Finset I} {a b : I → ℝ}
 /-- The two-block log-sum reduction: partitioning `Finset.univ` into `A := {q ≤ p}` and its
 complement and applying `logSum_ineq` on each block. `klBin P Q` unfolds to exactly
 `P * log (P/Q) + (1-P) * log ((1-P)/(1-Q))`. -/
-theorem klBin_le_klFin_partition {p q : I → ℝ}
+theorem klBin_le_klFin_partition
     (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hp1 : ∑ i, p i = 1) (hq1 : ∑ i, q i = 1)
     (hac : ∀ i, q i = 0 → p i = 0)
@@ -237,13 +237,13 @@ private theorem log_pinsker_boundary {t : ℝ} (ht0 : 0 < t) (ht1 : t ≤ 1) :
     2 * (1 - t) ^ 2 ≤ -Real.log t := by
   set h : ℝ → ℝ := fun x => -Real.log x - 2 * (1 - x) ^ 2 with hdef
   set h' : ℝ → ℝ := fun x => -x⁻¹ + 4 * (1 - x) with hdef'
-  have hderiv : ∀ x ∈ Set.Ioi (0:ℝ), HasDerivAt h (h' x) x := by
+  have hderiv : ∀ x ∈ Set.Ioi (0 : ℝ), HasDerivAt h (h' x) x := by
     intro x hx
     have hx0 : x ≠ 0 := (Set.mem_Ioi.mp hx).ne'
     have hlog : HasDerivAt Real.log x⁻¹ x := Real.hasDerivAt_log hx0
     have h1 : HasDerivAt (fun y : ℝ => -Real.log y) (-x⁻¹) x := hlog.neg
     have hid : HasDerivAt (fun y : ℝ => y) 1 x := hasDerivAt_id' (𝕜 := ℝ) x
-    have hsub : HasDerivAt (fun y : ℝ => (1:ℝ) - y) (-1) x := hid.const_sub 1
+    have hsub : HasDerivAt (fun y : ℝ => (1 : ℝ) - y) (-1) x := hid.const_sub 1
     have hsq : HasDerivAt (fun y : ℝ => (1 - y) ^ 2)
         ((2 : ℕ) * (1 - x) ^ (2 - 1) * (-1)) x := hsub.pow 2
     have h2 : HasDerivAt (fun y : ℝ => 2 * (1 - y) ^ 2)
@@ -256,7 +256,7 @@ private theorem log_pinsker_boundary {t : ℝ} (ht0 : 0 < t) (ht1 : t ≤ 1) :
     rw [hval] at hraw
     exact hraw
   have hantiOn : AntitoneOn h (Set.Ioi (0 : ℝ)) := by
-    apply antitoneOn_of_hasDerivWithinAt_nonpos (convex_Ioi (0:ℝ))
+    apply antitoneOn_of_hasDerivWithinAt_nonpos (convex_Ioi (0 : ℝ))
     · exact fun x hx => (hderiv x hx).continuousAt.continuousWithinAt
     · intro x hx
       rw [interior_Ioi] at hx
@@ -269,8 +269,8 @@ private theorem log_pinsker_boundary {t : ℝ} (ht0 : 0 < t) (ht1 : t ≤ 1) :
         field_simp
         ring
       nlinarith [sq_nonneg (2 * x - 1), hxh']
-  have h1mem : (1:ℝ) ∈ Set.Ioi (0:ℝ) := by norm_num
-  have htmem : t ∈ Set.Ioi (0:ℝ) := ht0
+  have h1mem : (1 : ℝ) ∈ Set.Ioi (0 : ℝ) := by norm_num
+  have htmem : t ∈ Set.Ioi (0 : ℝ) := ht0
   have hle : h 1 ≤ h t := hantiOn htmem h1mem ht1
   have hh1 : h 1 = 0 := by simp [hdef]
   rw [hh1] at hle
@@ -286,7 +286,7 @@ or interior: at `P = 0`, `Q = 0` too (nonnegativity plus `hac`), so `tvDist = 0`
 reduces to Gibbs' inequality `0 ≤ klFin p q` (`klFin_nonneg`); at `P = 1`, `klBin 1 Q` computes to
 `-Real.log Q` and `log_pinsker_boundary` closes it; on the interior, `two_mul_sq_le_klBin`
 applies directly. -/
-theorem pinsker {p q : I → ℝ}
+theorem pinsker
     (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hp1 : ∑ i, p i = 1) (hq1 : ∑ i, q i = 1)
     (hac : ∀ i, q i = 0 → p i = 0) :
@@ -324,7 +324,7 @@ theorem pinsker {p q : I → ℝ}
       · exact absurd (hQ0iff hQ0'.symm) hPpos.ne'
       · exact hQpos
     rcases hP1.eq_or_lt with hP1' | hPlt1
-    · have hQmem : Q ∈ Set.Ioc (0:ℝ) 1 := ⟨hQpos, hP1' ▸ hQP⟩
+    · have hQmem : Q ∈ Set.Ioc (0 : ℝ) 1 := ⟨hQpos, hP1' ▸ hQP⟩
       have hbound := log_pinsker_boundary hQmem.1 hQmem.2
       have hklBin1 : klBin P Q = -Real.log Q := by
         rw [hP1']
@@ -334,8 +334,8 @@ theorem pinsker {p q : I → ℝ}
       rw [hklBin1] at hpart
       nlinarith [hpart, hbound]
     · have hQlt1 : Q < 1 := lt_of_le_of_lt hQP hPlt1
-      have hPmem : P ∈ Set.Ioo (0:ℝ) 1 := ⟨hPpos, hPlt1⟩
-      have hQmem : Q ∈ Set.Ioo (0:ℝ) 1 := ⟨hQpos, hQlt1⟩
+      have hPmem : P ∈ Set.Ioo (0 : ℝ) 1 := ⟨hPpos, hPlt1⟩
+      have hQmem : Q ∈ Set.Ioo (0 : ℝ) 1 := ⟨hQpos, hQlt1⟩
       have hpinsker2 : 2 * (P - Q) ^ 2 ≤ klBin P Q := two_mul_sq_le_klBin hQmem hPmem
       rw [htv]
       linarith [hpart, hpinsker2]
@@ -349,7 +349,7 @@ Proved by weighted AM-GM (`Real.geom_mean_le_arith_mean_weighted`) on the suppor
 `p i > 0`, so every `log (z i)` is finite), while the arithmetic mean `∑ i ∈ S, p i * z i` equals
 `∑ i, sqrt (p i * q i)` (zero-mass rows contribute `0` on both sides). Only `hp1` (not `hq1`) is
 needed: the Hellinger affinity makes sense for sub-probability `q`. -/
-theorem hellinger_ge {p q : I → ℝ}
+theorem hellinger_ge
     (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hp1 : ∑ i, p i = 1)
     (hac : ∀ i, q i = 0 → p i = 0) :
@@ -442,7 +442,7 @@ theorem hellinger_ge {p q : I → ℝ}
 
 /-- `∑ i, min (p i) (q i) = 1 - tvDist p q`: the pointwise minimum sums to the total mass minus
 the total variation distance. -/
-private theorem min_sum_eq_one_sub_tvDist {p q : I → ℝ}
+private theorem min_sum_eq_one_sub_tvDist
     (hp1 : ∑ i, p i = 1) (hq1 : ∑ i, q i = 1) :
     ∑ i, min (p i) (q i) = 1 - tvDist p q := by
   have htv := tvDist_eq_max_set hp1 hq1
@@ -465,7 +465,7 @@ private theorem min_sum_eq_one_sub_tvDist {p q : I → ℝ}
   linarith [hsplit]
 
 /-- `∑ i, max (p i) (q i) ≤ 2`, from nonnegativity and `max a b ≤ a + b`. -/
-private theorem max_sum_le_two {p q : I → ℝ}
+private theorem max_sum_le_two
     (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hp1 : ∑ i, p i = 1) (hq1 : ∑ i, q i = 1) :
     ∑ i, max (p i) (q i) ≤ 2 := by
@@ -481,7 +481,7 @@ Cauchy-Schwarz (`Finset.sum_mul_sq_le_sq_mul_sq`) applied to `sqrt (min p q)` an
 — whose termwise product is `sqrt (p * q)` since `min * max = p * q` always — giving
 `(∑ sqrt (p q)) ^ 2 ≤ (∑ min p q) * (∑ max p q) ≤ (1 - tvDist p q) * 2`; combined with
 `hellinger_ge` squared, `exp (-(klFin p q)) ≤ (∑ sqrt (p q)) ^ 2 ≤ 2 * (1 - tvDist p q)`. -/
-theorem bretagnolle_huber {p q : I → ℝ}
+theorem bretagnolle_huber
     (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hp1 : ∑ i, p i = 1) (hq1 : ∑ i, q i = 1)
     (hac : ∀ i, q i = 0 → p i = 0) :
@@ -531,7 +531,7 @@ theorem bretagnolle_huber {p q : I → ℝ}
 false-alarm probability `∑_{i ∈ A} q i` plus its miss probability `∑_{i ∈ Aᶜ} p i` is bounded
 below by the information budget `(1/2) * exp (-(klFin p q))`. From `bretagnolle_huber` and the
 pointwise bounds `min p q ≤ q` (on `A`) and `min p q ≤ p` (on `Aᶜ`). -/
-theorem miss_add_falseAlarm_ge {p q : I → ℝ}
+theorem miss_add_falseAlarm_ge
     (hp0 : ∀ i, 0 ≤ p i) (hq0 : ∀ i, 0 ≤ q i)
     (hp1 : ∑ i, p i = 1) (hq1 : ∑ i, q i = 1)
     (hac : ∀ i, q i = 0 → p i = 0) [DecidableEq I] (A : Finset I) :

@@ -64,7 +64,7 @@ namespace InformationTheory
 /-- Binary Kullback-Leibler divergence `KL(Bernoulli q ‖ Bernoulli p)`, defined directly by its
 closed form rather than through Mathlib's measure-theoretic `klDiv`. Meaningful for
 `p, q ∈ (0, 1)`, but total (junk values elsewhere) so it can be applied at boundary points
-`P ∈ {0, 1}` too, as `InformationTheory.Divergence.Pinsker.pinsker` does. -/
+`P ∈ {0, 1}` too, as `pinsker` does. -/
 noncomputable def klBin (q p : ℝ) : ℝ :=
   q * Real.log (q / p) + (1 - q) * Real.log ((1 - q) / (1 - p))
 
@@ -97,7 +97,7 @@ theorem klBin_nonneg {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q ∈ Se
 
 /-- The chi-squared identity behind the upper bound: `q²/p + (1-q)²/(1-p) - 1` equals
 `(q - p)² / (p * (1 - p))`. -/
-private theorem sq_div_add_sq_div_sub_one {p q : ℝ} (hp0 : p ≠ 0) (hp1 : (1:ℝ) - p ≠ 0) :
+private theorem sq_div_add_sq_div_sub_one {p q : ℝ} (hp0 : p ≠ 0) (hp1 : (1 : ℝ) - p ≠ 0) :
     q ^ 2 / p + (1 - q) ^ 2 / (1 - p) - 1 = (q - p) ^ 2 / (p * (1 - p)) := by
   field_simp
   ring
@@ -108,8 +108,8 @@ theorem klBin_le_sq_div {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q ∈
     klBin q p ≤ (q - p) ^ 2 / (p * (1 - p)) := by
   obtain ⟨hp0, hp1⟩ := hp
   obtain ⟨hq0, hq1⟩ := hq
-  have h1p : (0:ℝ) < 1 - p := by linarith
-  have h1q : (0:ℝ) < 1 - q := by linarith
+  have h1p : (0 : ℝ) < 1 - p := by linarith
+  have h1q : (0 : ℝ) < 1 - q := by linarith
   have h1 : Real.log (q / p) ≤ q / p - 1 := Real.log_le_sub_one_of_pos (div_pos hq0 hp0)
   have h2 : Real.log ((1 - q) / (1 - p)) ≤ (1 - q) / (1 - p) - 1 :=
     Real.log_le_sub_one_of_pos (div_pos h1q h1p)
@@ -136,7 +136,7 @@ theorem two_mul_sq_le_klBin {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q
     2 * (q - p) ^ 2 ≤ klBin q p := by
   obtain ⟨hp0, hp1⟩ := hp
   obtain ⟨hq0, hq1⟩ := hq
-  have h1p : (0:ℝ) < 1 - p := by linarith
+  have h1p : (0 : ℝ) < 1 - p := by linarith
   -- The shifted function, its derivative, and its second derivative.
   set F : ℝ → ℝ := fun x =>
     x * (Real.log x - Real.log p) + (1 - x) * (Real.log (1 - x) - Real.log (1 - p))
@@ -146,7 +146,7 @@ theorem two_mul_sq_le_klBin {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q
   set F'' : ℝ → ℝ := fun x => 1 / x + 1 / (1 - x) - 4 with hF''def
   -- `F` at the deviated point recovers the goal; `F` at `p` is `0`.
   have hFq : F q = klBin q p - 2 * (q - p) ^ 2 := by
-    have h1q : (0:ℝ) < 1 - q := by linarith
+    have h1q : (0 : ℝ) < 1 - q := by linarith
     simp only [hFdef, klBin]
     rw [Real.log_div hq0.ne' hp0.ne', Real.log_div h1q.ne' h1p.ne']
   have hFp : F p = 0 := by simp [hFdef]
@@ -154,7 +154,7 @@ theorem two_mul_sq_le_klBin {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q
   have hderivF : ∀ x ∈ Set.Ioo (0 : ℝ) 1, HasDerivAt F (F' x) x := by
     intro x hx
     obtain ⟨hx0, hx1⟩ := hx
-    have h1x : (0:ℝ) < 1 - x := by linarith
+    have h1x : (0 : ℝ) < 1 - x := by linarith
     have hidx : HasDerivAt (fun y : ℝ => y) 1 x := hasDerivAt_id' (𝕜 := ℝ) x
     have hlogx : HasDerivAt Real.log x⁻¹ x := Real.hasDerivAt_log hx0.ne'
     have hA := hlogx.sub_const (Real.log p)
@@ -180,7 +180,7 @@ theorem two_mul_sq_le_klBin {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q
   have hderivF' : ∀ x ∈ Set.Ioo (0 : ℝ) 1, HasDerivAt F' (F'' x) x := by
     intro x hx
     obtain ⟨hx0, hx1⟩ := hx
-    have h1x : (0:ℝ) < 1 - x := by linarith
+    have h1x : (0 : ℝ) < 1 - x := by linarith
     have hidx : HasDerivAt (fun y : ℝ => y) 1 x := hasDerivAt_id' (𝕜 := ℝ) x
     have hlogx : HasDerivAt Real.log x⁻¹ x := Real.hasDerivAt_log hx0.ne'
     have hsub : HasDerivAt (fun y : ℝ => 1 - y) (-1) x := hidx.const_sub 1
@@ -199,7 +199,7 @@ theorem two_mul_sq_le_klBin {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q
   have hF''nonneg : ∀ x ∈ Set.Ioo (0 : ℝ) 1, 0 ≤ F'' x := by
     intro x hx
     obtain ⟨hx0, hx1⟩ := hx
-    have h1x : (0:ℝ) < 1 - x := by linarith
+    have h1x : (0 : ℝ) < 1 - x := by linarith
     have hprod : x * (1 - x) ≤ 1 / 4 := by nlinarith [sq_nonneg (x - 1 / 2)]
     have hprodpos : 0 < x * (1 - x) := mul_pos hx0 h1x
     have hkey : 4 ≤ 1 / x + 1 / (1 - x) := by
@@ -209,7 +209,7 @@ theorem two_mul_sq_le_klBin {p q : ℝ} (hp : p ∈ Set.Ioo (0 : ℝ) 1) (hq : q
     linarith
   -- `F'` is monotone on `(0,1)`.
   have hF'mono : MonotoneOn F' (Set.Ioo (0 : ℝ) 1) := by
-    apply monotoneOn_of_hasDerivWithinAt_nonneg (convex_Ioo (0:ℝ) 1)
+    apply monotoneOn_of_hasDerivWithinAt_nonneg (convex_Ioo (0 : ℝ) 1)
     · exact fun x hx => (hderivF' x hx).continuousAt.continuousWithinAt
     · intro x hx
       rw [interior_Ioo] at hx

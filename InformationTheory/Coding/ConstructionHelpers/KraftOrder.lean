@@ -35,7 +35,7 @@ lexicographic order and rank implement the enumeration.
 * `exists_equiv_fin_monotone`: Reorders a finite type to make lengths monotone, via `Tuple.sort`.
 -/
 
-@[expose] public section
+public section
 
 namespace InformationTheory
 

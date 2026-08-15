@@ -12,13 +12,13 @@ public import InformationTheory.Entropy.Basic
 # Maximum-entropy attainment on the uniform law
 
 This file records the max-entropy attainment fact underlying
-`InformationTheory.entropy_le_logb_card` (which only bounds entropy above by
+`entropy_le_logb_card` (which only bounds entropy above by
 `logb D (Fintype.card I)`, without exhibiting a law that attains it): the uniform law on a
 nonempty finite type attains exactly that bound. Instantiating this at the tuple type `Fin T → G`
 gives the entropy of the uniform law on `T`-tuples, which grows exactly linearly in `T` — this
 coincides with what `T` independent fresh uniform draws would give, but note the formalization:
 it is the entropy of the single uniform law on `Fin T → G`, not a statement about a product of
-`T` independent per-step laws (contrast `InformationTheory.klFin_productLaw` in
+`T` independent per-step laws (contrast `klFin_productLaw` in
 `Divergence.Tensorization`, which does formalize independence explicitly via `productLaw`).
 
 ## Main results
@@ -43,10 +43,10 @@ it is the entropy of the single uniform law on `Fin T → G`, not a statement ab
 
 ## References
 
-`InformationTheory.entropy_le_logb_card` in `InformationTheory/Entropy/ConditionalEntropy.lean`.
+`entropy_le_logb_card` in `InformationTheory/Entropy/ConditionalEntropy.lean`.
 -/
 
-@[expose] public section
+public section
 
 namespace InformationTheory
 

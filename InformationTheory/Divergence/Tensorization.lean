@@ -48,7 +48,7 @@ deleted in favor of `InformationTheory.Divergence.Basic`'s declarations.
 * `detector_miss_of_pathBudget` : **new in this port** (the composition the source experiments
   could not state, since `experiments/*.lean` files cannot import each other). The finite-horizon
   linear-debt/quadratic-information detection fence: composing `pathBudget` with
-  `InformationTheory.Divergence.Pinsker.miss_add_falseAlarm_ge` via `Real.exp` monotonicity,
+  `miss_add_falseAlarm_ge` via `Real.exp` monotonicity,
   false alarm under the prescribed law plus miss under the deviation law is bounded below by
   `½ · exp(−C · ∑ δ²)`, while the deviator's incentive debt scales as `∑ δ` (linear).
 
@@ -56,7 +56,7 @@ deleted in favor of `InformationTheory.Divergence.Basic`'s declarations.
 
 `experiments/ProductKLBudget.lean` (probe E61); `experiments/BinaryKLQuadratic.lean` (probe E51,
 the single-step binary analogue whose termwise `log t ≤ t - 1` route `klFin_mix_le_chiSq`
-reuses); `InformationTheory.Divergence.Pinsker.miss_add_falseAlarm_ge`, the testing corollary
+reuses); `miss_add_falseAlarm_ge`, the testing corollary
 `detector_miss_of_pathBudget` composes with.
 -/
 
@@ -177,7 +177,7 @@ of the per-step KL divergences, under per-step normalization of the **numerator*
 induction on `T`, peeling off the last step via `stepEquiv` and `klFin_prod_two`. **No
 nonnegativity hypothesis is needed**, since `klFin_prod_two` itself needs none, and
 `productLaw_sum_one` / `productLaw_ac` likewise need only normalization / absolute continuity.
-The relabeling step reuses `InformationTheory.Divergence.Basic.klFin_relabel`, applied along
+The relabeling step reuses `klFin_relabel`, applied along
 `(stepEquiv T I).symm` so that its `e.symm` matches `stepEquiv T I` in the direction the
 induction needs. -/
 theorem klFin_productLaw {I : Type*} [Fintype I] :
@@ -251,7 +251,7 @@ private theorem klFin_mix_le_chiSq_term {a b : ℝ} (ha : 0 ≤ a) (hb : 0 < b) 
 /-- The finite, discrete-KL analogue of the chi-squared upper bound: for a strictly positive
 base law `r` and an alternative `s` with `∑ s = 1`, the mixture `P_δ = (1 - δ) r + δ s` satisfies
 `D_KL(P_δ ‖ r) ≤ δ² · χ²(s, r)` for `δ ∈ [0, 1]`. This is the finite-support companion of
-`InformationTheory.Divergence.Binary.klBin_le_sq_div`; the same termwise `log t ≤ t - 1` route is
+`klBin_le_sq_div`; the same termwise `log t ≤ t - 1` route is
 used, then re-summed with the "both sum to `1`" cancellation of the linear term. Requires
 `∑ r = 1` in addition to `∑ s = 1` — necessary (not merely a proof artifact): the linear term
 `∑ (P_δ)_i - ∑ r_i` cancels only because both sums equal `1`. -/
@@ -330,7 +330,7 @@ theorem pathBudget {I : Type*} [Fintype I] (T : ℕ) (r s : Fin T → I → ℝ)
 
 open scoped Classical in
 /-- **The finite-horizon linear-debt/quadratic-information detection fence.** Composing
-`pathBudget` with `InformationTheory.Divergence.Pinsker.miss_add_falseAlarm_ge` via `Real.exp`
+`pathBudget` with `miss_add_falseAlarm_ge` via `Real.exp`
 antitonicity: for every rejection region `A`, false alarm under the prescribed (base) product law
 plus miss under the deviation (mixed) product law is bounded below by `½ · exp(−C · ∑ δ²)`. This
 is the composition the source experiments could not state, since `experiments/*.lean` files
@@ -379,7 +379,7 @@ theorem detector_miss_of_pathBudget {I : Type*} [Fintype I] (T : ℕ) (r s : Fin
       ≤ Real.exp
           (-(klFin (productLaw (fun t i => (1 - δ t) * r t i + δ t * s t i)) (productLaw r))) :=
     Real.exp_le_exp.mpr (by linarith [hbudget])
-  have hscaled := mul_le_mul_of_nonneg_left hexp_mono (by norm_num : (0:ℝ) ≤ 1 / 2)
+  have hscaled := mul_le_mul_of_nonneg_left hexp_mono (by norm_num : (0 : ℝ) ≤ 1 / 2)
   linarith [hscaled, htest]
 
 end InformationTheory

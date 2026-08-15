@@ -59,7 +59,7 @@ Corrections to the first draft of this map, verified directly against the files:
   `Sum`; numerator arithmetic, sum bounds, extension, codewords, and reordering are parallel
   inputs that meet only in `KraftConverse.lean`.
 - **Track C is far less constrained than it looks.** Only `KraftConverse` itself needs
-  `PrefixFree` (Track A). Every other Track C component can start immediately alongside PR 1
+  `IsPrefixFree` (Track A). Every other Track C component can start immediately alongside PR 1
   and PR 2.
 
 ## The missing refactor: extract `Entropy.Basic` — done, 2026-08-05
@@ -80,7 +80,7 @@ candidate for "the single most obviously-missing definition" — defined inside
 - `Entropy/PMF.lean` (~66 lines) is a separate adapter with `PMF.sum_toReal`, `entropyPMF`, and
   its nonnegativity and zero-entropy API, so `Entropy.Basic` does not import the PMF hierarchy.
 - `SourceCodingLowerBound.lean` imports `Entropy.Basic` and now holds only generic
-  `expectedLength` and `source_coding_lower_bound`.
+  `expectedLength` and `entropy_le_expectedLength`.
 - `Divergence/FiniteMeasure.lean` holds `pmfMeasure` and the `klFin`/`klDiv` compatibility
   bridge, with no coding-theory dependency.
 - `ConditionalEntropy.lean` and `Uniform.lean` import `Entropy.Basic` instead
@@ -128,9 +128,9 @@ of these can run in parallel with different reviewers.
 
 ### Wave 1 — no dependencies beyond the merged PR
 
-**PR 1 — `PrefixFree` + `Kraft`** (Track A) — ~160 lines. `PrefixFree.lean` (92) +
-`Coding/Kraft.lean` (68, `kraft_inequality` / `summable_kraft_sum` /
-`kraft_inequality_infinite`). Same
+**PR 1 — `PrefixFree` + `Kraft`** (Track A) — ~160 lines. `PrefixFree.lean` (85) +
+`Coding/Kraft.lean` (74, `IsPrefixFree.finsetSum_one_div_card_pow_length_le_one` /
+`summable_one_div_card_pow_length` / `tsum_one_div_card_pow_length_le_one`). Same
 "definition, then the named theorem" shape as #34108, direct continuation of the same series.
 Lowest-risk PR in the whole plan.
 
@@ -197,7 +197,7 @@ below); the remainder is genuinely general and worth having on its own.
 ### Wave 3 — two prerequisites
 
 **PR 10 — `SourceCodingLowerBound`, shrunk** (Track A) — ~174 lines after the extraction
-(`expectedLength`, `source_coding_lower_bound`). Needs PR 1 and PR 6. The theorem now assumes only
+(`expectedLength`, `entropy_le_expectedLength`). Needs PR 1 and PR 6. The theorem now assumes only
 `0 ≤ p i`: the normalized Kraft weights are strictly positive, so the zero-mass-tolerant Gibbs
 lemma from `Entropy.Basic` handles vanishing source probabilities directly.
 

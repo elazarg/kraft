@@ -11,11 +11,11 @@ public import InformationTheory.Entropy.ConditionalEntropy
 /-!
 # The chain rule for finite Kullback-Leibler divergence
 
-This file is the Kullback-Leibler mirror of `InformationTheory.entropy_chain_rule`, namely
+This file is the Kullback-Leibler mirror of `entropy_chain_rule`, namely
 `klFin p q = klFin (fst p) (fst q) + condKL p q` for two joint distributions `p, q` on the
 *same* product type, rather than the entropy chain rule's single distribution `p`. It reuses
-`InformationTheory.fst`/`InformationTheory.snd` (the marginals already built in
-`InformationTheory.Entropy.ConditionalEntropy`) and `InformationTheory.Divergence.Basic.klFin`.
+`fst`/`snd` (the marginals already built in `InformationTheory.Entropy.ConditionalEntropy`)
+and `klFin`.
 
 Ported from the GameTheory experiments layer (probe E59, verified 2026-08-05), consolidating
 previously duplicated local definitions.
@@ -53,15 +53,15 @@ previously duplicated local definitions.
 
 ## References
 
-`experiments/FiniteKLChainRule.lean` (probe E59); `InformationTheory.condEntropy` and
-`InformationTheory.entropy_chain_rule` in `InformationTheory/Entropy/ConditionalEntropy.lean`.
+`experiments/FiniteKLChainRule.lean` (probe E59); `condEntropy` and `entropy_chain_rule` in
+`InformationTheory/Entropy/ConditionalEntropy.lean`.
 -/
 
 @[expose] public section
 
 namespace InformationTheory
 
-variable {I J : Type*} [Fintype I] [Fintype J]
+variable {I J : Type*} [Fintype I] [Fintype J] {p q : I × J → ℝ}
 
 /-! ### Definition -/
 
@@ -77,7 +77,7 @@ omit [Fintype I] in
 /-- Joint-level absolute continuity descends to the first marginal: if `fst q` vanishes at `i`,
 every `q (i, j)` vanishes (sum of nonnegatives is zero iff every term is zero), hence by `hac`
 every `p (i, j)` vanishes, hence `fst p` vanishes at `i` too. -/
-theorem fst_ac {p q : I × J → ℝ} (hq0 : ∀ x, 0 ≤ q x) (hac : ∀ x, q x = 0 → p x = 0) :
+theorem fst_ac (hq0 : ∀ x, 0 ≤ q x) (hac : ∀ x, q x = 0 → p x = 0) :
     ∀ i, fst q i = 0 → fst p i = 0 := by
   intro i hi
   have hqrow : ∀ j, q (i, j) = 0 := by
@@ -94,7 +94,7 @@ omit [Fintype I] in
 Holds unconditionally on `p x = 0` rows (both sides vanish); on `p x > 0` rows, `hac` and the
 marginal bounds `le_fst` force all four of `p x`, `q x`, `fst p x.1`, `fst q x.1` positive, and
 the log of a product splits by `Real.log_mul`. -/
-private theorem pointwise_split_klFin {p q : I × J → ℝ}
+private theorem pointwise_split_klFin
     (hp0 : ∀ x, 0 ≤ p x) (hq0 : ∀ x, 0 ≤ q x) (hac : ∀ x, q x = 0 → p x = 0) (x : I × J) :
     p x * Real.log (p x / q x)
       = p x * Real.log (fst p x.1 / fst q x.1)
@@ -123,7 +123,7 @@ private theorem pointwise_split_klFin {p q : I × J → ℝ}
 omit [Fintype I] in
 /-- Grouping the marginal term of the joint sum by its first coordinate collapses to the
 marginal-level `klFin` summand. -/
-private theorem sum_mul_log_fst_ratio {p q : I × J → ℝ} (i : I) :
+private theorem sum_mul_log_fst_ratio (i : I) :
     ∑ j, p (i, j) * Real.log (fst p i / fst q i)
       = fst p i * Real.log (fst p i / fst q i) := by
   rw [← Finset.sum_mul]; rfl
@@ -132,7 +132,7 @@ private theorem sum_mul_log_fst_ratio {p q : I × J → ℝ} (i : I) :
 normalization hypothesis is needed (the identity is purely algebraic, like
 `entropy_chain_rule`); only nonnegativity and absolute continuity are used, to keep every term
 on the correct side of the sign trap. -/
-theorem klFin_chain_rule {p q : I × J → ℝ}
+theorem klFin_chain_rule
     (hp0 : ∀ x, 0 ≤ p x) (hq0 : ∀ x, 0 ≤ q x) (hac : ∀ x, q x = 0 → p x = 0) :
     klFin p q = klFin (fst p) (fst q) + condKL p q := by
   show ∑ x : I × J, p x * Real.log (p x / q x)
@@ -158,7 +158,7 @@ nonnegativity of `p` and `le_fst` force `p (i, ·) ≡ 0`, so the row vanishes. 
 the joint's total mass, so `klFin_nonneg`'s mass hypothesis is trivial: **no global
 normalization hypothesis is needed**, unlike a naive statement anticipating
 `hp1 : ∑ x, p x = 1` and `hq1 : ∑ x, q x ≤ 1`. -/
-theorem condKL_nonneg {p q : I × J → ℝ}
+theorem condKL_nonneg
     (hp0 : ∀ x, 0 ≤ p x) (hq0 : ∀ x, 0 ≤ q x) (hac : ∀ x, q x = 0 → p x = 0) :
     0 ≤ condKL p q := by
   show 0 ≤ ∑ x : I × J, p x * Real.log ((p x / fst p x.1) / (q x / fst q x.1))
@@ -223,7 +223,7 @@ theorem condKL_nonneg {p q : I × J → ℝ}
 /-- **Marginal data-processing corollary.** Dropping to the first marginal never increases KL
 divergence: `klFin (fst p) (fst q) ≤ klFin p q`. Immediate from `klFin_chain_rule` (the difference
 is exactly `condKL p q`) and `condKL_nonneg` (which is nonnegative). -/
-theorem klFin_fst_le {p q : I × J → ℝ}
+theorem klFin_fst_le
     (hp0 : ∀ x, 0 ≤ p x) (hq0 : ∀ x, 0 ≤ q x) (hac : ∀ x, q x = 0 → p x = 0) :
     klFin (fst p) (fst q) ≤ klFin p q := by
   have hchain := klFin_chain_rule hp0 hq0 hac

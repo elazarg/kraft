@@ -41,7 +41,7 @@ The proof technique uses the natural number bounds from `KraftNatural.lean` and 
 to obtain results for real-valued weights.
 
 Nothing in this repo depends on this file — `KraftConverse.lean` reaches its results via
-`PrefixFree`/`Coding.Kraft` instead. Kept deliberately for the `WeightModel` abstraction itself,
+`IsPrefixFree`/`Coding.Kraft` instead. Kept deliberately for the `WeightModel` abstraction itself,
 which is strictly more general than `Mathlib.InformationTheory.Coding.KraftMcMillan` (arbitrary
 monoids and real-valued weights, not just `List`/natural-number counting). Not proposed for
 upstreaming alongside `KraftNatural.lean` (see `UpstreamPlan.md`), for the same reason: it would
@@ -129,7 +129,7 @@ private lemma sum_inv_pow_cost_prodTuple_le
     {S : Finset M} {base : ℕ} {cost : M → ℕ} {r : ℕ}
     (base_pos : 0 < base)
     (cost_mul : ∀ a b, cost (a * b) = cost a + cost b)
-    (hgrowth : ExpBounded cost base)
+    (hgrowth : IsExpBounded cost base)
     (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ w : Fin r → S, ((base : ℝ≥0)⁻¹) ^ cost (prodTuple w)) ≤ (r * S.sup cost + 1 : ℝ≥0) := by
   let N := r * S.sup cost
@@ -155,7 +155,7 @@ lemma pow_sum_le_linear_bound_of_inj
     {S : Finset M} {base : ℕ}
     (base_pos : 0 < base)
     (m : WeightModel M base)
-    (hgrowth : ExpBounded m.cost base)
+    (hgrowth : IsExpBounded m.cost base)
     {r : ℕ}
     (hinj : Function.Injective (prodTuple (S := S) (r := r))) :
     (∑ x ∈ S, m.μ x) ^ r ≤ (r * (S.sup m.cost) + 1) := by
@@ -172,7 +172,7 @@ lemma pow_sum_le_linear_bound_of_inj
 /-- Kraft inequality under injectivity, in the abstract `WeightModel` setting.
 
 Assuming:
-* the growth axiom for `cost` (`ExpBounded`),
+* the growth axiom for `cost` (`IsExpBounded`),
 * and injectivity of `prodTuple` on `r`-tuples from `S` (a unique decoding hypothesis),
 
 we obtain `∑ x ∈ S, μ x ≤ 1`.
@@ -188,7 +188,7 @@ public lemma kraft_inequality_of_injective'
     {S : Finset M} {base : ℕ}
     (base_pos : 0 < base)
     (m : WeightModel M base)
-    (h_growth : ExpBounded m.cost base)
+    (h_growth : IsExpBounded m.cost base)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, m.μ x ≤ 1 := by
   set K : ℝ≥0 := ∑ x ∈ S, m.μ x
@@ -256,7 +256,7 @@ theorem kraft_inequality_of_injective_of_le
     (base_pos : 0 < base)
     (μ : M →* ℝ≥0)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : ExpBounded ℓ base)
+    (h_growth : IsExpBounded ℓ base)
     (hμ : ∀ x, μ x ≤ (base : ℝ≥0)⁻¹ ^ ℓ x)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, μ x ≤ 1 := by
@@ -267,7 +267,7 @@ theorem kraft_inequality_of_injective {ℓ : M → ℕ}
     {S : Finset M} {base : ℕ}
     (base_pos : 0 < base)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : ExpBounded ℓ base)
+    (h_growth : IsExpBounded ℓ base)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, ((base : ℝ≥0)⁻¹) ^ (ℓ x) ≤ 1 :=
   kraft_inequality_of_injective_of_le base_pos h_add h_growth (fun _ => le_rfl) h_inj
@@ -282,7 +282,7 @@ theorem kraft_inequality_of_injective_real {ℓ : M → ℕ}
     {S : Finset M} {base : ℕ}
     (base_pos : 0 < base)
     (h_add : ∀ a b, ℓ (a * b) = ℓ a + ℓ b)
-    (h_growth : ExpBounded ℓ base)
+    (h_growth : IsExpBounded ℓ base)
     (h_inj : ∀ r, Function.Injective (prodTuple (S := S) (r := r))) :
     ∑ x ∈ S, (1 / (base : ℝ)) ^ (ℓ x) ≤ 1 := by
   let k := kraft_inequality_of_injective base_pos h_add h_growth h_inj

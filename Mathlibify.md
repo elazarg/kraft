@@ -82,10 +82,10 @@ language feature, not a Mathlib-specific tool, so it should work unmodified in t
 `v4.32.2` (confirmed: mathlib's own `lakefile.toml` sets no module-related options beyond what's
 already in this repo's). Pilot it on `PrefixFree.lean` first — small, but not trivial: it
 now has two public imports (`Set.Subsingleton` and
-`InformationTheory.Coding.UniquelyDecodable`) because `PrefixFree` and
-`PrefixFree.uniquelyDecodable` expose `Set`/`UniquelyDecodable` types in their signatures.
+`InformationTheory.Coding.UniquelyDecodable`) because `IsPrefixFree` and
+`IsPrefixFree.isUniquelyDecodable` expose `Set`/`UniquelyDecodable` types in their signatures.
 Verify `lake build` still succeeds and downstream importers (`InformationTheory/Coding/Kraft.lean`,
-`KraftConverse.lean`, the root `Kraft.lean` aggregator) still resolve `PrefixFree` correctly.
+`KraftConverse.lean`, the root `Kraft.lean` aggregator) still resolve `IsPrefixFree` correctly.
 
 **Phase 1 — mechanical, low-risk, can be scripted (1 day).**
 - Delete the 4 stale `open scoped BigOperators` lines; rebuild to confirm they were genuinely
