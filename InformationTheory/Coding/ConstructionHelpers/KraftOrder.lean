@@ -146,8 +146,8 @@ private lemma kraftRank_surjective {I : Type*} [Infinite I] (l : I → ℕ) (e :
           intro a
           subst hi
           apply h_inj
-          simp_all only)]
-        simp_all only [kraftRank, le_refl]
+          simp_all)]
+        simp_all [kraftRank]
     have hi := Finset.ext_iff.mp h_image m
     simp only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_setOf_eq,
                Finset.mem_range, hm, iff_true] at hi

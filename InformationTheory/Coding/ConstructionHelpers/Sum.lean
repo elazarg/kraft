@@ -75,7 +75,7 @@ lemma prefix_sum_lt_one_of_fin_sum_le_one
     have h_eq : (∑ j : Fin k, (1 / (D : ℝ)) ^ l j)
      = (∑ t ∈ Finset.range k, (1 / (D : ℝ)) ^ l t) := by
       simpa using (Fin.sum_univ_eq_sum_range (n := k) (fun t : ℕ => (1 / (D : ℝ)) ^ l t))
-    simp_all only
+    simp_all
 
 end Sum
 

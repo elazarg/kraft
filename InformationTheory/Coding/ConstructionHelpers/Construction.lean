@@ -58,7 +58,7 @@ lemma kraftNumerator.div_pow_eq_sum {D : ℕ} (hD : 0 < D) {l : ℕ → ℕ} (h_
   have hD_ne : (D : ℝ) ≠ 0 := ne_of_gt hD_pos
   induction n with
   | zero =>
-    simp only [kraftNumerator, CharP.cast_eq_zero, zero_div, Finset.range_zero, Finset.sum_empty]
+    simp [kraftNumerator]
   | succ n ih =>
     simp only [one_div, inv_pow, Finset.sum_range_succ]
     have h_sub :
@@ -70,7 +70,7 @@ lemma kraftNumerator.div_pow_eq_sum {D : ℕ} (hD : 0 < D) {l : ℕ → ℕ} (h_
     rw [show l (n + 1) = l n + (l (n + 1) - l n) by rw [Nat.add_sub_of_le (h_mono (Nat.le_succ n))]]
     rw [pow_add]
     field_simp
-    simp only [add_tsub_cancel_left]
+    simp
 
 /-- Distinct code intervals are quantitatively separated: the interval following `i`, scaled
 to the length at `j`, starts no later than the interval at `j`. -/

@@ -153,7 +153,7 @@ theorem entropy_le_expectedLength
       calc K
         = ∑ c ∈ Finset.univ.image w, (1 / (D : ℝ)) ^ c.length := by
               simp [K, L]
-              simp_all only [Finset.coe_univ, injOn_univ, Finset.sum_image]
+              simp_all [Finset.sum_image]
         _ ≤ 1 := by
               have hudS : UniquelyDecodable (Finset.univ.image w : Set (List α)) := by
                 simp [hud]

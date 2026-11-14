@@ -144,7 +144,7 @@ theorem logSum_ineq {I : Type*} {S : Finset I} {a b : I → ℝ}
     apply le_of_eq
     refine Eq.symm (Finset.sum_eq_zero (fun i hi => ?_))
     rw [ha0 i hi]
-    simp only [zero_div, Real.log_zero, mul_zero]
+    simp
   · have key : ∀ i ∈ S,
         a i - (A / B) * b i ≤ a i * Real.log (a i / b i) - a i * Real.log (A / B) := by
       intro i hi
@@ -274,7 +274,7 @@ private theorem log_pinsker_boundary {t : ℝ} (ht0 : 0 < t) (ht1 : t ≤ 1) :
   have hle : h 1 ≤ h t := hantiOn htmem h1mem ht1
   have hh1 : h 1 = 0 := by simp [hdef]
   rw [hh1] at hle
-  have hle' : 0 ≤ -Real.log t - 2 * (1 - t) ^ 2 := by simpa only [hdef] using hle
+  have hle' : 0 ≤ -Real.log t - 2 * (1 - t) ^ 2 := by simpa [hdef] using hle
   linarith
 
 /-! ### Pinsker's inequality -/

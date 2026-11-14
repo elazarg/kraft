@@ -55,12 +55,12 @@ theorem entropyPMF_nonneg (D : ℕ) (hD : 1 < D) (p : PMF I) :
 theorem entropyPMF_eq_zero_iff (D : ℕ) (hD : 1 < D) (p : PMF I) :
     entropyPMF D p = 0 ↔ ∃ i, p i = 1 := by
   rw [entropyPMF, entropy_eq_zero_iff D hD (fun _ => ENNReal.toReal_nonneg) p.sum_toReal]
-  simp only [ENNReal.toReal_eq_one_iff]
+  simp [ENNReal.toReal_eq_one_iff]
 
 /-- A finite probability mass function has zero entropy exactly when its support is a singleton. -/
 theorem entropyPMF_eq_zero_iff_support_singleton (D : ℕ) (hD : 1 < D) (p : PMF I) :
     entropyPMF D p = 0 ↔ ∃ i, p.support = {i} := by
   rw [entropyPMF_eq_zero_iff D hD p]
-  simp only [p.apply_eq_one_iff]
+  simp [p.apply_eq_one_iff]
 
 end InformationTheory

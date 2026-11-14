@@ -266,7 +266,7 @@ theorem card_pow_le_linear_mul_sum_pow_len_pow
     (S.card ^ r) ≤ (r * S.sup len + 1) * (∑ x ∈ S, base ^ (len x)) ^ r := by
   by_cases (r = 0)
   · subst r
-    simp only [pow_zero, zero_mul, zero_add, mul_one, Std.le_refl]
+    simp
 
   classical
   -- abbreviations
