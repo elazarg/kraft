@@ -8,7 +8,7 @@ module
 public import Mathlib.Algebra.BigOperators.Fin
 public import Mathlib.Analysis.SpecialFunctions.Pow.Real
 public import Mathlib.Data.Finset.Basic
-public import Mathlib.Data.Real.Basic
+public import Mathlib.Basic.Real.Basic
 public import Mathlib.Order.Interval.Finset.Nat
 
 import Mathlib.Tactic.FieldSimp

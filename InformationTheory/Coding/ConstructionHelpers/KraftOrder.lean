@@ -6,9 +6,9 @@ Authors: Elazar Gershuni
 module
 
 public import Mathlib.Analysis.SpecialFunctions.Pow.Real
-public import Mathlib.Data.Finite.Defs
+public import Mathlib.Basic.Finite.Defs
 public import Mathlib.Data.Finset.Basic
-public import Mathlib.Data.Real.Basic
+public import Mathlib.Basic.Real.Basic
 public import Mathlib.Data.Set.Finite.Basic
 public import Mathlib.Order.Hom.Basic
 public import Mathlib.Order.Northcott
@@ -76,7 +76,7 @@ private lemma KraftOrder_finite_initial_segment {I : Type*} (l : I → ℕ) (e :
     -- We rewrite the set of elements with smaller length as a bounded Union of fibers
     have h_decomp : {j | l j < l i} = ⋃ k ∈ Finset.range (l i), {j | l j = k} := by
       ext x
-      simp only [Set.mem_setOf_eq, Set.mem_iUnion, Finset.mem_range]
+      simp only [Set.mem_ofPred_eq, Set.mem_iUnion, Finset.mem_range]
       constructor
       · intro h
         use (l x)
@@ -106,11 +106,11 @@ private lemma kraftRank_lt_of_KraftOrder {I : Type*} (l : I → ℕ) (e : I ↪ 
   constructor
   · -- Subset: {x | x < i} ⊆ {x | x < j} by transitivity
     intro x
-    simp only [Set.Finite.mem_toFinset, Set.mem_setOf_eq]
+    simp only [Set.Finite.mem_toFinset, Set.mem_ofPred_eq]
     intro h
     exact (KraftOrder_isStrictTotalOrder l e).trans x i j h (by assumption)
   · -- Strictness: i ∈ {x | x < j} but i ∉ {x | x < i}
-    simp only [ne_eq, Finset.ext_iff, Set.Finite.mem_toFinset, Set.mem_setOf_eq, not_forall]
+    simp only [ne_eq, Finset.ext_iff, Set.Finite.mem_toFinset, Set.mem_ofPred_eq, not_forall]
     use i
     intro hm
     rw [<-hm] at h
@@ -139,7 +139,7 @@ private lemma kraftRank_surjective {I : Type*} [Infinite I] (l : I → ℕ) (e :
         (KraftOrder_finite_initial_segment l e h_finite i).toFinset = Finset.range n := by
       apply Finset.eq_of_subset_of_card_le
       · intro x hx
-        simp only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_setOf_eq] at hx
+        simp only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_ofPred_eq] at hx
         obtain ⟨j, hj, rfl⟩ := hx
         exact Finset.mem_range.mpr (hi ▸ kraftRank_lt_of_KraftOrder l e h_finite hj)
       · rw [Finset.card_range, Finset.card_image_of_injective _ (fun _ _ => by
@@ -149,7 +149,7 @@ private lemma kraftRank_surjective {I : Type*} [Infinite I] (l : I → ℕ) (e :
           simp_all)]
         simp_all [kraftRank]
     have hi := Finset.ext_iff.mp h_image m
-    simp only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_setOf_eq,
+    simp only [Finset.mem_image, Set.Finite.mem_toFinset, Set.mem_ofPred_eq,
                Finset.mem_range, hm, iff_true] at hi
     obtain ⟨a, ⟨_, hl⟩⟩ := hi
     use a

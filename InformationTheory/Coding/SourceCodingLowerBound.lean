@@ -68,14 +68,14 @@ theorem entropy_le_expectedLength
     (hp_sum : ∑ i, p i = 1)
     (w : I → List α)
     (hw : Function.Injective w)
-    (hud : UniquelyDecodable (Set.range w)) :
+    (hud : IsUniquelyDecodable (Set.range w)) :
     entropy (Fintype.card α) p ≤ expectedLength p w := by
   classical
   let D := Fintype.card α
   change entropy D p ≤ expectedLength p w
   have hD : 1 < D := Fintype.one_lt_card
-  letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
-    letI := hI
+  let : Nonempty I := not_isEmpty_iff.mp fun hI => by
+    let := hI
     simp at hp_sum
   let L : I → ℕ := fun i => (w i).length
   let K : ℝ := ∑ i, (1 / (D : ℝ)) ^ (L i)
@@ -155,9 +155,9 @@ theorem entropy_le_expectedLength
               simp [K, L]
               simp_all [Finset.sum_image]
         _ ≤ 1 := by
-              have hudS : UniquelyDecodable (Finset.univ.image w : Set (List α)) := by
+              have hudS : IsUniquelyDecodable (Finset.univ.image w : Set (List α)) := by
                 simp [hud]
-              simpa [D] using kraft_mcmillan_inequality hudS
+              simpa [D] using IsUniquelyDecodable.finsetSum_one_div_card_pow_length_le_one hudS
     simpa using log_le_log hK_pos hK_le_one
   -- Now show `log K / log D ≤ 0` and conclude
   have hlogK_div_le0 : log K / log D ≤ 0 :=

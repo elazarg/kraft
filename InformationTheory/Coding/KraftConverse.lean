@@ -9,7 +9,7 @@ public import Mathlib.Algebra.BigOperators.Fin
 public import Mathlib.Analysis.SpecialFunctions.Pow.Real
 public import Mathlib.Data.Fintype.Card
 public import Mathlib.Data.List.Basic
-public import Mathlib.Data.Real.Basic
+public import Mathlib.Basic.Real.Basic
 public import Mathlib.Data.Set.Basic
 public import InformationTheory.Coding.PrefixFree
 
@@ -327,7 +327,7 @@ theorem exists_code [Fintype α] [Nontrivial α]
 
   by_cases h_finite : Finite I
   · -- Finite Case
-    haveI := Fintype.ofFinite I
+    let := Fintype.ofFinite I
     obtain ⟨e, he_mono⟩ := exists_equiv_fin_monotone l
 
     have h_sum_fin : ∑ i, (1 / D : ℝ) ^ l (e i) ≤ 1 := by
@@ -348,7 +348,7 @@ theorem exists_code [Fintype α] [Nontrivial α]
     simp [hw_len]
 
   · -- Infinite Case
-    haveI : Infinite I := not_finite_iff_infinite.mp h_finite
+    have : Infinite I := not_finite_iff_infinite.mp h_finite
     obtain ⟨e, he_mono⟩ := exists_equiv_nat_monotone_of_summable hD h_summable
 
     have h_sum_nat : ∑' i : ℕ, (1 / D : ℝ) ^ l (e i) ≤ 1 := by
@@ -379,7 +379,7 @@ theorem exists_code_of_embedding
       Function.Injective w ∧
       IsPrefixFree (Set.range w) ∧
       ∀ i, (w i).length = l i := by
-  letI : Nontrivial (Fin D) := Fin.nontrivial_iff_two_le.mpr hD
+  let : Nontrivial (Fin D) := Fin.nontrivial_iff_two_le.mpr hD
   obtain ⟨w_D, hw_inj, hw_pf, hw_len⟩ := exists_code (α := Fin D) l
     (by simpa using h_summable) (by simpa using h_sum)
   have htp := transport_code (e := Equiv.refl I) (f := ι) hw_inj hw_pf

@@ -46,7 +46,7 @@ theorem IsPrefixFree.finsetSum_one_div_card_pow_length_le_one
   · have hS' : S = {[]} := by
       exact_mod_cast hS.eq_singleton_empty_of_empty_mem hε
     simp [hS']
-  · exact kraft_mcmillan_inequality (hS.isUniquelyDecodable hε)
+  · exact IsUniquelyDecodable.finsetSum_one_div_card_pow_length_le_one (hS.isUniquelyDecodable hε)
 
 private lemma finsetSum_one_div_card_pow_length_of_subtype
     {S : Set (List α)} (hS : IsPrefixFree S) (F : Finset S) :

@@ -54,8 +54,8 @@ theorem exists_prefix_code_near_entropy
       IsPrefixFree (Set.range w) ∧
       expectedLength p w < entropy D p + 1 := by
   classical
-  letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
-    letI := hI
+  let : Nonempty I := not_isEmpty_iff.mp fun hI => by
+    let := hI
     simp at hp_sum
   let l : I → ℕ := shannonFanoLength (D := D) p
 
@@ -86,7 +86,7 @@ theorem exists_prefix_code_near_entropy
   --------------------------------------------------------------------
   -- Step 2: Invoke Converse library to get an actual prefix-free code
   --------------------------------------------------------------------
-  haveI : Nontrivial (Fin D) :=
+  have : Nontrivial (Fin D) :=
     Fintype.one_lt_card_iff_nontrivial.mp (by simpa using hD)
 
   have hs : Summable (fun i : I => (1 / (Fintype.card (Fin D)) : ℝ) ^ l i) := by

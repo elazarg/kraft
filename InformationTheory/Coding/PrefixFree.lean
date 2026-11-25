@@ -48,7 +48,7 @@ lemma IsPrefixFree.anti (hS : IsPrefixFree S) (hTS : T ⊆ S) : IsPrefixFree T :
 
 /-- A prefix-free code not containing the empty word is uniquely decodable. -/
 theorem IsPrefixFree.isUniquelyDecodable (hS : IsPrefixFree S) (hε : [] ∉ S) :
-    UniquelyDecodable S := by
+    IsUniquelyDecodable S := by
   intro L₁ L₂ hL₁ hL₂ hflatten
   induction L₁ generalizing L₂ with
   | nil =>
@@ -78,7 +78,7 @@ theorem IsPrefixFree.isUniquelyDecodable (hS : IsPrefixFree S) (hε : [] ∉ S) 
 
 /-- A nontrivial prefix-free code is uniquely decodable. -/
 theorem IsPrefixFree.isUniquelyDecodable_of_nontrivial (hS : IsPrefixFree S)
-    (hS' : S.Nontrivial) : UniquelyDecodable S :=
+    (hS' : S.Nontrivial) : IsUniquelyDecodable S :=
   hS.isUniquelyDecodable fun hε ↦
     hS'.ne_singleton (hS.eq_singleton_empty_of_empty_mem hε)
 

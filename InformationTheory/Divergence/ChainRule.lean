@@ -8,6 +8,8 @@ module
 public import InformationTheory.Divergence.Basic
 public import InformationTheory.Entropy.ConditionalEntropy
 
+import Mathlib.Algebra.BigOperators.Field
+
 /-!
 # The chain rule for finite Kullback-Leibler divergence
 

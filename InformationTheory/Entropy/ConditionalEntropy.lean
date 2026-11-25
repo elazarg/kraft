@@ -210,7 +210,7 @@ theorem entropy_jointOfGraph (D : ℕ) (g : I → J) (q : I → ℝ) :
   rw [Finset.sum_eq_single (g i)]
   · simp
   · intro j _ hj
-    simp only [if_neg hj]
+    simp only [ite_eq_right hj]
     exact negMulLog_zero
   · intro h; exact absurd (Finset.mem_univ (g i)) h
 
@@ -278,8 +278,8 @@ theorem condEntropy_le_entropy_snd (D : ℕ) (hD : 1 < D) {p : I × J → ℝ}
 theorem entropy_le_logb_card (D : ℕ) (hD : 1 < D)
     {p : I → ℝ} (hp : ∀ i, 0 ≤ p i) (hp_sum : ∑ i, p i = 1) :
     entropy D p ≤ logb D (Fintype.card I) := by
-  letI : Nonempty I := not_isEmpty_iff.mp fun hI => by
-    letI := hI
+  let : Nonempty I := not_isEmpty_iff.mp fun hI => by
+    let := hI
     simp at hp_sum
   have hlogD_pos : 0 < log D := log_pos (by exact_mod_cast hD)
   have hcardR_pos : (0 : ℝ) < (Fintype.card I : ℝ) := by exact_mod_cast Fintype.card_pos

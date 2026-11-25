@@ -10,8 +10,8 @@ public import Mathlib.Analysis.SpecialFunctions.Pow.Real
 public import Mathlib.Analysis.SpecificLimits.Normed
 public import Mathlib.Data.Finset.Basic
 public import Mathlib.Data.List.OfFn
-public import Mathlib.Data.NNReal.Basic
-public import Mathlib.Data.Real.Basic
+public import Mathlib.Basic.NNReal.Basic
+public import Mathlib.Basic.Real.Basic
 public import InformationTheory.Coding.KraftNatural
 
 import Mathlib.Tactic.Linarith
